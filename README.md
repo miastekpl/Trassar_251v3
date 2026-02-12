@@ -1,24 +1,63 @@
-# TrassarV3 - Sterownik maszyny malarskiej
+# TrassarV3 - Komputer pokładowy malowarki pasów drogowych
 
-Firmware dla sterownika automatycznej maszyny malarskiej oparty na platformie **ESP32-S3 N16R8**.
+Firmware komputera pokładowego malowarki pasów drogowych oparty na platformie **ESP32-S3 N16R8**.
+Obsługuje **6 pistoletów natryskowych**, **15 wzorców malowania** zgodnych z polskimi normami oznakowania drogowego, kalibrację enkodera i obliczanie powierzchni malowanej.
 
 ## Funkcje
 
-- **Wyświetlacz TFT 2.8" ILI9341** (240x320, SPI) - interfejs graficzny z menu
-- **Serwer WWW** - zdalny panel sterowania przez WiFi (Access Point)
+- **6 pistoletów natryskowych** (P1-P6) sterowanych przekaźnikami
+- **15 wzorców malowania** (P-1a...P-7d) - polskie normy oznakowania
+- **Kalibracja enkodera** - procedura 10m z zapisem do NVS
+- **Obliczanie powierzchni** - na podstawie dystansu i szerokości pistoletów
+- **Zmiana wzorca w trakcie malowania** (on-the-fly)
+- **Odwracanie wzorców P-3a/P-3b** (zamiana ciągła ↔ przerywana)
+- **Wyświetlacz TFT 2.8" ILI9341** (240x320, SPI) - 9 ekranów interfejsu
+- **Serwer WWW** - panel sterowania przez WiFi AP z 15 przyciskami wzorców
 - **Zegar RTC DS1307** - czas rzeczywisty z podtrzymaniem bateryjnym
-- **Nawigacja** - 3 przyciski BS-33B + enkoder obrotowy
-- **Sterowanie malowaniem** - start, pauza, stop, regulacja prędkości
+- **Statystyki** - sesja + łączne (dystans, powierzchnia, czas pracy)
+- **Pamięć trwała NVS** - kalibracja, statystyki, ostatni wzorzec
+
+## Pistolety i ich zastosowanie
+
+| Pistolet | Szerokość | Opis | GPIO |
+|----------|-----------|------|------|
+| **P1** | 12 cm | Oś jezdni - lewy | 41 |
+| **P2** | 12 cm | Oś jezdni - środek | 42 |
+| **P3** | 12 cm | Oś jezdni - prawy | 1 |
+| **P4** | 24 cm | Oś jezdni - szeroki | 2 |
+| **P5** | 12 cm | Krawędź - wąska | 3 |
+| **P6** | 24 cm | Krawędź - szeroka | 4 |
+
+## Wzorce malowania
+
+| Wzorzec | Nazwa | Kreska/Przerwa | Pistolet | Szer. |
+|---------|-------|----------------|----------|-------|
+| P-1a | Przerywana długa | 6m / 6m | P2 | 12cm |
+| P-1b | Przerywana krótka | 3m / 3m | P2 | 12cm |
+| P-1c | Wydzielająca | 3m / 1.5m | P2 | 12cm |
+| P-1d | Prowadząca wąska | 1m / 1m | P2 | 12cm |
+| P-1e | Prowadząca szeroka | 1m / 1m | P4 | 24cm |
+| P-2a | Ciągła wąska | ciągła | P2 | 12cm |
+| P-2b | Ciągła szeroka | ciągła | P4 | 24cm |
+| P-3a | Przekraczalna długa | ciągła + 6m/6m | P1+P3 | 12cm |
+| P-3b | Przekraczalna krótka | ciągła + 3m/3m | P1+P3 | 12cm |
+| P-4 | Podwójna ciągła | ciągła + ciągła | P1+P3 | 12cm |
+| P-6 | Ostrzegawcza | 1m / 1m | P5 | 12cm |
+| P-7a | Krawędziowa przeryw. szer. | 1m / 2m | P6 | 24cm |
+| P-7b | Krawędziowa ciągła szer. | ciągła | P6 | 24cm |
+| P-7c | Krawędziowa przeryw. wąska | 1m / 2m | P5 | 12cm |
+| P-7d | Krawędziowa ciągła wąska | ciągła | P5 | 12cm |
 
 ## Komponenty sprzętowe
 
 | Komponent | Opis |
 |-----------|------|
 | ESP32-S3 N16R8 | Płytka deweloperska, 16MB Flash, 8MB PSRAM |
-| ILI9341 2.8" | Wyświetlacz LCD 240x320 SPI z panelem dotykowym |
+| ILI9341 2.8" | Wyświetlacz LCD 240x320 SPI |
 | DS1307 | Zegar RTC z baterią |
 | BS-33B x3 | Przyciski monostabilne (Start/Pauza, Stop, Selektor) |
-| Enkoder obrotowy | Z przyciskiem, do nawigacji i regulacji wartości |
+| Enkoder obrotowy | Pomiar dystansu + nawigacja menu |
+| Moduły przekaźnikowe x6 | Sterowanie pistoletami P1-P6 |
 
 ## Podłączenie WiFi
 
@@ -49,21 +88,27 @@ pio device monitor
 
 ```
 TrassarV3/
-├── platformio.ini          # Konfiguracja PlatformIO
+├── platformio.ini              # Konfiguracja PlatformIO
 ├── src/
-│   ├── main.cpp            # Główny plik programu
-│   ├── config.h            # Definicje pinów i stałych
-│   ├── display_manager.h/cpp   # Obsługa wyświetlacza ILI9341
-│   ├── button_handler.h/cpp    # Obsługa przycisków i enkodera
+│   ├── main.cpp                # Główny plik programu (11 modułów)
+│   ├── config.h                # Definicje pinów, enumów, struktur
+│   ├── patterns.h/cpp          # 15 wzorców malowania
+│   ├── guns.h/cpp              # Kontroler 6 przekaźników
+│   ├── encoder_distance.h/cpp  # Pomiar dystansu, prędkości, kalibracja
+│   ├── painting_engine.h/cpp   # Silnik malowania (maszyna stanów)
+│   ├── statistics.h/cpp        # Statystyki (sesja + lifetime)
+│   ├── storage.h/cpp           # Pamięć trwała NVS (Preferences)
+│   ├── display_manager.h/cpp   # Obsługa wyświetlacza (9 ekranów)
+│   ├── button_handler.h/cpp    # Obsługa przycisków BS-33B
 │   ├── rtc_handler.h/cpp       # Obsługa zegara RTC DS1307
-│   ├── web_server.h/cpp        # Serwer WWW (WiFi AP)
-│   └── menu.h/cpp              # System menu
+│   ├── web_server.h/cpp        # Serwer WWW (WiFi AP + REST API)
+│   └── menu.h/cpp              # System menu (nawigacja 9 ekranów)
 ├── docs/
 │   ├── INSTRUKCJA_OBSLUGI.md   # Instrukcja obsługi
 │   ├── SCHEMAT_PODLACZEN.md    # Schemat podłączeń
 │   └── API_WWW.md              # Dokumentacja API serwera
-├── CHANGELOG.md            # Historia zmian
-└── README.md               # Ten plik
+├── CHANGELOG.md                # Historia zmian
+└── README.md                   # Ten plik
 ```
 
 ## Dokumentacja
@@ -75,7 +120,7 @@ TrassarV3/
 
 ## Wersja
 
-Aktualna wersja firmware: **v1.0.0**
+Aktualna wersja firmware: **v2.0.0**
 
 ## Licencja
 

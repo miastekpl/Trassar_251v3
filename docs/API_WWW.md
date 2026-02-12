@@ -1,4 +1,4 @@
-# TrassarV3 - API serwera WWW
+# TrassarV3 - API serwera WWW v2.0.0
 
 ## Informacje ogólne
 
@@ -7,6 +7,7 @@
 - **Tryb WiFi:** Access Point
 - **SSID:** TrassarV3
 - **Hasło:** 12345678
+- **Max klientów:** 4
 
 ## Endpointy
 
@@ -15,6 +16,16 @@
 Zwraca stronę HTML panelu sterowania.
 
 **Odpowiedź:** `text/html` - pełna strona z interfejsem graficznym
+
+Panel zawiera:
+- Status maszyny z animowanym wskaźnikiem
+- Informacje: wzorzec, prędkość, dystans, powierzchnia, czas
+- Przyciski START / PAUZA / STOP
+- 15 przycisków wzorców pogrupowanych: P-1x, P-2x, P-3x, P-4/P-6, P-7x
+- Przycisk odwracania (dla P-3a/P-3b)
+- Wskaźniki 6 pistoletów (P1-P6)
+- Sekcja kalibracji enkodera
+- Informacje systemowe
 
 ---
 
@@ -27,14 +38,22 @@ Zwraca aktualny stan systemu w formacie JSON.
 ```json
 {
     "state": "idle",
-    "speed": 50,
-    "passes": 1,
-    "currentPass": 0,
+    "pattern": "P-1a",
+    "patternName": "Przerywana dluga",
+    "reversed": false,
+    "speed": "0.0",
+    "distance": "0.0",
+    "area": "0.00",
+    "elapsed": 0,
+    "firmware": "2.0.0",
     "freeHeap": 245760,
     "uptime": 3600,
-    "firmware": "1.0.0",
     "clients": 1,
-    "elapsed": 0
+    "calibrated": true,
+    "ppm": "100.0",
+    "calibrating": false,
+    "calPulses": "0",
+    "guns": [false, false, false, false, false, false]
 }
 ```
 
@@ -42,15 +61,23 @@ Zwraca aktualny stan systemu w formacie JSON.
 
 | Pole | Typ | Opis |
 |------|-----|------|
-| `state` | string | Stan maszyny: `idle`, `running`, `paused`, `stopped`, `error` |
-| `speed` | int | Prędkość malowania 0-100 [%] |
-| `passes` | int | Ustawiona liczba przejść |
-| `currentPass` | int | Aktualny numer przejazdu |
+| `state` | string | Stan maszyny: `idle`, `painting`, `paused`, `stopped` |
+| `pattern` | string | Kod aktualnego wzorca (np. "P-1a") |
+| `patternName` | string | Nazwa wzorca |
+| `reversed` | bool | Czy wzorzec jest odwrócony |
+| `speed` | string | Prędkość [km/h] |
+| `distance` | string | Dystans sesji [m] |
+| `area` | string | Powierzchnia sesji [m²] |
+| `elapsed` | int | Czas malowania sesji [sekundy] |
+| `firmware` | string | Wersja firmware |
 | `freeHeap` | int | Wolna pamięć RAM [bajty] |
 | `uptime` | int | Czas pracy od uruchomienia [sekundy] |
-| `firmware` | string | Wersja firmware |
 | `clients` | int | Liczba podłączonych klientów WiFi |
-| `elapsed` | int | Czas trwania malowania [sekundy] |
+| `calibrated` | bool | Czy enkoder jest skalibrowany |
+| `ppm` | string | Impulsy na metr |
+| `calibrating` | bool | Czy trwa kalibracja |
+| `calPulses` | string | Impulsy zebrane podczas kalibracji |
+| `guns` | array[6] | Stan pistoletów P1-P6 (true = ON) |
 
 ---
 
@@ -72,8 +99,23 @@ Wysyła komendę sterującą do systemu.
 | `start` | - | Rozpocznij malowanie lub wznów po pauzie |
 | `pause` | - | Zapauzuj malowanie |
 | `stop` | - | Zatrzymaj malowanie |
-| `set_speed` | 0-100 | Ustaw prędkość malowania [%] |
-| `set_passes` | 1-99 | Ustaw liczbę przejść |
+| `set_pattern` | 0-14 | Ustaw wzorzec (indeks PatternID) |
+| `toggle_reverse` | - | Odwróć wzorzec (P-3a/P-3b) |
+| `cal_start` | - | Rozpocznij kalibrację enkodera |
+| `cal_finish` | - | Zakończ kalibrację enkodera |
+
+**Mapowanie indeksów wzorców:**
+
+| Indeks | Wzorzec | Indeks | Wzorzec |
+|--------|---------|--------|---------|
+| 0 | P-1a | 8 | P-3b |
+| 1 | P-1b | 9 | P-4 |
+| 2 | P-1c | 10 | P-6 |
+| 3 | P-1d | 11 | P-7a |
+| 4 | P-1e | 12 | P-7b |
+| 5 | P-2a | 13 | P-7c |
+| 6 | P-2b | 14 | P-7d |
+| 7 | P-3a | | |
 
 **Odpowiedź:** `application/json`
 
@@ -98,11 +140,17 @@ curl -X POST -d "action=pause" http://192.168.4.1/api/control
 # Zatrzymaj
 curl -X POST -d "action=stop" http://192.168.4.1/api/control
 
-# Ustaw prędkość na 75%
-curl -X POST -d "action=set_speed&value=75" http://192.168.4.1/api/control
+# Ustaw wzorzec P-3a (indeks 7)
+curl -X POST -d "action=set_pattern&value=7" http://192.168.4.1/api/control
 
-# Ustaw 3 przejazdy
-curl -X POST -d "action=set_passes&value=3" http://192.168.4.1/api/control
+# Odwróć wzorzec (P-3a/P-3b)
+curl -X POST -d "action=toggle_reverse" http://192.168.4.1/api/control
+
+# Rozpocznij kalibrację enkodera
+curl -X POST -d "action=cal_start" http://192.168.4.1/api/control
+
+# Zakończ kalibrację (po przejechaniu 10m)
+curl -X POST -d "action=cal_finish" http://192.168.4.1/api/control
 ```
 
 ## Kody odpowiedzi HTTP
@@ -110,9 +158,16 @@ curl -X POST -d "action=set_passes&value=3" http://192.168.4.1/api/control
 | Kod | Opis |
 |-----|------|
 | 200 | Sukces |
-| 400 | Brak wymaganego parametru |
+| 400 | Brak wymaganego parametru `action` |
 | 404 | Nieznany endpoint |
 
 ## Autorefresh panelu WWW
 
 Panel HTML automatycznie odpytuje `/api/status` co 1 sekundę za pomocą JavaScript `fetch()`. Dane są aktualizowane w interfejsie bez przeładowania strony.
+
+## Uwagi techniczne
+
+- Serwer obsługuje do 4 jednoczesnych klientów WiFi
+- JSON generowany przez ArduinoJson v7
+- Wartości liczbowe (`speed`, `distance`, `area`, `ppm`, `calPulses`) przesyłane jako stringi dla zachowania precyzji formatowania
+- Stan pistoletów (`guns`) to tablica 6 wartości boolean odpowiadających P1-P6

@@ -1,99 +1,147 @@
 // ============================================================
-// TrassarV3 - Implementacja systemu menu
+// TrassarV3 - Implementacja systemu menu v2.0.0
+// Komputer pokładowy malowarki pasów drogowych
 // ============================================================
 
 #include "menu.h"
 #include "display_manager.h"
 #include "rtc_handler.h"
 #include "web_server.h"
+#include "patterns.h"
+#include "encoder_distance.h"
+#include "painting_engine.h"
+#include "statistics.h"
+#include "guns.h"
 
 MenuSystem menu;
+
+// ============ Inicjalizacja ============
 
 void MenuSystem::begin() {
     g_state.currentScreen = SCREEN_HOME;
     g_state.menuIndex = 0;
     g_state.displayNeedsUpdate = true;
+    g_state.forceFullRedraw = true;
+    timeSettingsField = 0;
 }
+
+// ============ Przejście między ekranami ============
 
 void MenuSystem::goToScreen(ScreenID screen) {
     g_state.currentScreen = screen;
     g_state.menuIndex = 0;
     g_state.displayNeedsUpdate = true;
-    paintSettingsField = 0;
+    g_state.forceFullRedraw = true;
     timeSettingsField = 0;
-    timeEditMode = false;
 }
+
+// ============ Dyspozycja zdarzeń ============
 
 void MenuSystem::handleEvent(ButtonEvent event) {
     if (event == EVT_NONE) return;
 
     switch (g_state.currentScreen) {
-        case SCREEN_HOME:           handleHomeScreen(event); break;
-        case SCREEN_MAIN_MENU:      handleMainMenu(event); break;
-        case SCREEN_PAINT_SETTINGS: handlePaintSettings(event); break;
-        case SCREEN_TIME_SETTINGS:  handleTimeSettings(event); break;
-        case SCREEN_WIFI_INFO:      handleWifiInfo(event); break;
-        case SCREEN_SYSTEM_INFO:    handleSystemInfo(event); break;
+        case SCREEN_HOME:           handleHomeScreen(event);     break;
         case SCREEN_PAINTING:       handlePaintingScreen(event); break;
+        case SCREEN_MAIN_MENU:      handleMainMenu(event);       break;
+        case SCREEN_PATTERN_SELECT: handlePatternSelect(event);  break;
+        case SCREEN_CALIBRATION:    handleCalibration(event);    break;
+        case SCREEN_STATISTICS:     handleStatistics(event);     break;
+        case SCREEN_WIFI_INFO:      handleWifiInfo(event);       break;
+        case SCREEN_SYSTEM_INFO:    handleSystemInfo(event);     break;
+        case SCREEN_TIME_SETTINGS:  handleTimeSettings(event);   break;
     }
 }
 
-void MenuSystem::update() {
-    if (!g_state.displayNeedsUpdate) return;
-    g_state.displayNeedsUpdate = false;
+// ============ SCREEN_HOME ============
 
-    switch (g_state.currentScreen) {
-        case SCREEN_HOME:
-            display.drawHomeScreen(rtcModule.getTimeStr(), rtcModule.getDateStr());
-            break;
-        case SCREEN_MAIN_MENU:
-            display.drawMainMenu(g_state.menuIndex);
-            break;
-        case SCREEN_PAINT_SETTINGS:
-            display.drawPaintSettings(paintSettingsField, g_state.paintSpeed, g_state.paintPasses);
-            break;
-        case SCREEN_TIME_SETTINGS:
-            display.drawTimeSettings(rtcModule.getTimeStr(), rtcModule.getDateStr(), timeSettingsField);
-            break;
-        case SCREEN_WIFI_INFO: {
-            String ip = webServer.getIPAddress();
-            display.drawWifiInfo(WIFI_AP_SSID, ip.c_str(), webServer.getConnectedClients());
-            break;
-        }
-        case SCREEN_SYSTEM_INFO:
-            display.drawSystemInfo(FW_VERSION, FW_DATE, ESP.getFreeHeap(), millis());
-            break;
-        case SCREEN_PAINTING: {
-            unsigned long elapsed = 0;
-            if (g_state.machineState == STATE_RUNNING && g_state.paintStartTime > 0) {
-                elapsed = millis() - g_state.paintStartTime - g_state.totalPauseTime;
-            } else if (g_state.machineState == STATE_PAUSED && g_state.paintStartTime > 0) {
-                elapsed = g_state.pauseStartTime - g_state.paintStartTime - g_state.totalPauseTime;
-            }
-            display.drawPaintingScreen(g_state.machineState, g_state.paintSpeed,
-                                       g_state.currentPass, g_state.paintPasses, elapsed);
-            break;
-        }
-    }
-}
-
-// ============ Ekran główny ============
-void MenuSystem::handleHomeScreen(ButtonEvent event) {
-    switch (event) {
+void MenuSystem::handleHomeScreen(ButtonEvent e) {
+    switch (e) {
         case EVT_START_SHORT:
-            startPainting();
+            paintEngine.start();
+            goToScreen(SCREEN_PAINTING);
             break;
+
         case EVT_STOP_LONG:
             goToScreen(SCREEN_MAIN_MENU);
             break;
+
+        case EVT_SELECT_SHORT:
+        case EVT_ENC_CW:
+            patternMgr.nextPattern();
+            g_state.displayNeedsUpdate = true;
+            break;
+
+        case EVT_ENC_CCW:
+            patternMgr.prevPattern();
+            g_state.displayNeedsUpdate = true;
+            break;
+
+        case EVT_SELECT_LONG:
+            if (patternMgr.getCurrent().hasReverse) {
+                patternMgr.toggleReverse();
+                g_state.displayNeedsUpdate = true;
+            }
+            break;
+
         default:
             break;
     }
 }
 
-// ============ Menu główne ============
-void MenuSystem::handleMainMenu(ButtonEvent event) {
-    switch (event) {
+// ============ SCREEN_PAINTING ============
+
+void MenuSystem::handlePaintingScreen(ButtonEvent e) {
+    switch (e) {
+        case EVT_START_SHORT:
+            if (g_state.machineState == STATE_PAINTING) {
+                paintEngine.pause();
+            } else if (g_state.machineState == STATE_PAUSED) {
+                paintEngine.resume();
+            }
+            g_state.displayNeedsUpdate = true;
+            break;
+
+        case EVT_STOP_SHORT:
+            paintEngine.stop();
+            goToScreen(SCREEN_HOME);
+            break;
+
+        case EVT_SELECT_SHORT:
+        case EVT_ENC_CW: {
+            // Cykl do następnego wzorca
+            int next = (int)g_state.currentPattern + 1;
+            if (next >= PAT_COUNT) next = 0;
+            paintEngine.setPattern((PatternID)next);
+            g_state.displayNeedsUpdate = true;
+            break;
+        }
+
+        case EVT_ENC_CCW: {
+            // Cykl do poprzedniego wzorca
+            int prev = (int)g_state.currentPattern - 1;
+            if (prev < 0) prev = PAT_COUNT - 1;
+            paintEngine.setPattern((PatternID)prev);
+            g_state.displayNeedsUpdate = true;
+            break;
+        }
+
+        case EVT_SELECT_LONG:
+            paintEngine.toggleReverse();
+            g_state.displayNeedsUpdate = true;
+            break;
+
+        default:
+            break;
+    }
+}
+
+// ============ SCREEN_MAIN_MENU ============
+// 6 pozycji: "Wybor wzorca", "Kalibracja", "Statystyki",
+//            "Czas i data", "Info WiFi", "Info systemowe"
+
+void MenuSystem::handleMainMenu(ButtonEvent e) {
+    switch (e) {
         case EVT_SELECT_SHORT:
         case EVT_ENC_CW:
             g_state.menuIndex++;
@@ -110,10 +158,12 @@ void MenuSystem::handleMainMenu(ButtonEvent event) {
         case EVT_SELECT_LONG:
         case EVT_ENC_SHORT:
             switch (g_state.menuIndex) {
-                case 0: goToScreen(SCREEN_PAINT_SETTINGS); break;
-                case 1: goToScreen(SCREEN_TIME_SETTINGS); break;
-                case 2: goToScreen(SCREEN_WIFI_INFO); break;
-                case 3: goToScreen(SCREEN_SYSTEM_INFO); break;
+                case 0: goToScreen(SCREEN_PATTERN_SELECT); break;
+                case 1: goToScreen(SCREEN_CALIBRATION);    break;
+                case 2: goToScreen(SCREEN_STATISTICS);     break;
+                case 3: goToScreen(SCREEN_TIME_SETTINGS);  break;
+                case 4: goToScreen(SCREEN_WIFI_INFO);      break;
+                case 5: goToScreen(SCREEN_SYSTEM_INFO);    break;
             }
             break;
 
@@ -126,30 +176,27 @@ void MenuSystem::handleMainMenu(ButtonEvent event) {
     }
 }
 
-// ============ Ustawienia malowania ============
-void MenuSystem::handlePaintSettings(ButtonEvent event) {
-    switch (event) {
-        case EVT_SELECT_SHORT:
-            paintSettingsField = (paintSettingsField + 1) % 2;
-            g_state.displayNeedsUpdate = true;
-            break;
+// ============ SCREEN_PATTERN_SELECT ============
 
+void MenuSystem::handlePatternSelect(ButtonEvent e) {
+    switch (e) {
+        case EVT_SELECT_SHORT:
         case EVT_ENC_CW:
-            if (paintSettingsField == 0) {
-                g_state.paintSpeed = min(100, g_state.paintSpeed + 5);
-            } else {
-                g_state.paintPasses = min(99, g_state.paintPasses + 1);
-            }
+            g_state.menuIndex++;
+            if (g_state.menuIndex >= PAT_COUNT) g_state.menuIndex = 0;
             g_state.displayNeedsUpdate = true;
             break;
 
         case EVT_ENC_CCW:
-            if (paintSettingsField == 0) {
-                g_state.paintSpeed = max(0, g_state.paintSpeed - 5);
-            } else {
-                g_state.paintPasses = max(1, g_state.paintPasses - 1);
-            }
+            g_state.menuIndex--;
+            if (g_state.menuIndex < 0) g_state.menuIndex = PAT_COUNT - 1;
             g_state.displayNeedsUpdate = true;
+            break;
+
+        case EVT_SELECT_LONG:
+        case EVT_ENC_SHORT:
+            patternMgr.setPattern((PatternID)g_state.menuIndex);
+            goToScreen(SCREEN_HOME);
             break;
 
         case EVT_STOP_LONG:
@@ -161,9 +208,57 @@ void MenuSystem::handlePaintSettings(ButtonEvent event) {
     }
 }
 
-// ============ Ustawienia czasu ============
-void MenuSystem::handleTimeSettings(ButtonEvent event) {
-    switch (event) {
+// ============ SCREEN_CALIBRATION ============
+
+void MenuSystem::handleCalibration(ButtonEvent e) {
+    switch (e) {
+        case EVT_START_SHORT:
+            if (!encoderDist.isCalibrating()) {
+                encoderDist.startCalibration();
+            } else {
+                encoderDist.finishCalibration();
+            }
+            g_state.displayNeedsUpdate = true;
+            break;
+
+        case EVT_STOP_LONG:
+            encoderDist.cancelCalibration();
+            goToScreen(SCREEN_MAIN_MENU);
+            break;
+
+        default:
+            break;
+    }
+}
+
+// ============ SCREEN_STATISTICS ============
+
+void MenuSystem::handleStatistics(ButtonEvent e) {
+    if (e == EVT_STOP_LONG) {
+        goToScreen(SCREEN_MAIN_MENU);
+    }
+}
+
+// ============ SCREEN_WIFI_INFO ============
+
+void MenuSystem::handleWifiInfo(ButtonEvent e) {
+    if (e == EVT_STOP_LONG) {
+        goToScreen(SCREEN_MAIN_MENU);
+    }
+}
+
+// ============ SCREEN_SYSTEM_INFO ============
+
+void MenuSystem::handleSystemInfo(ButtonEvent e) {
+    if (e == EVT_STOP_LONG) {
+        goToScreen(SCREEN_MAIN_MENU);
+    }
+}
+
+// ============ SCREEN_TIME_SETTINGS ============
+
+void MenuSystem::handleTimeSettings(ButtonEvent e) {
+    switch (e) {
         case EVT_SELECT_SHORT:
             timeSettingsField = (timeSettingsField + 1) % 6;
             g_state.displayNeedsUpdate = true;
@@ -171,12 +266,14 @@ void MenuSystem::handleTimeSettings(ButtonEvent event) {
 
         case EVT_ENC_CW:
         case EVT_ENC_CCW: {
-            int dir = (event == EVT_ENC_CW) ? 1 : -1;
+            int dir = (e == EVT_ENC_CW) ? 1 : -1;
             DateTime now = rtcModule.now();
-            int vals[6] = {now.hour(), now.minute(), now.second(),
-                           now.day(), now.month(), (int)now.year()};
-            int maxVals[6] = {23, 59, 59, 31, 12, 2099};
-            int minVals[6] = {0, 0, 0, 1, 1, 2020};
+            int vals[6] = {
+                now.hour(), now.minute(), now.second(),
+                now.day(),  now.month(),  (int)now.year()
+            };
+            const int maxVals[6] = {23, 59, 59, 31, 12, 2099};
+            const int minVals[6] = { 0,  0,  0,  1,  1, 2020};
 
             vals[timeSettingsField] += dir;
             if (vals[timeSettingsField] > maxVals[timeSettingsField])
@@ -199,97 +296,112 @@ void MenuSystem::handleTimeSettings(ButtonEvent event) {
     }
 }
 
-// ============ Info WiFi ============
-void MenuSystem::handleWifiInfo(ButtonEvent event) {
-    if (event == EVT_STOP_LONG) {
-        goToScreen(SCREEN_MAIN_MENU);
-    }
-}
+// ============ Renderowanie ekranów ============
 
-// ============ Info systemowe ============
-void MenuSystem::handleSystemInfo(ButtonEvent event) {
-    if (event == EVT_STOP_LONG) {
-        goToScreen(SCREEN_MAIN_MENU);
-    }
-}
+void MenuSystem::update() {
+    if (!g_state.displayNeedsUpdate) return;
+    g_state.displayNeedsUpdate = false;
 
-// ============ Ekran malowania ============
-void MenuSystem::handlePaintingScreen(ButtonEvent event) {
-    switch (event) {
-        case EVT_START_SHORT:
-            if (g_state.machineState == STATE_RUNNING) {
-                pausePainting();
-            } else if (g_state.machineState == STATE_PAUSED) {
-                resumePainting();
-            }
+    bool fullRedraw = g_state.forceFullRedraw;
+    g_state.forceFullRedraw = false;
+
+    switch (g_state.currentScreen) {
+
+        // ---- Ekran główny ----
+        case SCREEN_HOME: {
+            const PatternDef& pat = patternMgr.getCurrent();
+            display.drawHomeScreen(
+                rtcModule.getTimeStr(),
+                rtcModule.getDateStr(),
+                pat.code,
+                pat.name,
+                encoderDist.getSpeedKmh(),
+                encoderDist.getDistanceMeters(),
+                encoderDist.isCalibrated(),
+                g_state.patternReversed
+            );
             break;
-
-        case EVT_STOP_SHORT:
-            stopPainting();
-            break;
-
-        case EVT_ENC_CW:
-            if (g_state.machineState == STATE_RUNNING || g_state.machineState == STATE_PAUSED) {
-                g_state.paintSpeed = min(100, g_state.paintSpeed + 5);
-                g_state.displayNeedsUpdate = true;
-            }
-            break;
-
-        case EVT_ENC_CCW:
-            if (g_state.machineState == STATE_RUNNING || g_state.machineState == STATE_PAUSED) {
-                g_state.paintSpeed = max(0, g_state.paintSpeed - 5);
-                g_state.displayNeedsUpdate = true;
-            }
-            break;
-
-        default:
-            break;
-    }
-}
-
-// ============ Sterowanie malowaniem ============
-
-void MenuSystem::startPainting() {
-    if (g_state.machineState == STATE_IDLE || g_state.machineState == STATE_STOPPED) {
-        g_state.machineState = STATE_RUNNING;
-        g_state.paintStartTime = millis();
-        g_state.paintElapsed = 0;
-        g_state.totalPauseTime = 0;
-        g_state.currentPass = 1;
-        goToScreen(SCREEN_PAINTING);
-        Serial.println("[PAINT] Start malowania");
-    }
-}
-
-void MenuSystem::pausePainting() {
-    if (g_state.machineState == STATE_RUNNING) {
-        g_state.machineState = STATE_PAUSED;
-        g_state.pauseStartTime = millis();
-        g_state.displayNeedsUpdate = true;
-        Serial.println("[PAINT] Pauza");
-    }
-}
-
-void MenuSystem::resumePainting() {
-    if (g_state.machineState == STATE_PAUSED) {
-        g_state.machineState = STATE_RUNNING;
-        g_state.totalPauseTime += millis() - g_state.pauseStartTime;
-        g_state.displayNeedsUpdate = true;
-        Serial.println("[PAINT] Wznowienie");
-    }
-}
-
-void MenuSystem::stopPainting() {
-    if (g_state.machineState == STATE_RUNNING || g_state.machineState == STATE_PAUSED) {
-        g_state.machineState = STATE_STOPPED;
-        if (g_state.paintStartTime > 0) {
-            unsigned long pauseAdj = 0;
-            if (g_state.machineState == STATE_PAUSED) {
-                pauseAdj = millis() - g_state.pauseStartTime;
-            }
-            g_state.paintElapsed = millis() - g_state.paintStartTime - g_state.totalPauseTime - pauseAdj;
         }
-        goToScreen(SCREEN_HOME);
-        Serial.println("[PAINT] Stop");
+
+        // ---- Ekran malowania ----
+        case SCREEN_PAINTING: {
+            const PatternDef& pat = patternMgr.getCurrent();
+            bool gunStates[6];
+            for (int i = 0; i < NUM_GUNS; i++) {
+                gunStates[i] = guns.getState(i);
+            }
+            display.drawPaintingScreen(
+                g_state.machineState,
+                pat.code,
+                encoderDist.getSpeedKmh(),
+                stats.getSessionDistance(),
+                stats.getSessionArea(),
+                stats.getSessionTimeSec(),
+                gunStates,
+                g_state.patternReversed
+            );
+            break;
+        }
+
+        // ---- Menu główne ----
+        case SCREEN_MAIN_MENU:
+            display.drawMainMenu(g_state.menuIndex);
+            break;
+
+        // ---- Wybór wzorca ----
+        case SCREEN_PATTERN_SELECT:
+            display.drawPatternSelect(g_state.menuIndex);
+            break;
+
+        // ---- Kalibracja ----
+        case SCREEN_CALIBRATION:
+            display.drawCalibrationScreen(
+                encoderDist.isCalibrating(),
+                encoderDist.getCalibrationPulses(),
+                encoderDist.getPulsesPerMeter(),
+                encoderDist.isCalibrated()
+            );
+            break;
+
+        // ---- Statystyki ----
+        case SCREEN_STATISTICS:
+            display.drawStatisticsScreen(
+                stats.getSessionDistance(),
+                stats.getSessionArea(),
+                stats.getSessionTimeSec(),
+                stats.getLifetimeDistance(),
+                stats.getLifetimeArea(),
+                stats.getLifetimePaintTimeSec()
+            );
+            break;
+
+        // ---- Info WiFi ----
+        case SCREEN_WIFI_INFO: {
+            String ip = webServer.getIPAddress();
+            display.drawWifiInfo(
+                WIFI_AP_SSID,
+                ip.c_str(),
+                webServer.getConnectedClients()
+            );
+            break;
+        }
+
+        // ---- Info systemowe ----
+        case SCREEN_SYSTEM_INFO:
+            display.drawSystemInfo(
+                FW_VERSION,
+                ESP.getFreeHeap(),
+                millis()
+            );
+            break;
+
+        // ---- Czas i data ----
+        case SCREEN_TIME_SETTINGS:
+            display.drawTimeSettings(
+                rtcModule.getTimeStr(),
+                rtcModule.getDateStr(),
+                timeSettingsField
+            );
+            break;
     }
 }

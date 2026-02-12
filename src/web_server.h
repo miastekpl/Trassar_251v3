@@ -1,6 +1,6 @@
 #pragma once
 // ============================================================
-// TrassarV3 - Moduł serwera WWW (WiFi AP)
+// TrassarV3 - Modul serwera WWW (WiFi AP)
 // ============================================================
 
 #include <WiFi.h>
