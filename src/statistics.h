@@ -4,6 +4,7 @@
 // ============================================================
 
 #include "config.h"
+#include "storage.h"
 
 class StatisticsManager {
 public:
