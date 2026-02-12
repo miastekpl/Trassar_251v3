@@ -68,9 +68,20 @@ ButtonEvent ButtonHandler::getEvent() {
     if (btnSelect.pendingShort) { btnSelect.pendingShort = false;return EVT_SELECT_SHORT; }
     if (btnEnc.pendingShort)    { btnEnc.pendingShort = false;   return EVT_ENC_SHORT; }
 
+    // Akumuluj impulsy enkodera - generuj zdarzenie CW/CCW dopiero
+    // po osiagnieciu progu ENC_NAV_STEP_PULSES (zapobiega
+    // samoistnym przelaczaniom od szumu i wibracji)
     int delta = encoderDist.consumeDelta();
-    if (delta > 0) return EVT_ENC_CW;
-    if (delta < 0) return EVT_ENC_CCW;
+    navAccumulator += delta;
+
+    if (navAccumulator >= ENC_NAV_STEP_PULSES) {
+        navAccumulator = 0;
+        return EVT_ENC_CW;
+    }
+    if (navAccumulator <= -ENC_NAV_STEP_PULSES) {
+        navAccumulator = 0;
+        return EVT_ENC_CCW;
+    }
 
     return EVT_NONE;
 }

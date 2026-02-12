@@ -50,6 +50,12 @@ void setup() {
     storage.begin();
 
     // 2. Wyświetlacz
+    // WAZNE: Deselect karty SD PRZED inicjalizacja TFT!
+    // SD i TFT wspoldziela HSPI - jesli SD_CS jest LOW (floating),
+    // karta SD odpowiada na ruch SPI i psuje obraz TFT.
+    pinMode(PIN_SD_CS, OUTPUT);
+    digitalWrite(PIN_SD_CS, HIGH);
+
     Serial.println("[INIT] Wyswietlacz ILI9341...");
     display.begin();
 
@@ -101,6 +107,10 @@ void setup() {
 
     // Ekran powitalny
     delay(1500);
+
+    // Wyrzuc szum enkodera nazbierany podczas inicjalizacji
+    encoderDist.consumeDelta();
+    encoderDist.resetDistance();
 
     g_state.currentScreen = SCREEN_HOME;
     g_state.displayNeedsUpdate = true;

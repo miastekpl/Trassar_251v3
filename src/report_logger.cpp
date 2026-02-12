@@ -9,8 +9,13 @@
 
 ReportLogger reportLogger;
 
+// SD i TFT wspoldziela magistrale HSPI - musimy uzyc tego samego portu
+static SPIClass sdSPI(HSPI);
+
 bool ReportLogger::begin() {
-    sdReady = SD.begin(PIN_SD_CS);
+    // Inicjalizuj HSPI dla SD (te same piny co TFT: SCK=12, MISO=13, MOSI=11)
+    sdSPI.begin(12, 13, 11, PIN_SD_CS);
+    sdReady = SD.begin(PIN_SD_CS, sdSPI, 4000000);
     if (sdReady) {
         if (!SD.exists("/reports")) {
             SD.mkdir("/reports");

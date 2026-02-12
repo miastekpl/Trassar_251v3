@@ -4,6 +4,7 @@
 // ============================================================
 
 #include "config.h"
+#include <SPI.h>
 #include <SD.h>
 
 class ReportLogger {

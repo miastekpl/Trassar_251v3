@@ -53,6 +53,7 @@ private:
     unsigned long lastSpeedTime = 0;
 
     int lastClkState = 0;
+    volatile unsigned long lastISRMicros = 0;
 };
 
 extern EncoderDistance encoderDist;

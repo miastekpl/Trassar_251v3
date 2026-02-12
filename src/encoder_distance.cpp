@@ -12,6 +12,12 @@ volatile int  EncoderDistance::pendingDelta = 0;
 
 void IRAM_ATTR EncoderDistance::encoderISR() {
     if (!instance) return;
+
+    // Debounce: odrzuc impulsy szybsze niz ENC_ISR_DEBOUNCE_US
+    unsigned long nowUs = micros();
+    if (nowUs - instance->lastISRMicros < ENC_ISR_DEBOUNCE_US) return;
+    instance->lastISRMicros = nowUs;
+
     int clk = digitalRead(PIN_ENC_CLK);
     int dt  = digitalRead(PIN_ENC_DT);
     if (clk != instance->lastClkState) {

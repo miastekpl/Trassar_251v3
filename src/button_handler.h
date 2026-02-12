@@ -42,6 +42,8 @@ private:
     void initBtn(BtnState& b, uint8_t pin);
     void processBtn(BtnState& b);
 
+    int navAccumulator = 0;   // Akumulator impulsow enkodera dla nawigacji
+
 public:
     // Surowy stan przycisku START (dla czyszczenia dysz)
     bool isStartHeld() const { return btnStart.pressed; }
