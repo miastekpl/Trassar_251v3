@@ -6,12 +6,7 @@
 #include "display_manager.h"
 #include "patterns.h"
 
-// Czcionki GFX Free Fonts z biblioteki TFT_eSPI (LOAD_GFXFF=1)
-#include <Fonts/GFXFF/FreeSansBold18pt7b.h>
-#include <Fonts/GFXFF/FreeSansBold9pt7b.h>
-#include <Fonts/GFXFF/FreeSans9pt7b.h>
-#include <Fonts/GFXFF/FreeMono9pt7b.h>
-
+// Skróty do czcionek GFX (includowane automatycznie przez TFT_eSPI z LOAD_GFXFF=1)
 #define FSB18 &FreeSansBold18pt7b
 #define FSB9  &FreeSansBold9pt7b
 #define FS9   &FreeSans9pt7b
