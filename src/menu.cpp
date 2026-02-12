@@ -84,6 +84,11 @@ void MenuSystem::handleHomeScreen(ButtonEvent e) {
             }
             break;
 
+        case EVT_ENC_SHORT:
+            // Start od przerwy (przycisk enkodera)
+            paintEngine.startFromGap();
+            break;
+
         default:
             break;
     }
@@ -336,7 +341,8 @@ void MenuSystem::update() {
                 stats.getSessionArea(),
                 stats.getSessionTimeSec(),
                 gunStates,
-                g_state.patternReversed
+                g_state.patternReversed,
+                paintEngine.isGapStart()
             );
             break;
         }

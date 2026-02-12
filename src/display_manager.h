@@ -17,7 +17,8 @@ public:
     void drawHomeScreen(const char* timeStr, const char* dateStr, const char* patCode, const char* patName,
                         float speedKmh, float distanceM, bool calibrated, bool reversed);
     void drawPaintingScreen(MachineState state, const char* patCode, float speedKmh, float distM,
-                            float areaM2, unsigned long elapsedSec, const bool gunStates[6], bool reversed);
+                            float areaM2, unsigned long elapsedSec, const bool gunStates[6],
+                            bool reversed, bool gapStart = false);
 
     // Menu serwisowe
     void drawServiceMenu(int selectedIndex);

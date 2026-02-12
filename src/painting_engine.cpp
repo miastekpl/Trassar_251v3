@@ -16,6 +16,7 @@ PaintingEngine paintEngine;
 void PaintingEngine::begin() {
     lastEncoderDist = 0;
     patternStartDist = 0;
+    gapStartActive = false;
 }
 
 bool PaintingEngine::shouldGunFire(GunID gun, float distFromPatternStart) const {
@@ -69,6 +70,7 @@ void PaintingEngine::start() {
         stats.resetSession();
         lastEncoderDist = 0;
         patternStartDist = 0;
+        gapStartActive = false;
         g_state.machineState = STATE_PAINTING;
         stats.startSessionTimer();
         g_state.currentScreen = SCREEN_PAINTING;
@@ -77,6 +79,43 @@ void PaintingEngine::start() {
         Serial.printf("[ENGINE] Start malowania - wzorzec %s\n",
                       patternMgr.getCurrent().code);
     }
+}
+
+void PaintingEngine::startFromGap() {
+    if (g_state.machineState != STATE_IDLE && g_state.machineState != STATE_STOPPED)
+        return;
+
+    // Znajdz pierwszy pistolet DASHED w biezacym wzorcu
+    const PatternDef& pat = patternMgr.getCurrent();
+    float lineLen = 0;
+    for (int i = 0; i < NUM_GUNS; i++) {
+        GunPatternCfg cfg = patternMgr.getGunConfig((GunID)i);
+        if (cfg.mode == GUN_DASHED && cfg.lineLen > 0) {
+            lineLen = cfg.lineLen;
+            break;
+        }
+    }
+
+    if (lineLen <= 0) {
+        // Brak przerw we wzorcu - normalny start
+        start();
+        return;
+    }
+
+    encoderDist.resetDistance();
+    stats.resetSession();
+    lastEncoderDist = 0;
+    // Przesuniecie o lineLen sprawia, ze cykl zaczyna od przerwy
+    // shouldGunFire: pos = fmod(dist + lineLen, cycle) = lineLen → gap
+    patternStartDist = -lineLen;
+    gapStartActive = true;
+    g_state.machineState = STATE_PAINTING;
+    stats.startSessionTimer();
+    g_state.currentScreen = SCREEN_PAINTING;
+    g_state.displayNeedsUpdate = true;
+    g_state.forceFullRedraw = true;
+    Serial.printf("[ENGINE] Start OD PRZERWY - wzorzec %s, offset %.1fm\n",
+                  pat.code, lineLen);
 }
 
 void PaintingEngine::pause() {

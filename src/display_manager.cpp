@@ -237,7 +237,9 @@ void DisplayManager::drawHomeScreen(const char* timeStr, const char* dateStr,
     y += 8;
     tft.setFreeFont(FM9);
     tft.setTextColor(COLOR_MENU_TXT, COLOR_BG);
-    tft.drawString("START=maluj STOP(1s)=menu", 6, y);
+    tft.drawString("START=maluj ENC=od przerwy", 6, y);
+    y += 16;
+    tft.drawString("STOP(1s)=menu", 6, y);
 
     drawStatusBar(g_state.machineState, timeStr);
 }
@@ -248,7 +250,8 @@ void DisplayManager::drawHomeScreen(const char* timeStr, const char* dateStr,
 void DisplayManager::drawPaintingScreen(MachineState state, const char* patCode,
                                         float speedKmh, float distM,
                                         float areaM2, unsigned long elapsedSec,
-                                        const bool gunStates[6], bool reversed) {
+                                        const bool gunStates[6], bool reversed,
+                                        bool gapStart) {
     clear();
 
     const char* title = (state == STATE_PAUSED) ? "PAUZA" : "MALOWANIE";
@@ -271,12 +274,16 @@ void DisplayManager::drawPaintingScreen(MachineState state, const char* patCode,
     tft.setFreeFont(FS9);
     tft.setTextColor(COLOR_ACCENT, COLOR_BG);
     tft.setTextDatum(MC_DATUM);
-    if (reversed) {
+    if (reversed && gapStart) {
+        snprintf(buf, sizeof(buf), "%s [ODW] [PRZERWA]", patCode);
+    } else if (reversed) {
         snprintf(buf, sizeof(buf), "%s [ODW]", patCode);
-        tft.drawString(buf, TFT_SCREEN_W / 2, y);
+    } else if (gapStart) {
+        snprintf(buf, sizeof(buf), "%s [PRZERWA]", patCode);
     } else {
-        tft.drawString(patCode, TFT_SCREEN_W / 2, y);
+        snprintf(buf, sizeof(buf), "%s", patCode);
     }
+    tft.drawString(buf, TFT_SCREEN_W / 2, y);
     tft.setTextDatum(TL_DATUM);
 
     y += 16;
