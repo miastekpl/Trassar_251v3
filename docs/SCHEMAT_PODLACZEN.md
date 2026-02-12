@@ -52,10 +52,12 @@
 | GND | GND | - | Masa |
 | CLK (A) | GPIO 5 | 5 | Sygnał A (z przerwaniem ISR) |
 | DT (B) | GPIO 6 | 6 | Sygnał B |
-| SW | GPIO 7 | 7 | Przycisk |
+| SW | GPIO 7 | 7 | Przycisk (**Start od przerwy** na HOME) |
 | + (VCC) | 3V3 | - | Zasilanie (jeśli wymagane) |
 
 > **Uwaga:** Piny CLK, DT i SW mają włączone wewnętrzne rezystory pull-up ESP32-S3. Enkoder mierzy dystans (ISR na CLK/CHANGE) i jednocześnie służy do nawigacji menu.
+>
+> **Funkcja "Start od przerwy":** Krótkie naciśnięcie przycisku enkodera (SW, GPIO 7) na ekranie głównym uruchamia malowanie od przerwy we wzorcu (zamiast od kreski). Nie wymaga osobnego przycisku - wykorzystuje wbudowany przycisk enkodera.
 
 ### Przyciski BS-33B (monostabilne)
 
@@ -82,7 +84,24 @@
 
 > **Podłączenie przekaźników:** GPIO → IN modułu przekaźnikowego. Logika: HIGH = włączony, LOW = wyłączony. Moduły przekaźnikowe zasilane z 5V. Każdy pistolet sterowany osobnym przekaźnikiem.
 
-## 2. Schemat blokowy
+## 2. Mapowanie funkcji na piny
+
+| Funkcja | Przycisk / Element | GPIO | Uwagi |
+|---------|-------------------|------|-------|
+| **Start malowania** | START (BS-33B) | 38 | Krótkie naciśnięcie na ekranie HOME |
+| **Start od przerwy** | Przycisk enkodera (SW) | **7** | **Krótkie naciśnięcie na ekranie HOME** |
+| **Start od przerwy (WWW)** | Panel WWW | - | Przycisk "START OD PRZERWY" w przeglądarce |
+| **Pauza / Wznowienie** | START (BS-33B) | 38 | Krótkie naciśnięcie podczas malowania |
+| **Zatrzymanie** | STOP (BS-33B) | 39 | Krótkie naciśnięcie podczas malowania |
+| **Menu serwisowe** | STOP (BS-33B) | 39 | Długie naciśnięcie (1s) na HOME |
+| **Zmiana wzorca** | Enkoder obrót CW/CCW | 5, 6 | Na ekranie HOME lub malowania |
+| **Odwrócenie wzorca** | SELEKTOR (BS-33B) | 40 | Długie naciśnięcie (1s) |
+| **Wejście w opcję menu** | Przycisk enkodera (SW) | 7 | Krótkie naciśnięcie w menu |
+| **Czyszczenie dysz** | START (BS-33B) | 38 | Trzymaj w trybie czyszczenia dysz |
+
+## 3. Schemat blokowy
+
+> Na schemacie: GPIO 7 (SW enkodera) = przycisk **"Start od przerwy"**
 
 ```
                           ┌──────────────────────────────┐
@@ -128,7 +147,7 @@
                           └──────────────────────────────┘
 ```
 
-## 3. Schemat podłączenia przycisków BS-33B
+## 4. Schemat podłączenia przycisków BS-33B
 
 ```
     ESP32-S3 GPIO 38/39/40
@@ -145,7 +164,7 @@
 Przycisk łączy GPIO do GND. W stanie spoczynku pin jest w stanie HIGH (pull-up).
 Naciśnięcie = stan LOW.
 
-## 4. Schemat podłączenia enkodera
+## 5. Schemat podłączenia enkodera (dystans + Start od przerwy)
 
 ```
           3V3 (opcjonalne)
@@ -157,13 +176,17 @@ Naciśnięcie = stan LOW.
     │      │
     │  DT  ├──── GPIO 6  (pull-up)
     │      │
-    │  SW  ├──── GPIO 7  (pull-up)
+    │  SW  ├──── GPIO 7  (pull-up) ← "START OD PRZERWY"
     │      │
     │  GND ├──── GND
     └──────┘
 ```
 
-## 5. Schemat podłączenia przekaźników
+> **Pin SW (GPIO 7)** pełni podwójną funkcję:
+> - Na ekranie HOME: krótkie naciśnięcie = **Start od przerwy** (malowanie od przerwy)
+> - W menu serwisowym: krótkie naciśnięcie = wejście w wybraną opcję
+
+## 6. Schemat podłączenia przekaźników
 
 ```
     ESP32-S3                    Moduł przekaźnikowy 5V
@@ -186,7 +209,7 @@ Naciśnięcie = stan LOW.
 
 > **Logika:** HIGH na GPIO = przekaźnik włączony = pistolet maluje.
 
-## 6. Schemat podłączenia karty SD
+## 7. Schemat podłączenia karty SD
 
 ```
     Moduł ILI9341 2.8" (wbudowany slot SD)
@@ -208,7 +231,7 @@ Naciśnięcie = stan LOW.
 > **Format danych:** Raporty zapisywane w `/reports/RRRRMMDD.csv` (np. `/reports/20250115.csv`).
 > Każdy wiersz: `data,godzina,wzorzec,dystans_m,powierzchnia_m2`.
 
-## 7. Zasilanie
+## 8. Zasilanie
 
 | Źródło | Napięcie | Odbiorcy |
 |--------|----------|----------|
@@ -219,7 +242,7 @@ Naciśnięcie = stan LOW.
 >
 > **Uwaga o prądzie:** Przy 6 przekaźnikach aktywnych jednocześnie pobór prądu może być znaczny. Przy większych obciążeniach rozważ zewnętrzne zasilanie 5V dla modułów przekaźnikowych.
 
-## 8. Mapa GPIO ESP32-S3 N16R8
+## 9. Mapa GPIO ESP32-S3 N16R8
 
 | GPIO | Funkcja | Uwagi |
 |------|---------|-------|
@@ -229,7 +252,7 @@ Naciśnięcie = stan LOW.
 | 4 | Przekaźnik P6 | OUTPUT |
 | 5 | Enkoder CLK | INPUT_PULLUP, ISR |
 | 6 | Enkoder DT | INPUT_PULLUP |
-| 7 | Enkoder SW | INPUT_PULLUP |
+| 7 | Enkoder SW / **Start od przerwy** | INPUT_PULLUP |
 | 9 | TFT DC | OUTPUT |
 | 10 | TFT CS | OUTPUT |
 | 11 | TFT MOSI / SD MOSI | SPI (HSPI) |
@@ -248,7 +271,7 @@ Naciśnięcie = stan LOW.
 | 41 | Przekaźnik P1 | OUTPUT |
 | 42 | Przekaźnik P2 | OUTPUT |
 
-## 9. Uwagi montażowe
+## 10. Uwagi montażowe
 
 1. Wszystkie połączenia SPI powinny być jak najkrótsze (maks. 15-20cm)
 2. Przy dłuższych przewodach enkoder może wymagać kondensatorów filtrujących (100nF) między CLK/DT a GND
