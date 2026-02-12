@@ -22,6 +22,7 @@
 #include "painting_engine.h"
 #include "statistics.h"
 #include "storage.h"
+#include "report_logger.h"
 
 // Globalny stan systemu
 SystemState g_state;
@@ -86,11 +87,15 @@ void setup() {
     Serial.println("[INIT] Statystyki...");
     stats.begin();
 
-    // 10. System menu
+    // 10. Karta SD (raporty)
+    Serial.println("[INIT] Karta SD...");
+    reportLogger.begin();
+
+    // 11. System menu
     Serial.println("[INIT] System menu...");
     menu.begin();
 
-    // 11. WiFi AP + serwer WWW
+    // 12. WiFi AP + serwer WWW
     Serial.println("[INIT] WiFi AP + serwer WWW...");
     webServer.begin();
 
@@ -134,7 +139,9 @@ void loop() {
 
         if (g_state.currentScreen == SCREEN_HOME ||
             g_state.currentScreen == SCREEN_PAINTING ||
-            g_state.currentScreen == SCREEN_CALIBRATION) {
+            g_state.currentScreen == SCREEN_CALIBRATION ||
+            g_state.currentScreen == SCREEN_DISTANCE_METER ||
+            g_state.currentScreen == SCREEN_NOZZLE_CLEAN) {
             g_state.displayNeedsUpdate = true;
         }
     }

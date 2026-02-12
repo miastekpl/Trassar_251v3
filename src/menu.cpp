@@ -1,17 +1,17 @@
 // ============================================================
-// TrassarV3 - Implementacja systemu menu v2.0.0
-// Komputer pokładowy malowarki pasów drogowych
+// TrassarV3 - System menu v2.1  (menu serwisowe)
 // ============================================================
 
 #include "menu.h"
 #include "display_manager.h"
 #include "rtc_handler.h"
-#include "web_server.h"
 #include "patterns.h"
 #include "encoder_distance.h"
 #include "painting_engine.h"
 #include "statistics.h"
 #include "guns.h"
+#include "button_handler.h"
+#include "report_logger.h"
 
 MenuSystem menu;
 
@@ -22,17 +22,19 @@ void MenuSystem::begin() {
     g_state.menuIndex = 0;
     g_state.displayNeedsUpdate = true;
     g_state.forceFullRedraw = true;
-    timeSettingsField = 0;
 }
 
 // ============ Przejście między ekranami ============
 
 void MenuSystem::goToScreen(ScreenID screen) {
+    // Upewnij sie ze pistolety sa wylaczone przy wyjsciu z czyszczenia
+    if (g_state.currentScreen == SCREEN_NOZZLE_CLEAN) {
+        guns.allOff();
+    }
     g_state.currentScreen = screen;
     g_state.menuIndex = 0;
     g_state.displayNeedsUpdate = true;
     g_state.forceFullRedraw = true;
-    timeSettingsField = 0;
 }
 
 // ============ Dyspozycja zdarzeń ============
@@ -41,15 +43,13 @@ void MenuSystem::handleEvent(ButtonEvent event) {
     if (event == EVT_NONE) return;
 
     switch (g_state.currentScreen) {
-        case SCREEN_HOME:           handleHomeScreen(event);     break;
-        case SCREEN_PAINTING:       handlePaintingScreen(event); break;
-        case SCREEN_MAIN_MENU:      handleMainMenu(event);       break;
-        case SCREEN_PATTERN_SELECT: handlePatternSelect(event);  break;
-        case SCREEN_CALIBRATION:    handleCalibration(event);    break;
-        case SCREEN_STATISTICS:     handleStatistics(event);     break;
-        case SCREEN_WIFI_INFO:      handleWifiInfo(event);       break;
-        case SCREEN_SYSTEM_INFO:    handleSystemInfo(event);     break;
-        case SCREEN_TIME_SETTINGS:  handleTimeSettings(event);   break;
+        case SCREEN_HOME:           handleHomeScreen(event);      break;
+        case SCREEN_PAINTING:       handlePaintingScreen(event);  break;
+        case SCREEN_SERVICE_MENU:   handleServiceMenu(event);     break;
+        case SCREEN_CALIBRATION:    handleCalibration(event);     break;
+        case SCREEN_DISTANCE_METER: handleDistanceMeter(event);   break;
+        case SCREEN_REPORTS:        handleReports(event);         break;
+        case SCREEN_NOZZLE_CLEAN:   handleNozzleClean(event);     break;
     }
 }
 
@@ -63,7 +63,7 @@ void MenuSystem::handleHomeScreen(ButtonEvent e) {
             break;
 
         case EVT_STOP_LONG:
-            goToScreen(SCREEN_MAIN_MENU);
+            goToScreen(SCREEN_SERVICE_MENU);
             break;
 
         case EVT_SELECT_SHORT:
@@ -109,7 +109,6 @@ void MenuSystem::handlePaintingScreen(ButtonEvent e) {
 
         case EVT_SELECT_SHORT:
         case EVT_ENC_CW: {
-            // Cykl do następnego wzorca
             int next = (int)g_state.currentPattern + 1;
             if (next >= PAT_COUNT) next = 0;
             paintEngine.setPattern((PatternID)next);
@@ -118,7 +117,6 @@ void MenuSystem::handlePaintingScreen(ButtonEvent e) {
         }
 
         case EVT_ENC_CCW: {
-            // Cykl do poprzedniego wzorca
             int prev = (int)g_state.currentPattern - 1;
             if (prev < 0) prev = PAT_COUNT - 1;
             paintEngine.setPattern((PatternID)prev);
@@ -136,34 +134,33 @@ void MenuSystem::handlePaintingScreen(ButtonEvent e) {
     }
 }
 
-// ============ SCREEN_MAIN_MENU ============
-// 6 pozycji: "Wybor wzorca", "Kalibracja", "Statystyki",
-//            "Czas i data", "Info WiFi", "Info systemowe"
+// ============ SCREEN_SERVICE_MENU  (4 pozycje) ============
 
-void MenuSystem::handleMainMenu(ButtonEvent e) {
+void MenuSystem::handleServiceMenu(ButtonEvent e) {
     switch (e) {
         case EVT_SELECT_SHORT:
         case EVT_ENC_CW:
             g_state.menuIndex++;
-            if (g_state.menuIndex >= MAIN_MENU_ITEMS) g_state.menuIndex = 0;
+            if (g_state.menuIndex >= SERVICE_MENU_ITEMS) g_state.menuIndex = 0;
             g_state.displayNeedsUpdate = true;
             break;
 
         case EVT_ENC_CCW:
             g_state.menuIndex--;
-            if (g_state.menuIndex < 0) g_state.menuIndex = MAIN_MENU_ITEMS - 1;
+            if (g_state.menuIndex < 0) g_state.menuIndex = SERVICE_MENU_ITEMS - 1;
             g_state.displayNeedsUpdate = true;
             break;
 
         case EVT_SELECT_LONG:
         case EVT_ENC_SHORT:
             switch (g_state.menuIndex) {
-                case 0: goToScreen(SCREEN_PATTERN_SELECT); break;
-                case 1: goToScreen(SCREEN_CALIBRATION);    break;
-                case 2: goToScreen(SCREEN_STATISTICS);     break;
-                case 3: goToScreen(SCREEN_TIME_SETTINGS);  break;
-                case 4: goToScreen(SCREEN_WIFI_INFO);      break;
-                case 5: goToScreen(SCREEN_SYSTEM_INFO);    break;
+                case 0: goToScreen(SCREEN_CALIBRATION);    break;
+                case 1: goToScreen(SCREEN_DISTANCE_METER); break;
+                case 2: goToScreen(SCREEN_REPORTS);         break;
+                case 3:
+                    nozzlePatternIdx = (int)g_state.currentPattern;
+                    goToScreen(SCREEN_NOZZLE_CLEAN);
+                    break;
             }
             break;
 
@@ -176,39 +173,9 @@ void MenuSystem::handleMainMenu(ButtonEvent e) {
     }
 }
 
-// ============ SCREEN_PATTERN_SELECT ============
-
-void MenuSystem::handlePatternSelect(ButtonEvent e) {
-    switch (e) {
-        case EVT_SELECT_SHORT:
-        case EVT_ENC_CW:
-            g_state.menuIndex++;
-            if (g_state.menuIndex >= PAT_COUNT) g_state.menuIndex = 0;
-            g_state.displayNeedsUpdate = true;
-            break;
-
-        case EVT_ENC_CCW:
-            g_state.menuIndex--;
-            if (g_state.menuIndex < 0) g_state.menuIndex = PAT_COUNT - 1;
-            g_state.displayNeedsUpdate = true;
-            break;
-
-        case EVT_SELECT_LONG:
-        case EVT_ENC_SHORT:
-            patternMgr.setPattern((PatternID)g_state.menuIndex);
-            goToScreen(SCREEN_HOME);
-            break;
-
-        case EVT_STOP_LONG:
-            goToScreen(SCREEN_MAIN_MENU);
-            break;
-
-        default:
-            break;
-    }
-}
-
 // ============ SCREEN_CALIBRATION ============
+// START = rozpocznij/zakoncz pomiar 10m
+// STOP(1s) = powrot
 
 void MenuSystem::handleCalibration(ButtonEvent e) {
     switch (e) {
@@ -223,7 +190,7 @@ void MenuSystem::handleCalibration(ButtonEvent e) {
 
         case EVT_STOP_LONG:
             encoderDist.cancelCalibration();
-            goToScreen(SCREEN_MAIN_MENU);
+            goToScreen(SCREEN_SERVICE_MENU);
             break;
 
         default:
@@ -231,64 +198,37 @@ void MenuSystem::handleCalibration(ButtonEvent e) {
     }
 }
 
-// ============ SCREEN_STATISTICS ============
+// ============ SCREEN_DISTANCE_METER ============
+// START = start/pauza pomiaru
+// STOP  = reset pomiaru
+// STOP(1s) = powrot
 
-void MenuSystem::handleStatistics(ButtonEvent e) {
-    if (e == EVT_STOP_LONG) {
-        goToScreen(SCREEN_MAIN_MENU);
-    }
-}
-
-// ============ SCREEN_WIFI_INFO ============
-
-void MenuSystem::handleWifiInfo(ButtonEvent e) {
-    if (e == EVT_STOP_LONG) {
-        goToScreen(SCREEN_MAIN_MENU);
-    }
-}
-
-// ============ SCREEN_SYSTEM_INFO ============
-
-void MenuSystem::handleSystemInfo(ButtonEvent e) {
-    if (e == EVT_STOP_LONG) {
-        goToScreen(SCREEN_MAIN_MENU);
-    }
-}
-
-// ============ SCREEN_TIME_SETTINGS ============
-
-void MenuSystem::handleTimeSettings(ButtonEvent e) {
+void MenuSystem::handleDistanceMeter(ButtonEvent e) {
     switch (e) {
-        case EVT_SELECT_SHORT:
-            timeSettingsField = (timeSettingsField + 1) % 6;
+        case EVT_START_SHORT:
+            if (!distMeasuring) {
+                // Rozpocznij lub wznow pomiar
+                distMeasuring = true;
+                distMeterLast = encoderDist.getDistanceMeters();
+            } else {
+                // Pauza
+                distMeasuring = false;
+            }
             g_state.displayNeedsUpdate = true;
             break;
 
-        case EVT_ENC_CW:
-        case EVT_ENC_CCW: {
-            int dir = (e == EVT_ENC_CW) ? 1 : -1;
-            DateTime now = rtcModule.now();
-            int vals[6] = {
-                now.hour(), now.minute(), now.second(),
-                now.day(),  now.month(),  (int)now.year()
-            };
-            const int maxVals[6] = {23, 59, 59, 31, 12, 2099};
-            const int minVals[6] = { 0,  0,  0,  1,  1, 2020};
-
-            vals[timeSettingsField] += dir;
-            if (vals[timeSettingsField] > maxVals[timeSettingsField])
-                vals[timeSettingsField] = minVals[timeSettingsField];
-            if (vals[timeSettingsField] < minVals[timeSettingsField])
-                vals[timeSettingsField] = maxVals[timeSettingsField];
-
-            rtcModule.setTime(vals[0], vals[1], vals[2]);
-            rtcModule.setDate(vals[5], vals[4], vals[3]);
+        case EVT_STOP_SHORT:
+            // Reset
+            distMeasuring = false;
+            distMeterValue = 0;
+            distMeterLast = encoderDist.getDistanceMeters();
             g_state.displayNeedsUpdate = true;
             break;
-        }
 
         case EVT_STOP_LONG:
-            goToScreen(SCREEN_MAIN_MENU);
+            distMeasuring = false;
+            distMeterValue = 0;
+            goToScreen(SCREEN_SERVICE_MENU);
             break;
 
         default:
@@ -296,18 +236,76 @@ void MenuSystem::handleTimeSettings(ButtonEvent e) {
     }
 }
 
-// ============ Renderowanie ekranów ============
+// ============ SCREEN_REPORTS ============
+// STOP(1s) = powrot
+
+void MenuSystem::handleReports(ButtonEvent e) {
+    if (e == EVT_STOP_LONG) {
+        goToScreen(SCREEN_SERVICE_MENU);
+    }
+}
+
+// ============ SCREEN_NOZZLE_CLEAN ============
+// ENC/SEL = zmiana wzorca
+// START (trzymaj) = otwiera pistolety na czas trzymania
+// STOP(1s) = powrot
+
+void MenuSystem::handleNozzleClean(ButtonEvent e) {
+    switch (e) {
+        case EVT_SELECT_SHORT:
+        case EVT_ENC_CW:
+            nozzlePatternIdx++;
+            if (nozzlePatternIdx >= PAT_COUNT) nozzlePatternIdx = 0;
+            g_state.displayNeedsUpdate = true;
+            break;
+
+        case EVT_ENC_CCW:
+            nozzlePatternIdx--;
+            if (nozzlePatternIdx < 0) nozzlePatternIdx = PAT_COUNT - 1;
+            g_state.displayNeedsUpdate = true;
+            break;
+
+        case EVT_STOP_LONG:
+            guns.allOff();
+            goToScreen(SCREEN_SERVICE_MENU);
+            break;
+
+        default:
+            break;
+    }
+}
+
+// ============ Renderowanie + logika ciagla ============
 
 void MenuSystem::update() {
+    // --- Logika ciagla: pomiar dystansu ---
+    if (g_state.currentScreen == SCREEN_DISTANCE_METER && distMeasuring) {
+        float current = encoderDist.getDistanceMeters();
+        float delta = current - distMeterLast;
+        distMeterLast = current;
+        if (delta > 0) distMeterValue += delta;
+    }
+
+    // --- Logika ciagla: czyszczenie dysz ---
+    if (g_state.currentScreen == SCREEN_NOZZLE_CLEAN) {
+        bool held = buttons.isStartHeld();
+        const PatternDef& pat = PatternManager::patterns[nozzlePatternIdx];
+        for (int i = 0; i < NUM_GUNS; i++) {
+            bool active = (pat.guns[i].mode != GUN_OFF);
+            guns.setGun((GunID)i, held && active);
+        }
+        // Wymusz odswiezanie zeby pokazac stan pistoletow
+        g_state.displayNeedsUpdate = true;
+    }
+
+    // --- Renderowanie ---
     if (!g_state.displayNeedsUpdate) return;
     g_state.displayNeedsUpdate = false;
-
-    bool fullRedraw = g_state.forceFullRedraw;
     g_state.forceFullRedraw = false;
 
     switch (g_state.currentScreen) {
 
-        // ---- Ekran główny ----
+        // ---- Ekran glowny ----
         case SCREEN_HOME: {
             const PatternDef& pat = patternMgr.getCurrent();
             display.drawHomeScreen(
@@ -343,14 +341,9 @@ void MenuSystem::update() {
             break;
         }
 
-        // ---- Menu główne ----
-        case SCREEN_MAIN_MENU:
-            display.drawMainMenu(g_state.menuIndex);
-            break;
-
-        // ---- Wybór wzorca ----
-        case SCREEN_PATTERN_SELECT:
-            display.drawPatternSelect(g_state.menuIndex);
+        // ---- Menu serwisowe ----
+        case SCREEN_SERVICE_MENU:
+            display.drawServiceMenu(g_state.menuIndex);
             break;
 
         // ---- Kalibracja ----
@@ -363,45 +356,32 @@ void MenuSystem::update() {
             );
             break;
 
-        // ---- Statystyki ----
-        case SCREEN_STATISTICS:
-            display.drawStatisticsScreen(
-                stats.getSessionDistance(),
-                stats.getSessionArea(),
-                stats.getSessionTimeSec(),
-                stats.getLifetimeDistance(),
-                stats.getLifetimeArea(),
-                stats.getLifetimePaintTimeSec()
-            );
+        // ---- Pomiar dystansu ----
+        case SCREEN_DISTANCE_METER:
+            display.drawDistanceMeter(distMeterValue, distMeasuring);
             break;
 
-        // ---- Info WiFi ----
-        case SCREEN_WIFI_INFO: {
-            String ip = webServer.getIPAddress();
-            display.drawWifiInfo(
-                WIFI_AP_SSID,
-                ip.c_str(),
-                webServer.getConnectedClients()
+        // ---- Raporty ----
+        case SCREEN_REPORTS: {
+            char lastReport[128] = {};
+            reportLogger.getLastReport(lastReport, sizeof(lastReport));
+            display.drawReportsScreen(
+                reportLogger.isReady(),
+                reportLogger.getReportCount(),
+                lastReport
             );
             break;
         }
 
-        // ---- Info systemowe ----
-        case SCREEN_SYSTEM_INFO:
-            display.drawSystemInfo(
-                FW_VERSION,
-                ESP.getFreeHeap(),
-                millis()
-            );
+        // ---- Czyszczenie dysz ----
+        case SCREEN_NOZZLE_CLEAN: {
+            const PatternDef& pat = PatternManager::patterns[nozzlePatternIdx];
+            bool gunStates[6];
+            for (int i = 0; i < NUM_GUNS; i++) {
+                gunStates[i] = guns.getState(i);
+            }
+            display.drawNozzleClean(pat.code, pat.name, pat.guns, gunStates);
             break;
-
-        // ---- Czas i data ----
-        case SCREEN_TIME_SETTINGS:
-            display.drawTimeSettings(
-                rtcModule.getTimeStr(),
-                rtcModule.getDateStr(),
-                timeSettingsField
-            );
-            break;
+        }
     }
 }

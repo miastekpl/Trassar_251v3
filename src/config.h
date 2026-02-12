@@ -59,6 +59,12 @@
 #define TFT_BL_LEDC_FREQ  5000
 #define TFT_BL_LEDC_RES      8
 
+// ============ Karta SD (czytnik w module wyświetlacza) ============
+#define PIN_SD_CS            16
+
+// ============ Bezpieczeństwo malowania ============
+#define MIN_PAINT_SPEED_KMH  3.0f
+
 // ============ Kalibracja ============
 #define DEFAULT_PULSES_PER_METER  100.0f
 #define CALIBRATION_DISTANCE_M     10.0f
@@ -93,13 +99,11 @@ enum MachineState : uint8_t {
 enum ScreenID : uint8_t {
     SCREEN_HOME = 0,
     SCREEN_PAINTING,
-    SCREEN_MAIN_MENU,
-    SCREEN_PATTERN_SELECT,
+    SCREEN_SERVICE_MENU,
     SCREEN_CALIBRATION,
-    SCREEN_STATISTICS,
-    SCREEN_WIFI_INFO,
-    SCREEN_SYSTEM_INFO,
-    SCREEN_TIME_SETTINGS
+    SCREEN_DISTANCE_METER,
+    SCREEN_REPORTS,
+    SCREEN_NOZZLE_CLEAN
 };
 
 // ============ Identyfikatory wzorców ============

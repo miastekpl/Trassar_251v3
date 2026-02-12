@@ -8,6 +8,7 @@
 #include "encoder_distance.h"
 #include "statistics.h"
 #include "storage.h"
+#include "report_logger.h"
 #include <math.h>
 
 PaintingEngine paintEngine;
@@ -45,10 +46,13 @@ void PaintingEngine::update() {
     float distFromPatternStart = currentDist - patternStartDist;
     if (distFromPatternStart < 0) distFromPatternStart = 0;
 
+    // Bezpieczenstwo: pistolety tylko przy >= 3 km/h
+    bool speedOK = (encoderDist.getSpeedKmh() >= MIN_PAINT_SPEED_KMH);
+
     // Aktualizuj stan każdego pistoletu
     bool gunStates[NUM_GUNS];
     for (int i = 0; i < NUM_GUNS; i++) {
-        bool fire = shouldGunFire((GunID)i, distFromPatternStart);
+        bool fire = speedOK && shouldGunFire((GunID)i, distFromPatternStart);
         guns.setGun((GunID)i, fire);
         gunStates[i] = fire;
     }
@@ -101,6 +105,14 @@ void PaintingEngine::stop() {
         guns.allOff();
         stats.pauseSessionTimer();
         stats.saveLifetime();
+
+        // Zapis raportu na karte SD
+        reportLogger.logSession(
+            patternMgr.getCurrent().code,
+            stats.getSessionDistance(),
+            stats.getSessionArea()
+        );
+
         g_state.currentScreen = SCREEN_HOME;
         g_state.displayNeedsUpdate = true;
         g_state.forceFullRedraw = true;

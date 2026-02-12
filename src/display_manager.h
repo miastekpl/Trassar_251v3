@@ -1,7 +1,7 @@
 #pragma once
 // ============================================================
 // TrassarV3 - Modul wyswietlacza ILI9341  240x320
-// Komputer pokladowy malowarki pasow drogowych  v2.0.0
+// Komputer pokladowy malowarki pasow drogowych  v2.1.0
 // ============================================================
 
 #include <TFT_eSPI.h>
@@ -18,14 +18,14 @@ public:
                         float speedKmh, float distanceM, bool calibrated, bool reversed);
     void drawPaintingScreen(MachineState state, const char* patCode, float speedKmh, float distM,
                             float areaM2, unsigned long elapsedSec, const bool gunStates[6], bool reversed);
-    void drawMainMenu(int selectedIndex);
-    void drawPatternSelect(int selectedIndex);
+
+    // Menu serwisowe
+    void drawServiceMenu(int selectedIndex);
     void drawCalibrationScreen(bool active, float pulses, float ppm, bool calibrated);
-    void drawStatisticsScreen(float sessDist, float sessArea, unsigned long sessTime,
-                              float ltDist, float ltArea, uint32_t ltTime);
-    void drawWifiInfo(const char* ssid, const char* ip, int clients);
-    void drawSystemInfo(const char* fwVer, uint32_t freeHeap, uint32_t uptime);
-    void drawTimeSettings(const char* timeStr, const char* dateStr, int selectedField);
+    void drawDistanceMeter(float distanceM, bool measuring);
+    void drawReportsScreen(bool sdReady, int fileCount, const char* lastReport);
+    void drawNozzleClean(const char* patCode, const char* patName,
+                         const GunPatternCfg guns[6], const bool gunStates[6]);
 
     // ---- Elementy pomocnicze ----
     void drawHeader(const char* title);

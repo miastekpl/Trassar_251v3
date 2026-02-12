@@ -41,6 +41,10 @@ private:
 
     void initBtn(BtnState& b, uint8_t pin);
     void processBtn(BtnState& b);
+
+public:
+    // Surowy stan przycisku START (dla czyszczenia dysz)
+    bool isStartHeld() const { return btnStart.pressed; }
 };
 
 extern ButtonHandler buttons;
