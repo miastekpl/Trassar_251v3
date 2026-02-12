@@ -112,19 +112,12 @@ void MenuSystem::handlePaintingScreen(ButtonEvent e) {
             goToScreen(SCREEN_HOME);
             break;
 
-        case EVT_SELECT_SHORT:
-        case EVT_ENC_CW: {
+        case EVT_SELECT_SHORT: {
+            // Zmiana wzorca tylko przyciskiem SELEKTOR (nie enkoderem!)
+            // Enkoder podczas malowania sluzy WYLACZNIE do pomiaru dystansu.
             int next = (int)g_state.currentPattern + 1;
             if (next >= PAT_COUNT) next = 0;
             paintEngine.setPattern((PatternID)next);
-            g_state.displayNeedsUpdate = true;
-            break;
-        }
-
-        case EVT_ENC_CCW: {
-            int prev = (int)g_state.currentPattern - 1;
-            if (prev < 0) prev = PAT_COUNT - 1;
-            paintEngine.setPattern((PatternID)prev);
             g_state.displayNeedsUpdate = true;
             break;
         }

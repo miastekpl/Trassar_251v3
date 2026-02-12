@@ -68,19 +68,26 @@ ButtonEvent ButtonHandler::getEvent() {
     if (btnSelect.pendingShort) { btnSelect.pendingShort = false;return EVT_SELECT_SHORT; }
     if (btnEnc.pendingShort)    { btnEnc.pendingShort = false;   return EVT_ENC_SHORT; }
 
-    // Akumuluj impulsy enkodera - generuj zdarzenie CW/CCW dopiero
-    // po osiagnieciu progu ENC_NAV_STEP_PULSES (zapobiega
-    // samoistnym przelaczaniom od szumu i wibracji)
+    // Enkoder: zawsze konsumuj delta (zeby nie narastalo w nieskonczonosc),
+    // ale generuj zdarzenia nawigacji CW/CCW TYLKO gdy maszyna stoi.
+    // Podczas jazdy enkoder sluzy wylacznie do pomiaru dystansu.
     int delta = encoderDist.consumeDelta();
-    navAccumulator += delta;
 
-    if (navAccumulator >= ENC_NAV_STEP_PULSES) {
+    if (encoderDist.getSpeedKmh() < ENC_NAV_MAX_SPEED_KMH) {
+        // Maszyna stoi - enkoder moze nawigowac
+        navAccumulator += delta;
+
+        if (navAccumulator >= ENC_NAV_STEP_PULSES) {
+            navAccumulator = 0;
+            return EVT_ENC_CW;
+        }
+        if (navAccumulator <= -ENC_NAV_STEP_PULSES) {
+            navAccumulator = 0;
+            return EVT_ENC_CCW;
+        }
+    } else {
+        // Maszyna jedzie - wyzeruj akumulator, brak nawigacji
         navAccumulator = 0;
-        return EVT_ENC_CW;
-    }
-    if (navAccumulator <= -ENC_NAV_STEP_PULSES) {
-        navAccumulator = 0;
-        return EVT_ENC_CCW;
     }
 
     return EVT_NONE;
