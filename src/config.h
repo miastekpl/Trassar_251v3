@@ -29,14 +29,14 @@
 // ============ Enkoder obrotowy (tylko pomiar dystansu/predkosci) ============
 #define PIN_ENC_CLK       5
 #define PIN_ENC_DT        6
-#define PIN_ENC_SW        7
 #define ENC_ISR_DEBOUNCE_US   200    // Minimalny odstep miedzy impulsami ISR [us]
 
-// ============ Przyciski funkcyjne BS-33B ============
+// ============ Przyciski funkcyjne ============
 // GPIO 33-37 zajęte przez Octal PSRAM na N16R8!
 #define PIN_BTN_START    38   // Start / Pauza
 #define PIN_BTN_STOP     39   // Stop
 #define PIN_BTN_SELECT   40   // Selektor
+#define PIN_BTN_GAP       7   // Start od przerwy (przycisk na enkoderze)
 
 // ============ Przekaźniki pistoletów (6 szt.) ============
 #define PIN_RELAY_P1     41   // Pistolet 1 - oś L, 12cm

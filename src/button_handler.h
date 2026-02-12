@@ -11,7 +11,8 @@ enum ButtonEvent : uint8_t {
     EVT_STOP_SHORT,
     EVT_STOP_LONG,
     EVT_SELECT_SHORT,
-    EVT_SELECT_LONG
+    EVT_SELECT_LONG,
+    EVT_GAP_START
 };
 
 class ButtonHandler {
@@ -34,6 +35,7 @@ private:
     BtnState btnStart;
     BtnState btnStop;
     BtnState btnSelect;
+    BtnState btnGap;
 
     void initBtn(BtnState& b, uint8_t pin);
     void processBtn(BtnState& b);

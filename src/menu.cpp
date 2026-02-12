@@ -62,8 +62,8 @@ void MenuSystem::handleHomeScreen(ButtonEvent e) {
             goToScreen(SCREEN_PAINTING);
             break;
 
-        case EVT_STOP_SHORT:
-            // Start od przerwy (przycisk STOP krotki)
+        case EVT_GAP_START:
+            // Dedykowany przycisk "Start od przerwy" (GPIO 7)
             paintEngine.startFromGap();
             goToScreen(SCREEN_PAINTING);
             break;
@@ -237,7 +237,7 @@ void MenuSystem::handleReports(ButtonEvent e) {
 }
 
 // ============ SCREEN_NOZZLE_CLEAN ============
-// ENC/SEL = zmiana wzorca
+// SEL = zmiana wzorca
 // START (trzymaj) = otwiera pistolety na czas trzymania
 // STOP(1s) = powrot
 

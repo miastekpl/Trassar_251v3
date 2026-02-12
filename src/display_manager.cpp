@@ -237,7 +237,7 @@ void DisplayManager::drawHomeScreen(const char* timeStr, const char* dateStr,
     y += 8;
     tft.setFreeFont(FM9);
     tft.setTextColor(COLOR_MENU_TXT, COLOR_BG);
-    tft.drawString("START=maluj STOP=od przerwy", 6, y);
+    tft.drawString("START=maluj GAP=od przerwy", 6, y);
     y += 16;
     tft.drawString("SEL=wzorzec STOP(1s)=menu", 6, y);
 

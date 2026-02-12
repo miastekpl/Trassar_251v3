@@ -1,4 +1,4 @@
-# TrassarV3 - Instrukcja obsługi v2.1.0
+# TrassarV3 - Instrukcja obsługi v2.2.0
 
 ## 1. Opis ogólny
 
@@ -6,7 +6,7 @@ TrassarV3 to komputer pokładowy malowarki pasów drogowych oparty na mikrokontr
 
 Urządzenie posiada:
 - Kolorowy wyświetlacz TFT ILI9341 2.8" (240x320)
-- Trzy przyciski funkcyjne BS-33B (START, STOP, SELEKTOR)
+- Cztery przyciski sterujące: START, STOP, SELEKTOR + dedykowany **"Start od przerwy"** (GPIO 7)
 - Enkoder obrotowy (wyłącznie pomiar dystansu i prędkości)
 - Zegar RTC DS1307 z baterią podtrzymującą
 - Czytnik kart SD do zapisu raportów
@@ -17,15 +17,16 @@ Urządzenie posiada:
 
 ### 2.1 Przyciski funkcyjne
 
-| Przycisk | Krótkie naciśnięcie | Długie naciśnięcie (1s) |
-|----------|---------------------|-------------------------|
-| **START** | Start malowania / Pauza / Wznowienie | - |
-| **STOP** | Start od przerwy (HOME) / Zatrzymanie (malowanie) / Cofnij (menu) | Wejście w menu serwisowe / Powrót |
-| **SELEKTOR** | Następna opcja / Następny wzorzec | Wejście w funkcję / Odwróć wzorzec |
+| Przycisk | GPIO | Krótkie naciśnięcie | Długie naciśnięcie (1s) |
+|----------|------|---------------------|-------------------------|
+| **START** | 38 | Start malowania / Pauza / Wznowienie | - |
+| **STOP** | 39 | Zatrzymanie malowania / Cofnij (menu) | Wejście w menu serwisowe / Powrót |
+| **SELEKTOR** | 40 | Następna opcja / Następny wzorzec | Wejście w funkcję / Odwróć wzorzec |
+| **GAP (od przerwy)** | **7** | **Start od przerwy** (na ekranie HOME) | - |
 
 ### 2.2 Enkoder obrotowy
 
-Enkoder obrotowy służy **wyłącznie** do pomiaru dystansu i prędkości. **Nie jest używany do nawigacji ani sterowania interfejsem.** Cała obsługa menu i wybór wzorców odbywa się za pomocą trzech przycisków (START, STOP, SELEKTOR).
+Enkoder obrotowy służy **wyłącznie** do pomiaru dystansu i prędkości. **Nie jest używany do nawigacji ani sterowania interfejsem.** Wbudowany przycisk enkodera (pin SW, GPIO 7) pełni funkcję dedykowanego przycisku **"Start od przerwy"**.
 
 ## 3. Pistolety natryskowe
 
@@ -113,7 +114,7 @@ Wyświetla się po uruchomieniu:
 | Przycisk | Akcja |
 |----------|-------|
 | **START** | Rozpocznij malowanie (od początku wzorca) |
-| **STOP (krótko)** | **Start od przerwy** - rozpocznij od przerwy we wzorcu |
+| **GAP (GPIO 7)** | **Start od przerwy** - rozpocznij od przerwy we wzorcu |
 | **SELEKTOR** | Następny wzorzec |
 | **SELEKTOR (1s)** | Odwróć wzorzec (P-3a/P-3b) |
 | **STOP (1s)** | Wejdź do menu serwisowego |
@@ -228,7 +229,7 @@ Normalny start (przycisk START):
 Kreska → Przerwa → Kreska → Przerwa → ...
 ```
 
-Start od przerwy (przycisk STOP krótko):
+Start od przerwy (dedykowany przycisk GAP, GPIO 7):
 ```
 Przerwa → Kreska → Przerwa → Kreska → ...
 ```
@@ -237,7 +238,7 @@ System przesuwa punkt startowy wzorca o długość kreski, dzięki czemu cykl za
 
 ### 6.3 Aktywacja
 
-- **Na urządzeniu:** Naciśnij krótko **przycisk STOP** na ekranie głównym
+- **Na urządzeniu:** Naciśnij dedykowany **przycisk "Start od przerwy"** (GPIO 7) na ekranie głównym
 - **W panelu WWW:** Przycisk **START OD PRZERWY** (żółty)
 
 Na ekranie malowania pojawi się znacznik **[PRZERWA]** informujący, że użyto startu od przerwy.
@@ -305,7 +306,7 @@ Pistolety wyłączają się automatycznie przy:
 
 2. **Kalibracja (jeśli pierwszy raz):**
    - Przytrzymaj STOP (1s) → menu serwisowe
-   - Wybierz "Kalibracja enkodera"
+   - Selektorem przejdź do "Kalibracja enkodera", przytrzymaj SELEKTOR (1s)
    - Naciśnij START, przejedź dokładnie 10m, naciśnij START
    - STOP (1s) → powrót
 
@@ -370,7 +371,7 @@ Pistolety wyłączają się automatycznie przy:
    - Wybierz **P-1b** (Przerywana krótka: 3m kreska, 3m przerwa)
 
 2. **Start od przerwy:**
-   - Naciśnij krótko **przycisk STOP** (nie START!)
+   - Naciśnij dedykowany **przycisk "Start od przerwy"** (GPIO 7) - nie START!
    - Na ekranie malowania pojawi się znacznik **[PRZERWA]**
    - System przesunął punkt startowy o 3m (długość kreski)
 
@@ -381,7 +382,7 @@ Pistolety wyłączają się automatycznie przy:
    - Dalej normalny cykl: 3m przerwa → 3m kreska → ...
 
 4. **Alternatywa - panel WWW:**
-   - Zamiast przycisku STOP, na telefonie naciśnij żółty przycisk **START OD PRZERWY**
+   - Zamiast przycisku fizycznego, na telefonie naciśnij żółty przycisk **START OD PRZERWY**
    - Efekt identyczny
 
 **Porównanie:**
@@ -471,8 +472,8 @@ Szczegółowe raporty dostępne po wyjęciu karty SD i otwarciu plików CSV na k
 | Wyświetlacz nie świeci | Sprawdź pin podświetlenia GPIO 21 |
 | Brak czasu/daty | Sprawdź DS1307 (SDA=17, SCL=18) i baterię CR2032 |
 | Nie można połączyć WiFi | Upewnij się, że jesteś w zasięgu. SSID: TrassarV3, hasło: 12345678 |
-| Enkoder nie reaguje | Sprawdź piny CLK=5, DT=6, SW=7 |
-| Przyciski nie działają | Sprawdź podłączenie do GND i GPIO 38/39/40 |
+| Enkoder nie reaguje | Sprawdź piny CLK=5, DT=6 |
+| Przyciski nie działają | Sprawdź podłączenie do GND i GPIO 38/39/40/7 |
 | Restart w pętli (crash) | GPIO 33-37 zajęte przez PSRAM! Nie podłączać! |
 | Pistolety nie włączają się | 1) Sprawdź prędkość >= 3 km/h. 2) Sprawdź przekaźniki na GPIO 41,42,1,2,3,4 |
 | Pistolety nie włączają się na postoju | Normalnie - zabezpieczenie prędkości. Użyj trybu czyszczenia dysz |
@@ -480,4 +481,4 @@ Szczegółowe raporty dostępne po wyjęciu karty SD i otwarciu plików CSV na k
 | Wzorzec P-3a/P-3b maluje odwrotnie | Użyj funkcji odwracania (Selektor 1s lub przycisk w panelu WWW) |
 | Karta SD nie działa | Sprawdź format FAT32, pin CS=GPIO 16, poprawne włożenie karty |
 | Brak raportów na karcie | Sprawdź status SD w Menu → Raporty. Raporty zapisują się po STOP |
-| "Start od przerwy" nie działa | Działa tylko dla wzorców przerywanych (P-1x, P-3x, P-6, P-7a, P-7c) |
+| "Start od przerwy" nie działa | 1) Sprawdź przycisk na GPIO 7. 2) Działa tylko dla wzorców przerywanych (P-1x, P-3x, P-6, P-7a, P-7c) |

@@ -1,4 +1,4 @@
-# TrassarV3 - Schemat podłączeń v2.1.0
+# TrassarV3 - Schemat podłączeń v2.2.0
 
 ## 1. Tabela podłączeń pinów ESP32-S3 N16R8
 
@@ -52,10 +52,18 @@
 | GND | GND | - | Masa |
 | CLK (A) | GPIO 5 | 5 | Sygnał A (z przerwaniem ISR) |
 | DT (B) | GPIO 6 | 6 | Sygnał B |
-| SW | GPIO 7 | 7 | Przycisk (nieużywany w firmware) |
 | + (VCC) | 3V3 | - | Zasilanie (jeśli wymagane) |
 
-> **Uwaga:** Piny CLK i DT mają włączone wewnętrzne rezystory pull-up ESP32-S3. Enkoder służy **wyłącznie** do pomiaru dystansu i prędkości (ISR na CLK/CHANGE). **Nie jest używany do nawigacji menu** - cała obsługa interfejsu odbywa się za pomocą trzech przycisków BS-33B.
+> **Uwaga:** Piny CLK i DT mają włączone wewnętrzne rezystory pull-up ESP32-S3. Enkoder służy **wyłącznie** do pomiaru dystansu i prędkości (ISR na CLK/CHANGE). **Nie jest używany do nawigacji menu.**
+
+### Przycisk "Start od przerwy" (dedykowany)
+
+| Pin | Pin ESP32-S3 | GPIO | Opis |
+|-----|-------------|------|------|
+| Styk 1 | GPIO 7 | **7** | **Przycisk "Start od przerwy"** |
+| Styk 2 | GND | - | Masa |
+
+> **Przycisk "Start od przerwy"** na GPIO 7 jest dedykowanym, osobnym przyciskiem fizycznym. Można użyć wbudowanego przycisku enkodera (SW) lub zamontować oddzielny przycisk monostabilny. Podłączenie identyczne jak BS-33B: jeden styk do GPIO 7, drugi do GND, wewnętrzny pull-up aktywny.
 
 ### Przyciski BS-33B (monostabilne)
 
@@ -87,7 +95,7 @@
 | Funkcja | Przycisk / Element | GPIO | Uwagi |
 |---------|-------------------|------|-------|
 | **Start malowania** | START (BS-33B) | 38 | Krótkie naciśnięcie na ekranie HOME |
-| **Start od przerwy** | STOP (BS-33B) | 39 | Krótkie naciśnięcie na ekranie HOME |
+| **Start od przerwy** | **Dedykowany przycisk** | **7** | **Krótkie naciśnięcie na ekranie HOME** |
 | **Start od przerwy (WWW)** | Panel WWW | - | Przycisk "START OD PRZERWY" w przeglądarce |
 | **Pauza / Wznowienie** | START (BS-33B) | 38 | Krótkie naciśnięcie podczas malowania |
 | **Zatrzymanie** | STOP (BS-33B) | 39 | Krótkie naciśnięcie podczas malowania |
@@ -102,7 +110,7 @@
 
 ## 3. Schemat blokowy
 
-> Enkoder = tylko pomiar dystansu. Nawigacja = 3 przyciski BS-33B (GPIO 38/39/40)
+> 4 przyciski sterowania: START (38), STOP (39), SELEKTOR (40), GAP/PRZERWA (7)
 
 ```
                           ┌──────────────────────────────┐
@@ -127,12 +135,13 @@
                           │                               │
     ┌─────────┐  Digital  │  GPIO  5 → CLK (ISR CHANGE)   │
     │ Enkoder │──────────│  GPIO  6 → DT                 │
-    │ obrotowy│           │  GPIO  7 → SW                 │
+    │ obrotowy│           │                               │
     └─────────┘           │                               │
                           │                               │
     [START/PAUZA]─── GND ─│─ GPIO 38 (pull-up)            │
     [STOP]──────── GND ─│─ GPIO 39 (pull-up)            │
     [SELEKTOR]──── GND ─│─ GPIO 40 (pull-up)            │
+    [OD PRZERWY]── GND ─│─ GPIO  7 (pull-up)            │
                           │                               │
                           │  --- PRZEKAŹNIKI ---           │
     ┌──────────┐          │                               │
@@ -148,9 +157,10 @@
                           └──────────────────────────────┘
 ```
 
-## 4. Schemat podłączenia przycisków BS-33B
+## 4. Schemat podłączenia przycisków
 
 ```
+    Przyciski BS-33B:
     ESP32-S3 GPIO 38/39/40
          │
          │  (wewnętrzny pull-up do 3.3V)
@@ -160,9 +170,20 @@
          │     Styk 2 przycisku BS-33B
          │         │
         GND ──────┘
+
+    Przycisk "Start od przerwy":
+    ESP32-S3 GPIO 7
+         │
+         │  (wewnętrzny pull-up do 3.3V)
+         │
+         ├──── Styk 1 (wbudowany SW enkodera lub osobny przycisk)
+         │
+         │     Styk 2
+         │         │
+        GND ──────┘
 ```
 
-Przycisk łączy GPIO do GND. W stanie spoczynku pin jest w stanie HIGH (pull-up).
+Wszystkie przyciski łączą GPIO do GND. W stanie spoczynku pin jest w stanie HIGH (pull-up).
 Naciśnięcie = stan LOW.
 
 ## 5. Schemat podłączenia enkodera (tylko pomiar dystansu)
@@ -177,13 +198,13 @@ Naciśnięcie = stan LOW.
     │      │
     │  DT  ├──── GPIO 6  (pull-up)
     │      │
-    │  SW  ├──── GPIO 7  (nieużywany w firmware)
+    │  SW  ├──── GPIO 7  ← przycisk "START OD PRZERWY"
     │      │
     │  GND ├──── GND
     └──────┘
 ```
 
-> Enkoder służy **wyłącznie** do pomiaru dystansu i prędkości. Pin SW (GPIO 7) nie jest wykorzystywany w firmware - cała nawigacja odbywa się przez 3 przyciski BS-33B.
+> Pin SW enkodera (GPIO 7) jest wykorzystywany jako **dedykowany przycisk "Start od przerwy"**. Obroty enkodera (CLK/DT) służą wyłącznie do pomiaru dystansu i prędkości. Nawigacja po menu odbywa się przez 3 przyciski BS-33B.
 
 ## 6. Schemat podłączenia przekaźników
 
@@ -251,7 +272,7 @@ Naciśnięcie = stan LOW.
 | 4 | Przekaźnik P6 | OUTPUT |
 | 5 | Enkoder CLK | INPUT_PULLUP, ISR |
 | 6 | Enkoder DT | INPUT_PULLUP |
-| 7 | Enkoder SW (nieużywany) | INPUT_PULLUP |
+| **7** | **Przycisk "Start od przerwy"** | **INPUT_PULLUP** |
 | 9 | TFT DC | OUTPUT |
 | 10 | TFT CS | OUTPUT |
 | 11 | TFT MOSI / SD MOSI | SPI (HSPI) |
@@ -282,3 +303,4 @@ Naciśnięcie = stan LOW.
 8. Enkoder powinien być zamontowany na kole pomiarowym z dobrym stykiem z podłożem
 9. **Karta SD** powinna być sformatowana w systemie FAT32. Moduł SD współdzieli magistralę SPI z wyświetlaczem - nie wymaga dodatkowego okablowania poza jednym przewodem CS (GPIO 16)
 10. Przy problemach z kartą SD sprawdź czy pin GPIO 16 nie jest używany przez inne urządzenie
+11. **Przycisk "Start od przerwy"** może być wbudowanym przyciskiem enkodera (SW) lub osobnym przyciskiem monostabilnym podłączonym do GPIO 7 i GND
