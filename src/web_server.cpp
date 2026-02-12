@@ -84,6 +84,10 @@ void TrassarWebServer::handleControl() {
         } else if (g_state.machineState == STATE_IDLE || g_state.machineState == STATE_STOPPED) {
             paintEngine.start();
         }
+    } else if (action == "start_from_gap") {
+        if (g_state.machineState == STATE_IDLE || g_state.machineState == STATE_STOPPED) {
+            paintEngine.startFromGap();
+        }
     } else if (action == "pause") {
         if (g_state.machineState == STATE_PAINTING) {
             paintEngine.pause();
@@ -146,6 +150,7 @@ String TrassarWebServer::getStateJson() {
     doc["pattern"] = pat.code;
     doc["patternName"] = pat.name;
     doc["reversed"] = g_state.patternReversed;
+    doc["gapStart"] = paintEngine.isGapStart();
 
     // Predkosc i dystans
     doc["speed"] = serialized(String(encoderDist.getSpeedKmh(), 1));
@@ -250,7 +255,9 @@ body{
 .info-item .val.warn{color:#f0c040;}
 
 /* ---------- CONTROLS ---------- */
-.controls{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px;}
+.controls{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px;}
+.controls2{display:grid;grid-template-columns:1fr;gap:8px;margin-bottom:10px;}
+.btn-gap{background:linear-gradient(135deg,#6a4a10,#f0c040);color:#0a0e17;}
 .btn{
     padding:14px 6px;border:none;border-radius:10px;
     font-size:14px;font-weight:bold;cursor:pointer;
@@ -378,6 +385,9 @@ body{
         <button class="btn btn-start" id="btnStart" onclick="cmd('start')">START</button>
         <button class="btn btn-pause" id="btnPause" onclick="cmd('pause')">PAUZA</button>
         <button class="btn btn-stop" id="btnStop" onclick="cmd('stop')">STOP</button>
+    </div>
+    <div class="controls2">
+        <button class="btn btn-gap" id="btnGap" onclick="cmd('start_from_gap')">START OD PRZERWY</button>
     </div>
 
     <!-- ========== PATTERN SELECTION ========== -->
@@ -555,13 +565,21 @@ function fetchStatus(){
         else if(d.calibrated){calEl.textContent='TAK';calEl.className='val';}
         else{calEl.textContent='NIE';calEl.className='val warn';}
 
+        /* Gap start indicator */
+        let gapEl=document.getElementById('vRev');
+        if(d.gapStart){
+            document.getElementById('stBig').textContent+=' [PRZERWA]';
+        }
+
         /* Control buttons */
         let bs=document.getElementById('btnStart');
         let bp=document.getElementById('btnPause');
         let bt=document.getElementById('btnStop');
+        let bg=document.getElementById('btnGap');
         bs.disabled=(d.state==='painting');
         bp.disabled=(d.state!=='painting');
         bt.disabled=(d.state==='idle'||d.state==='stopped');
+        bg.disabled=(d.state==='painting'||d.state==='paused');
         bs.textContent=(d.state==='paused')?'WZNOW':'START';
 
         /* Pattern buttons highlight */

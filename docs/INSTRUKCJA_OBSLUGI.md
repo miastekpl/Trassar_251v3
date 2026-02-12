@@ -1,10 +1,17 @@
-# TrassarV3 - Instrukcja obsługi v2.0.0
+# TrassarV3 - Instrukcja obsługi v2.1.0
 
 ## 1. Opis ogólny
 
-TrassarV3 to komputer pokładowy malowarki pasów drogowych oparty na mikrokontrolerze ESP32-S3. System steruje **6 pistoletami natryskowanymi** (P1-P6) poprzez przekaźniki, obsługuje **15 wzorców malowania** zgodnych z polskimi normami, mierzy dystans za pomocą enkodera i oblicza powierzchnię malowaną.
+TrassarV3 to komputer pokładowy malowarki pasów drogowych oparty na mikrokontrolerze ESP32-S3 N16R8. System steruje **6 pistoletami natryskowymi** (P1-P6) poprzez przekaźniki, obsługuje **15 wzorców malowania** zgodnych z polskimi normami oznakowania poziomego, mierzy dystans za pomocą enkodera obrotowego i oblicza powierzchnię malowaną w czasie rzeczywistym.
 
-Urządzenie posiada kolorowy wyświetlacz TFT 2.8", trzy przyciski funkcyjne, enkoder obrotowy oraz wbudowany serwer WWW dostępny przez WiFi.
+Urządzenie posiada:
+- Kolorowy wyświetlacz TFT ILI9341 2.8" (240x320)
+- Trzy przyciski funkcyjne BS-33B (START, STOP, SELEKTOR)
+- Enkoder obrotowy (pomiar dystansu + nawigacja menu)
+- Zegar RTC DS1307 z baterią podtrzymującą
+- Czytnik kart SD do zapisu raportów
+- Wbudowany serwer WWW dostępny przez WiFi (panel zdalnego sterowania)
+- Zabezpieczenie prędkości minimalnej (3 km/h)
 
 ## 2. Panel sterowania
 
@@ -12,32 +19,32 @@ Urządzenie posiada kolorowy wyświetlacz TFT 2.8", trzy przyciski funkcyjne, en
 
 | Przycisk | Krótkie naciśnięcie | Długie naciśnięcie (1s) |
 |----------|---------------------|-------------------------|
-| **START/PAUZA** | Start malowania / Pauza / Wznowienie | - |
-| **STOP** | Zatrzymanie malowania | Wejście w menu / Powrót |
+| **START** | Start malowania / Pauza / Wznowienie | - |
+| **STOP** | Zatrzymanie malowania | Wejście w menu serwisowe / Powrót |
 | **SELEKTOR** | Następna opcja / Następny wzorzec | Wejście w funkcję / Odwróć wzorzec |
 
 ### 2.2 Enkoder obrotowy
 
 | Akcja | Funkcja |
 |-------|---------|
-| **Obrót w prawo (CW)** | Następny wzorzec / Przewijanie menu / Zwiększenie wartości |
-| **Obrót w lewo (CCW)** | Poprzedni wzorzec / Przewijanie menu / Zmniejszenie wartości |
-| **Naciśnięcie** | Potwierdzenie wyboru (alternatywa dla Selektor długi) |
+| **Obrót w prawo (CW)** | Następny wzorzec / Przewijanie menu |
+| **Obrót w lewo (CCW)** | Poprzedni wzorzec / Przewijanie menu |
+| **Naciśnięcie (krótkie)** | **Start od przerwy** (na ekranie głównym) / Wejście w opcję (w menu) |
 
-> **Uwaga:** Enkoder pełni podwójną rolę - mierzy dystans podczas malowania oraz służy do nawigacji w menu.
+> **Uwaga:** Enkoder pełni podwójną rolę - mierzy dystans podczas jazdy oraz służy do nawigacji w menu i wyboru wzorców.
 
 ## 3. Pistolety natryskowe
 
 ### 3.1 Opis pistoletów
 
-| Pistolet | Szerokość | Zastosowanie | Pin GPIO |
-|----------|-----------|-------------|----------|
-| **P1** | 12 cm | Oś jezdni - lewy | 41 |
-| **P2** | 12 cm | Oś jezdni - środek | 42 |
-| **P3** | 12 cm | Oś jezdni - prawy | 1 |
-| **P4** | 24 cm | Oś jezdni - szeroki | 2 |
-| **P5** | 12 cm | Krawędź - wąska | 3 |
-| **P6** | 24 cm | Krawędź - szeroka | 4 |
+| Pistolet | Szerokość | Zastosowanie |
+|----------|-----------|-------------|
+| **P1** | 12 cm | Oś jezdni - lewy |
+| **P2** | 12 cm | Oś jezdni - środek |
+| **P3** | 12 cm | Oś jezdni - prawy |
+| **P4** | 24 cm | Oś jezdni - szeroki |
+| **P5** | 12 cm | Krawędź - wąska |
+| **P6** | 24 cm | Krawędź - szeroka |
 
 ### 3.2 Przypisanie pistoletów do wzorców
 
@@ -50,6 +57,15 @@ Urządzenie posiada kolorowy wyświetlacz TFT 2.8", trzy przyciski funkcyjne, en
 - **P-6** → P5 (ostrzegawcza)
 - **P-7a, P-7b** → P6 (krawędziowe szerokie, 24cm)
 - **P-7c, P-7d** → P5 (krawędziowe wąskie, 12cm)
+
+### 3.3 Kolory wskaźników pistoletów
+
+| Kolor | Znaczenie |
+|-------|-----------|
+| **Żółty** | Pistolet wybrany we wzorcu (gotowy) |
+| **Zielony** | Pistolet aktualnie maluje |
+| **Żółty migający** | Pauza (pistolet we wzorcu, ale wstrzymany) |
+| **Szary** | Pistolet nieużywany w tym wzorcu |
 
 ## 4. Wzorce malowania
 
@@ -90,59 +106,67 @@ Odwracanie aktywuje się:
 
 ### 5.1 Ekran główny (HOME)
 
-Wyświetla po uruchomieniu:
+Wyświetla się po uruchomieniu:
 - Aktualny wzorzec (kod + nazwa)
-- Znacznik [ODWRÓCONY] (jeśli aktywny)
+- Znacznik [ODW] (jeśli wzorzec odwrócony)
 - Prędkość [km/h]
 - Dystans [m / km]
 - Status kalibracji (OK / BRAK)
-- Data i czas
+- Data i czas z modułu RTC
 
 **Dostępne akcje:**
-- **START** - rozpocznij malowanie
-- **SELEKTOR / Enkoder** - zmień wzorzec
-- **SELEKTOR (1s)** - odwróć wzorzec (P-3a/P-3b)
-- **STOP (1s)** - wejdź do menu
+
+| Przycisk | Akcja |
+|----------|-------|
+| **START** | Rozpocznij malowanie (od początku wzorca) |
+| **Przycisk enkodera** | **Start od przerwy** - rozpocznij od przerwy we wzorcu |
+| **SELEKTOR / Enkoder CW/CCW** | Zmień wzorzec |
+| **SELEKTOR (1s)** | Odwróć wzorzec (P-3a/P-3b) |
+| **STOP (1s)** | Wejdź do menu serwisowego |
 
 ### 5.2 Ekran malowania (PAINTING)
 
 Automatycznie po rozpoczęciu malowania:
 - Status: MALOWANIE / PAUZA
-- Aktualny wzorzec (z opcjonalnym [ODW])
-- Prędkość [km/h] i czas trwania
+- Aktualny wzorzec (z opcjonalnym [ODW] i [PRZERWA])
+- Prędkość [km/h] i czas trwania sesji
 - Dystans [m/km] i powierzchnia [m²]
-- Wskaźniki 6 pistoletów (kółka ON/OFF)
+- 6 wskaźników pistoletów (kółka kolorowe ON/OFF)
 
 **Sterowanie:**
-- **START** - pauza / wznowienie
-- **STOP** - zatrzymanie (powrót do HOME)
-- **SELEKTOR / Enkoder** - zmiana wzorca w trakcie malowania
-- **SELEKTOR (1s)** - odwróć wzorzec
 
-### 5.3 Menu główne
+| Przycisk | Akcja |
+|----------|-------|
+| **START** | Pauza / Wznowienie |
+| **STOP** | Zatrzymanie (powrót do HOME, zapis raportu) |
+| **SELEKTOR / Enkoder** | Zmiana wzorca w trakcie malowania |
+| **SELEKTOR (1s)** | Odwróć wzorzec |
 
-6 opcji do wyboru:
-1. **Wybór wzorca** - lista 15 wzorców
-2. **Kalibracja enkodera** - procedura 10m
-3. **Statystyki** - sesja + łączne
-4. **Czas i data** - edycja zegara RTC
-5. **Informacje WiFi** - dane sieci
-6. **Info systemowe** - firmware, RAM, uptime
+> **Bezpieczeństwo:** Pistolety włączają się automatycznie dopiero po osiągnięciu prędkości **3 km/h**. Poniżej tej prędkości pistolety są wyłączone, nawet jeśli malowanie trwa.
+
+### 5.3 Menu serwisowe
+
+Dostęp: **STOP (1s)** na ekranie głównym.
+
+4 pozycje do wyboru:
+
+| # | Pozycja | Opis |
+|---|---------|------|
+| 1 | **Kalibracja enkodera** | Procedura kalibracyjna 10m |
+| 2 | **Pomiar dystansu** | Ręczny pomiar odległości |
+| 3 | **Raporty** | Przeglądanie raportów z karty SD |
+| 4 | **Czyszczenie dysz** | Ręczne uruchamianie pistoletów |
 
 **Nawigacja:**
-- **SELEKTOR (krótko) / Enkoder** - przesuwanie
-- **SELEKTOR (1s) / Przycisk enkodera** - wejście
-- **STOP (1s)** - powrót do ekranu głównego
 
-### 5.4 Wybór wzorca
+| Przycisk | Akcja |
+|----------|-------|
+| **SELEKTOR (krótko) / Enkoder CW** | Następna pozycja |
+| **Enkoder CCW** | Poprzednia pozycja |
+| **SELEKTOR (1s) / Przycisk enkodera** | Wejdź w wybraną opcję |
+| **STOP (1s)** | Powrót do ekranu głównego |
 
-Lista 15 wzorców z paskiem przewijania. 8 pozycji widocznych jednocześnie.
-
-- **Enkoder** - przewijanie listy
-- **SELEKTOR (1s) / Przycisk enkodera** - wybór wzorca
-- **STOP (1s)** - powrót do menu
-
-### 5.5 Kalibracja enkodera
+### 5.4 Kalibracja enkodera
 
 Procedura kalibracji pomiarowej:
 
@@ -157,64 +181,94 @@ Na ekranie wyświetlane:
 - Aktualne impulsy/metr
 - Status kalibracji: Skalibrowany / Domyślny
 
-- **STOP (1s)** - anuluj i powrót do menu
+Powrót: **STOP (1s)**
 
-### 5.6 Statystyki
+### 5.5 Pomiar dystansu
 
-Dwa bloki informacji:
+Ręczny pomiar odległości (niezależny od malowania):
 
-**Bieżąca sesja:**
-- Dystans [m / km]
-- Powierzchnia [m²]
-- Czas pracy
+| Przycisk | Akcja |
+|----------|-------|
+| **START** | Rozpocznij / Wstrzymaj pomiar |
+| **STOP (krótko)** | Resetuj licznik do 0 |
+| **STOP (1s)** | Powrót do menu serwisowego |
 
-**Łączne (całkowite):**
-- Dystans [m / km]
-- Powierzchnia [m²]
-- Czas pracy
+Na ekranie: dystans w metrach (duża czcionka) + status (POMIAR / PAUZA).
 
-Łączne statystyki zapisywane do NVS i utrzymywane po restarcie.
+### 5.6 Raporty
 
-- **STOP (1s)** - powrót do menu
+Wyświetla informacje o raportach zapisanych na karcie SD:
+- Status karty SD (Gotowa / Brak karty)
+- Liczba plików raportów
+- Ostatni zapisany raport (data, wzorzec, dystans, powierzchnia)
 
-### 5.7 Czas i data
+Raporty zapisywane automatycznie po zakończeniu każdej sesji malowania.
+Format: CSV w katalogu `/reports/RRRRMMDD.csv`.
 
-Edycja 6 pól: Godzina, Minuta, Sekunda, Dzień, Miesiąc, Rok.
+Powrót: **STOP (1s)**
 
-- **SELEKTOR** - przeskocz do następnego pola
-- **Enkoder** - zmiana wartości
-- **STOP (1s)** - powrót do menu
+### 5.7 Czyszczenie dysz
 
-### 5.8 Informacje WiFi
+Tryb ręcznego testowania i czyszczenia pistoletów:
 
-Wyświetla dane sieci WiFi:
-- Tryb: Access Point
-- SSID i hasło
-- Adres IP
-- Liczba połączonych klientów
+1. Wybierz wzorzec enkoderem lub selektorem (określa które pistolety będą aktywne)
+2. **Trzymaj przycisk START** - pistolety włączą się na czas trzymania
+3. Puść START - pistolety natychmiast się wyłączą
 
-### 5.9 Informacje systemowe
+Na ekranie: nazwa wzorca, 6 prostokątów pistoletów (żółty = w wzorcu, zielony = aktualnie strzela, szary = nieużywany).
 
-- Wersja firmware
-- Data kompilacji
-- Wolna pamięć RAM
-- Uptime
-- Platforma: ESP32-S3 N16R8
-- Wyświetlacz: ILI9341 240x320
+> **Ważne:** W trybie czyszczenia dysz zabezpieczenie prędkości minimalnej jest **wyłączone** - pistolety działają na postoju.
 
-## 6. Panel WWW (zdalny dostęp)
+Powrót: **STOP (1s)**
 
-### 6.1 Połączenie
+## 6. Funkcja "Start od przerwy"
+
+### 6.1 Opis
+
+Funkcja "Start od przerwy" pozwala rozpocząć malowanie nie od kreski, ale od przerwy we wzorcu. Jest to przydatne gdy maszyna musi dojechać do miejsca, gdzie linia przerywana powinna mieć przerwę (np. kontynuacja istniejącego oznakowania).
+
+### 6.2 Jak działa
+
+Normalny start (przycisk START):
+```
+Kreska → Przerwa → Kreska → Przerwa → ...
+```
+
+Start od przerwy (przycisk enkodera):
+```
+Przerwa → Kreska → Przerwa → Kreska → ...
+```
+
+System przesuwa punkt startowy wzorca o długość kreski, dzięki czemu cykl zaczyna się od przerwy.
+
+### 6.3 Aktywacja
+
+- **Na urządzeniu:** Naciśnij **przycisk enkodera** na ekranie głównym
+- **W panelu WWW:** Przycisk **START OD PRZERWY** (żółty)
+
+Na ekranie malowania pojawi się znacznik **[PRZERWA]** informujący, że użyto startu od przerwy.
+
+### 6.4 Kiedy używać
+
+- Kontynuacja istniejącej linii przerywanej (np. po przerwie w pracy)
+- Malowanie od punktu, gdzie powinna być przerwa
+- Synchronizacja z istniejącym oznakowaniem na jezdni
+
+> **Uwaga:** Dla wzorców ciągłych (P-2a, P-2b, P-4, P-7b, P-7d) start od przerwy działa tak samo jak normalny start, ponieważ nie mają one przerw.
+
+## 7. Panel WWW (zdalny dostęp)
+
+### 7.1 Połączenie
 
 1. Na telefonie/komputerze wyszukaj sieć WiFi **TrassarV3**
 2. Połącz się hasłem: **12345678**
 3. Otwórz przeglądarkę i wejdź na: **http://192.168.4.1**
 
-### 6.2 Funkcje panelu WWW
+### 7.2 Funkcje panelu WWW
 
-- **Status** - stan maszyny z kolorowym wskaźnikiem (animowany)
+- **Status** - stan maszyny z kolorowym wskaźnikiem (animowany puls)
 - **Informacje** - wzorzec, prędkość, dystans, powierzchnia, czas, kalibracja
-- **Sterowanie** - przyciski START / PAUZA / STOP
+- **Sterowanie** - przyciski START / PAUZA / STOP / **START OD PRZERWY**
 - **15 przycisków wzorców** - pogrupowane: P-1x, P-2x, P-3x, P-4/P-6, P-7x
 - **Przycisk odwracania** - aktywny tylko dla P-3a/P-3b
 - **Wskaźniki pistoletów** - 6 kółek P1-P6 (zielone = ON, szare = OFF)
@@ -223,38 +277,200 @@ Wyświetla dane sieci WiFi:
 
 Panel automatycznie odświeża dane co 1 sekundę.
 
-## 7. Procedura malowania
+## 8. Zabezpieczenia
 
-1. **Przed startem:**
-   - Wykonaj kalibrację enkodera (Menu → Kalibracja → START → 10m → START)
-   - Wybierz wzorzec (na ekranie głównym enkoderem lub w Menu → Wybór wzorca)
-   - Dla P-3a/P-3b ustaw kierunek (Selektor 1s = odwróć)
+### 8.1 Minimalna prędkość malowania
 
-2. **Malowanie:**
+System wymaga prędkości minimum **3 km/h** do włączenia pistoletów. Poniżej tej prędkości:
+- Pistolety pozostają wyłączone (nawet w stanie MALOWANIE)
+- Na ekranie nadal widoczny jest status malowania
+- Po przyspieszeniu powyżej 3 km/h pistolety włączają się automatycznie
+
+**Wyjątek:** Tryb czyszczenia dysz omija zabezpieczenie prędkości.
+
+### 8.2 Automatyczne wyłączanie pistoletów
+
+Pistolety wyłączają się automatycznie przy:
+- Zatrzymaniu malowania (STOP)
+- Pauzie malowania
+- Spadku prędkości poniżej 3 km/h
+- Wyjściu z trybu czyszczenia dysz
+
+## 9. Przykłady zastosowania
+
+### Przykład 1: Malowanie linii przerywanej P-1a na nowej drodze
+
+**Scenariusz:** Malowanie osi jezdni na nowo wybudowanej drodze linią przerywaną długą (6m kreska, 6m przerwa, 12cm szerokości).
+
+**Kroki:**
+
+1. **Przygotowanie:**
+   - Włącz urządzenie - pojawi się ekran główny
+   - Obróć enkoder aby wybrać wzorzec **P-1a** (Przerywana długa)
+   - Sprawdź status kalibracji (powinno być "OK")
+
+2. **Kalibracja (jeśli pierwszy raz):**
+   - Przytrzymaj STOP (1s) → menu serwisowe
+   - Wybierz "Kalibracja enkodera"
+   - Naciśnij START, przejedź dokładnie 10m, naciśnij START
+   - STOP (1s) → powrót
+
+3. **Malowanie:**
    - Na ekranie głównym naciśnij **START**
-   - System przejdzie do ekranu malowania
-   - Pistolety włączają się automatycznie na podstawie wzorca i dystansu
-   - W trakcie malowania możesz:
-     - **START** - pauza (pistolety się wyłączą)
-     - **START** (ponownie) - wznowienie
-     - **Enkoder** - zmiana wzorca on-the-fly
-     - **Selektor (1s)** - odwrócenie (P-3a/P-3b)
-     - **STOP** - zakończenie malowania
+   - Ruszaj maszyną - po osiągnięciu 3 km/h pistolet P2 zacznie malować
+   - Wzorzec: 6m farba → 6m przerwa → 6m farba → ...
+   - Obserwuj ekran: prędkość, dystans, powierzchnię
 
-3. **Po zakończeniu:**
-   - System wróci do ekranu głównego
-   - Statystyki sesji są dostępne w Menu → Statystyki
-   - Łączne statystyki zapisują się automatycznie do pamięci trwałej
+4. **Zakończenie:**
+   - Naciśnij **STOP** - malowanie się zakończy
+   - Raport zostanie automatycznie zapisany na kartę SD
+   - Na ekranie pojawi się podsumowanie sesji
 
-## 8. Wskaźniki statusu
+**Wskaźniki na ekranie malowania:**
+- P2: zielony (maluje) / szary (przerwa)
+- P1, P3, P4, P5, P6: szare (nieużywane w P-1a)
 
-| Kolor | Status | Opis |
-|-------|--------|------|
-| Zielony | Gotowy / Malowanie | System bezczynny lub maluje |
-| Żółty | Pauza | Malowanie wstrzymane |
-| Czerwony | Zatrzymany | Malowanie przerwane |
+---
 
-## 9. Rozwiązywanie problemów
+### Przykład 2: Malowanie linii podwójnej P-3a z odwracaniem
+
+**Scenariusz:** Malowanie linii przekraczalnej (ciągła + przerywana) na drodze dwukierunkowej. Kierunek malowania wymaga, aby linia ciągła była po prawej stronie.
+
+**Kroki:**
+
+1. **Wybór wzorca:**
+   - Na ekranie głównym wybierz **P-3a** (Przekraczalna długa)
+   - Domyślnie: P1 = ciągła (lewa), P3 = przerywana (prawa)
+
+2. **Sprawdzenie orientacji:**
+   - Jeśli linia ciągła powinna być po prawej stronie, odwróć wzorzec
+   - Przytrzymaj **SELEKTOR (1s)** → pojawi się znacznik [ODW]
+   - Teraz: P1 = przerywana, P3 = ciągła
+
+3. **Malowanie:**
+   - Naciśnij **START**
+   - Pistolety P1 i P3 będą pracować jednocześnie
+   - P1: przerywana (6m/6m), P3: ciągła
+   - Obserwuj wskaźniki - oba pistolety powinny świecić na zielono
+
+4. **Zmiana kierunku (na powrotnej drodze):**
+   - Naciśnij **STOP** aby zakończyć
+   - Na ekranie głównym przytrzymaj **SELEKTOR (1s)** → zdejmie [ODW]
+   - Teraz P1 = ciągła, P3 = przerywana (odwrotna orientacja)
+   - Naciśnij **START** dla nowego odcinka
+
+**Wskaźniki:**
+- P1: zielony (maluje ciągłą lub przerywaną)
+- P3: zielony (maluje drugą linię)
+- P2, P4, P5, P6: szare (nieużywane)
+
+---
+
+### Przykład 3: Kontynuacja malowania z użyciem "Start od przerwy"
+
+**Scenariusz:** Na drodze istnieje już linia przerywana P-1b (3m/3m). Maszyna stoi w miejscu, gdzie kończy się kreska i zaczyna przerwa. Trzeba kontynuować malowanie od przerwy.
+
+**Kroki:**
+
+1. **Ustawienie wzorca:**
+   - Wybierz **P-1b** (Przerywana krótka: 3m kreska, 3m przerwa)
+
+2. **Start od przerwy:**
+   - Naciśnij **przycisk enkodera** (nie START!)
+   - Na ekranie malowania pojawi się znacznik **[PRZERWA]**
+   - System przesunął punkt startowy o 3m (długość kreski)
+
+3. **Malowanie:**
+   - Ruszaj maszyną
+   - Przez pierwsze 3m pistolet NIE maluje (przerwa)
+   - Po 3m pistolet zaczyna malować kreskę (3m)
+   - Dalej normalny cykl: 3m przerwa → 3m kreska → ...
+
+4. **Alternatywa - panel WWW:**
+   - Zamiast przycisku enkodera, na telefonie naciśnij żółty przycisk **START OD PRZERWY**
+   - Efekt identyczny
+
+**Porównanie:**
+```
+Normalny START:   ███░░░███░░░███░░░  (zaczyna od kreski)
+START OD PRZERWY: ░░░███░░░███░░░███  (zaczyna od przerwy)
+```
+(███ = malowanie, ░░░ = przerwa)
+
+---
+
+### Przykład 4: Czyszczenie dysz i testowanie pistoletów
+
+**Scenariusz:** Przed rozpoczęciem pracy trzeba sprawdzić czy wszystkie pistolety działają prawidłowo i oczyścić dysze po nocnym postoju.
+
+**Kroki:**
+
+1. **Wejście w tryb czyszczenia:**
+   - Na ekranie głównym przytrzymaj **STOP (1s)** → menu serwisowe
+   - Enkoderem lub selektorem przejdź do pozycji 4: **Czyszczenie dysz**
+   - Naciśnij przycisk enkodera lub przytrzymaj SELEKTOR (1s)
+
+2. **Wybór wzorca do testu:**
+   - Domyślnie wybrany jest aktualny wzorzec
+   - Obróć enkoder aby wybrać wzorzec, który chcesz przetestować
+   - Np. **P-4** (podwójna ciągła) aktywuje P1 i P3 jednocześnie
+   - Np. **P-1a** aktywuje tylko P2
+
+3. **Testowanie pistoletów:**
+   - **Trzymaj przycisk START** - pistolety przypisane do wzorca włączą się
+   - Na ekranie prostokąty odpowiednich pistoletów zmienią kolor na zielony
+   - **Puść START** - pistolety natychmiast się wyłączą
+   - Powtórz dla różnych wzorców aby przetestować wszystkie pistolety
+
+4. **Test wszystkich pistoletów po kolei:**
+   - Wybierz P-1a → trzymaj START → sprawdź P2
+   - Wybierz P-2b → trzymaj START → sprawdź P4
+   - Wybierz P-4 → trzymaj START → sprawdź P1 i P3
+   - Wybierz P-7a → trzymaj START → sprawdź P6
+   - Wybierz P-7c → trzymaj START → sprawdź P5
+
+5. **Powrót:**
+   - Przytrzymaj **STOP (1s)** → powrót do menu serwisowego
+   - Przytrzymaj **STOP (1s)** ponownie → powrót na ekran główny
+
+> **Uwaga:** W trybie czyszczenia dysz zabezpieczenie prędkości minimalnej jest wyłączone - pistolety działają nawet na postoju. Pistolety działają TYLKO gdy trzymasz przycisk START.
+
+## 10. Raporty na karcie SD
+
+### 10.1 Format raportów
+
+Raporty zapisywane są w formacie CSV na karcie SD (FAT32):
+- Lokalizacja: `/reports/RRRRMMDD.csv` (np. `/reports/20250612.csv`)
+- Nagłówek: `data,godzina,wzorzec,dystans_m,powierzchnia_m2`
+- Jeden wiersz na każdą sesję malowania
+
+Przykład zawartości pliku:
+```
+data,godzina,wzorzec,dystans_m,powierzchnia_m2
+2025-06-12,08:30:15,P-1a,1250.5,150.06
+2025-06-12,10:45:22,P-3a,875.3,210.07
+2025-06-12,14:10:08,P-2b,430.0,103.20
+```
+
+### 10.2 Przeglądanie raportów
+
+Menu serwisowe → Raporty wyświetla:
+- Status karty SD
+- Liczbę plików raportów
+- Ostatni zapisany raport
+
+Szczegółowe raporty dostępne po wyjęciu karty SD i otwarciu plików CSV na komputerze.
+
+## 11. Wskaźniki statusu
+
+| Status | Kolor na ekranie | Opis |
+|--------|-------------------|------|
+| Gotowy (IDLE) | Zielony | System bezczynny, gotowy do malowania |
+| Malowanie | Zielony pulsujący | Aktywne malowanie |
+| Pauza | Żółty | Malowanie wstrzymane |
+| Zatrzymany | Czerwony | Malowanie przerwane |
+
+## 12. Rozwiązywanie problemów
 
 | Problem | Rozwiązanie |
 |---------|-------------|
@@ -264,6 +480,10 @@ Panel automatycznie odświeża dane co 1 sekundę.
 | Enkoder nie reaguje | Sprawdź piny CLK=5, DT=6, SW=7 |
 | Przyciski nie działają | Sprawdź podłączenie do GND i GPIO 38/39/40 |
 | Restart w pętli (crash) | GPIO 33-37 zajęte przez PSRAM! Nie podłączać! |
-| Pistolety nie włączają się | Sprawdź przekaźniki na GPIO 41,42,1,2,3,4. Przekaźniki aktywne HIGH |
+| Pistolety nie włączają się | 1) Sprawdź prędkość >= 3 km/h. 2) Sprawdź przekaźniki na GPIO 41,42,1,2,3,4 |
+| Pistolety nie włączają się na postoju | Normalnie - zabezpieczenie prędkości. Użyj trybu czyszczenia dysz |
 | Złe odczyty dystansu | Wykonaj kalibrację enkodera (Menu → Kalibracja) |
 | Wzorzec P-3a/P-3b maluje odwrotnie | Użyj funkcji odwracania (Selektor 1s lub przycisk w panelu WWW) |
+| Karta SD nie działa | Sprawdź format FAT32, pin CS=GPIO 16, poprawne włożenie karty |
+| Brak raportów na karcie | Sprawdź status SD w Menu → Raporty. Raporty zapisują się po STOP |
+| "Start od przerwy" nie działa | Działa tylko dla wzorców przerywanych (P-1x, P-3x, P-6, P-7a, P-7c) |

@@ -1,4 +1,4 @@
-# TrassarV3 - API serwera WWW v2.0.0
+# TrassarV3 - API serwera WWW v2.1.0
 
 ## Informacje ogólne
 
@@ -20,7 +20,7 @@ Zwraca stronę HTML panelu sterowania.
 Panel zawiera:
 - Status maszyny z animowanym wskaźnikiem
 - Informacje: wzorzec, prędkość, dystans, powierzchnia, czas
-- Przyciski START / PAUZA / STOP
+- Przyciski START / PAUZA / STOP / **START OD PRZERWY**
 - 15 przycisków wzorców pogrupowanych: P-1x, P-2x, P-3x, P-4/P-6, P-7x
 - Przycisk odwracania (dla P-3a/P-3b)
 - Wskaźniki 6 pistoletów (P1-P6)
@@ -53,7 +53,8 @@ Zwraca aktualny stan systemu w formacie JSON.
     "ppm": "100.0",
     "calibrating": false,
     "calPulses": "0",
-    "guns": [false, false, false, false, false, false]
+    "guns": [false, false, false, false, false, false],
+    "gapStart": false
 }
 ```
 
@@ -78,6 +79,7 @@ Zwraca aktualny stan systemu w formacie JSON.
 | `calibrating` | bool | Czy trwa kalibracja |
 | `calPulses` | string | Impulsy zebrane podczas kalibracji |
 | `guns` | array[6] | Stan pistoletów P1-P6 (true = ON) |
+| `gapStart` | bool | Czy aktywny jest tryb "start od przerwy" |
 
 ---
 
@@ -99,6 +101,7 @@ Wysyła komendę sterującą do systemu.
 | `start` | - | Rozpocznij malowanie lub wznów po pauzie |
 | `pause` | - | Zapauzuj malowanie |
 | `stop` | - | Zatrzymaj malowanie |
+| `start_from_gap` | - | **Rozpocznij malowanie od przerwy** (przesuwa punkt startowy o długość kreski) |
 | `set_pattern` | 0-14 | Ustaw wzorzec (indeks PatternID) |
 | `toggle_reverse` | - | Odwróć wzorzec (P-3a/P-3b) |
 | `cal_start` | - | Rozpocznij kalibrację enkodera |
@@ -134,6 +137,9 @@ curl http://192.168.4.1/api/status
 # Rozpocznij malowanie
 curl -X POST -d "action=start" http://192.168.4.1/api/control
 
+# Rozpocznij malowanie od przerwy
+curl -X POST -d "action=start_from_gap" http://192.168.4.1/api/control
+
 # Zapauzuj
 curl -X POST -d "action=pause" http://192.168.4.1/api/control
 
@@ -165,9 +171,12 @@ curl -X POST -d "action=cal_finish" http://192.168.4.1/api/control
 
 Panel HTML automatycznie odpytuje `/api/status` co 1 sekundę za pomocą JavaScript `fetch()`. Dane są aktualizowane w interfejsie bez przeładowania strony.
 
+Przycisk **START OD PRZERWY** jest aktywny tylko gdy maszyna jest w stanie `idle` lub `stopped`. W trakcie malowania przycisk jest wyszarzony.
+
 ## Uwagi techniczne
 
 - Serwer obsługuje do 4 jednoczesnych klientów WiFi
 - JSON generowany przez ArduinoJson v7
 - Wartości liczbowe (`speed`, `distance`, `area`, `ppm`, `calPulses`) przesyłane jako stringi dla zachowania precyzji formatowania
 - Stan pistoletów (`guns`) to tablica 6 wartości boolean odpowiadających P1-P6
+- Pole `gapStart` informuje panel WWW o trybie startu od przerwy (wyświetla znacznik przy statusie)

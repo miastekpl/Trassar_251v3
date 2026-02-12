@@ -1,4 +1,4 @@
-# TrassarV3 - Schemat podłączeń v2.0.0
+# TrassarV3 - Schemat podłączeń v2.1.0
 
 ## 1. Tabela podłączeń pinów ESP32-S3 N16R8
 
@@ -22,6 +22,17 @@
 | T_IRQ | - | - | Nie podłączony (opcjonalny) |
 
 > **Uwaga:** TFT używa portu HSPI (SPI3) odizolowanego od PSRAM. Częstotliwość SPI: 27 MHz.
+
+### Czytnik kart SD (zintegrowany w module wyświetlacza)
+
+| Pin SD | Pin ESP32-S3 | GPIO | Opis |
+|--------|-------------|------|------|
+| SD_CS | GPIO 16 | 16 | Chip Select karty SD |
+| SD_MOSI | GPIO 11 | 11 | SPI MOSI (wspólny z TFT) |
+| SD_MISO | GPIO 13 | 13 | SPI MISO (wspólny z TFT) |
+| SD_SCK | GPIO 12 | 12 | SPI Clock (wspólny z TFT) |
+
+> **Uwaga:** Karta SD współdzieli magistralę SPI (HSPI) z wyświetlaczem. Każde urządzenie ma osobny pin CS - TFT na GPIO 10, SD na GPIO 16. Biblioteka SD automatycznie przełącza CS. Karta SD służy do zapisu raportów malowania w formacie CSV.
 
 ### Zegar RTC DS1307 (I2C)
 
@@ -77,7 +88,7 @@
                           ┌──────────────────────────────┐
                           │       ESP32-S3 N16R8          │
                           │                               │
-    ┌─────────┐    SPI    │  GPIO 10 ← CS                │
+    ┌─────────┐    SPI    │  GPIO 10 ← CS  (TFT)         │
     │ ILI9341 │◄─────────│  GPIO  9 ← DC                │
     │ 2.8"TFT │  (HSPI)  │  GPIO 14 ← RST               │
     │ Display  │           │  GPIO 11 ← MOSI              │
@@ -85,6 +96,8 @@
     │         │           │  GPIO 12 ← SCK                │
     │         │           │  GPIO 21 ← LED (PWM)          │
     │ Touch   │           │  GPIO 15 ← T_CS               │
+    │         │           │                               │
+    │ SD Card │           │  GPIO 16 ← SD_CS              │
     └─────────┘           │                               │
                           │                               │
     ┌─────────┐    I2C    │  GPIO 17 ↔ SDA                │
@@ -173,18 +186,40 @@ Naciśnięcie = stan LOW.
 
 > **Logika:** HIGH na GPIO = przekaźnik włączony = pistolet maluje.
 
-## 6. Zasilanie
+## 6. Schemat podłączenia karty SD
+
+```
+    Moduł ILI9341 2.8" (wbudowany slot SD)
+    ┌──────────────────────┐
+    │                      │
+    │  SD_CS  ─────────────├──── GPIO 16 (CS karty SD)
+    │  SD_MOSI ────────────├──── GPIO 11 (wspólny z TFT MOSI)
+    │  SD_MISO ────────────├──── GPIO 13 (wspólny z TFT MISO)
+    │  SD_SCK  ────────────├──── GPIO 12 (wspólny z TFT SCK)
+    │                      │
+    └──────────────────────┘
+
+    Magistrala SPI współdzielona z wyświetlaczem TFT.
+    Przełączanie urządzeń przez osobne linie CS:
+      - GPIO 10 = TFT CS
+      - GPIO 16 = SD CS
+```
+
+> **Format danych:** Raporty zapisywane w `/reports/RRRRMMDD.csv` (np. `/reports/20250115.csv`).
+> Każdy wiersz: `data,godzina,wzorzec,dystans_m,powierzchnia_m2`.
+
+## 7. Zasilanie
 
 | Źródło | Napięcie | Odbiorcy |
 |--------|----------|----------|
 | USB-C ESP32-S3 | 5V | ESP32-S3, DS1307, Moduły przekaźnikowe |
-| Regulator ESP32 | 3.3V | ILI9341, Enkoder |
+| Regulator ESP32 | 3.3V | ILI9341, Enkoder, Karta SD |
 
 > **Ważne:** Wyświetlacz ILI9341 zasilany jest z pinu 3V3 płytki ESP32-S3. Moduł DS1307 i moduły przekaźnikowe wymagają 5V - podłączyć do pinu 5V (VBUS) płytki.
 >
 > **Uwaga o prądzie:** Przy 6 przekaźnikach aktywnych jednocześnie pobór prądu może być znaczny. Przy większych obciążeniach rozważ zewnętrzne zasilanie 5V dla modułów przekaźnikowych.
 
-## 7. Mapa GPIO ESP32-S3 N16R8
+## 8. Mapa GPIO ESP32-S3 N16R8
 
 | GPIO | Funkcja | Uwagi |
 |------|---------|-------|
@@ -197,11 +232,12 @@ Naciśnięcie = stan LOW.
 | 7 | Enkoder SW | INPUT_PULLUP |
 | 9 | TFT DC | OUTPUT |
 | 10 | TFT CS | OUTPUT |
-| 11 | TFT MOSI | SPI |
-| 12 | TFT SCK | SPI |
-| 13 | TFT MISO | SPI |
+| 11 | TFT MOSI / SD MOSI | SPI (HSPI) |
+| 12 | TFT SCK / SD SCK | SPI (HSPI) |
+| 13 | TFT MISO / SD MISO | SPI (HSPI) |
 | 14 | TFT RST | OUTPUT |
 | 15 | Touch CS | OUTPUT |
+| 16 | **SD Card CS** | **OUTPUT** |
 | 17 | RTC SDA | I2C |
 | 18 | RTC SCL | I2C |
 | 21 | TFT LED | PWM LEDC |
@@ -212,7 +248,7 @@ Naciśnięcie = stan LOW.
 | 41 | Przekaźnik P1 | OUTPUT |
 | 42 | Przekaźnik P2 | OUTPUT |
 
-## 8. Uwagi montażowe
+## 9. Uwagi montażowe
 
 1. Wszystkie połączenia SPI powinny być jak najkrótsze (maks. 15-20cm)
 2. Przy dłuższych przewodach enkoder może wymagać kondensatorów filtrujących (100nF) między CLK/DT a GND
@@ -222,3 +258,5 @@ Naciśnięcie = stan LOW.
 6. Przewody do przekaźników mogą być dłuższe (do 50cm) - sygnał cyfrowy 3.3V jest odporny na zakłócenia
 7. Moduły przekaźnikowe powinny mieć diody zabezpieczające (wbudowane w większości modułów)
 8. Enkoder powinien być zamontowany na kole pomiarowym z dobrym stykiem z podłożem
+9. **Karta SD** powinna być sformatowana w systemie FAT32. Moduł SD współdzieli magistralę SPI z wyświetlaczem - nie wymaga dodatkowego okablowania poza jednym przewodem CS (GPIO 16)
+10. Przy problemach z kartą SD sprawdź czy pin GPIO 16 nie jest używany przez inne urządzenie
