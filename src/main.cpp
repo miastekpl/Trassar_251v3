@@ -1,6 +1,6 @@
 // ============================================================
 // TrassarV3 - Sterownik maszyny malarskiej
-// Firmware v1.0.0
+// Firmware v1.0.1
 //
 // Platforma: ESP32-S3 N16R8
 // Wyświetlacz: ILI9341 2.8" 240x320 SPI
@@ -26,8 +26,9 @@ const unsigned long DISPLAY_REFRESH_MS = 100;   // Odświeżanie wyświetlacza c
 const unsigned long TIME_UPDATE_MS = 1000;      // Aktualizacja czasu co 1s
 
 void setup() {
+    // UART0 na domyślnych pinach (TX=43, RX=44) - COM port
     Serial.begin(115200);
-    delay(500);
+    delay(1000);  // Daj czas na stabilizację UART i zasilania
 
     Serial.println();
     Serial.println("========================================");

@@ -1,13 +1,13 @@
 #pragma once
 // ============================================================
 // TrassarV3 - Konfiguracja sprzętowa
-// Wersja: 1.0.0
+// Wersja: 1.0.1
 // ============================================================
 
 #include <Arduino.h>
 
 // ============ WERSJA FIRMWARE ============
-#define FW_VERSION      "1.0.0"
+#define FW_VERSION      "1.0.1"
 #define FW_NAME         "TrassarV3"
 #define FW_DATE         __DATE__
 
@@ -32,9 +32,11 @@
 #define PIN_ENC_SW        7   // Przycisk enkodera
 
 // ============ Przyciski funkcyjne BS-33B ============
-#define PIN_BTN_START    35   // Start / Pauza
-#define PIN_BTN_STOP     36   // Stop
-#define PIN_BTN_SELECT   37   // Selektor
+// UWAGA: GPIO 33-37 są zajęte przez Octal PSRAM na module N16R8!
+// Używamy GPIO 38-40 które są wolne i bezpieczne.
+#define PIN_BTN_START    38   // Start / Pauza
+#define PIN_BTN_STOP     39   // Stop
+#define PIN_BTN_SELECT   40   // Selektor
 
 // ============ Parametry przycisków ============
 #define BTN_DEBOUNCE_MS       50    // Czas debouncingu [ms]
@@ -45,6 +47,9 @@
 #define TFT_SCREEN_W        240
 #define TFT_SCREEN_H        320
 #define TFT_BACKLIGHT_PWM   200    // Jasność podświetlenia (0-255)
+#define TFT_BL_LEDC_CH       0    // Kanał LEDC dla podświetlenia
+#define TFT_BL_LEDC_FREQ  5000    // Częstotliwość PWM [Hz]
+#define TFT_BL_LEDC_RES      8    // Rozdzielczość PWM [bity]
 
 // ============ Kolory UI ============
 #define COLOR_BG          0x0000   // Czarny

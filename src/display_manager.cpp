@@ -7,9 +7,12 @@
 DisplayManager display;
 
 void DisplayManager::begin() {
-    // Inicjalizacja podświetlenia
-    pinMode(PIN_TFT_BL, OUTPUT);
+    // Inicjalizacja podświetlenia przez LEDC (PWM)
+    ledcSetup(TFT_BL_LEDC_CH, TFT_BL_LEDC_FREQ, TFT_BL_LEDC_RES);
+    ledcAttachPin(PIN_TFT_BL, TFT_BL_LEDC_CH);
     setBacklight(TFT_BACKLIGHT_PWM);
+
+    delay(100);  // Daj czas na stabilizację zasilania wyświetlacza
 
     tft.init();
     tft.setRotation(0);  // Portret 240x320
@@ -33,7 +36,7 @@ void DisplayManager::begin() {
 }
 
 void DisplayManager::setBacklight(uint8_t brightness) {
-    analogWrite(PIN_TFT_BL, brightness);
+    ledcWrite(TFT_BL_LEDC_CH, brightness);
 }
 
 void DisplayManager::clear() {

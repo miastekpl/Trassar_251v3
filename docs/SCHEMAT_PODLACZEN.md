@@ -48,10 +48,12 @@
 
 | Przycisk | Pin ESP32-S3 | GPIO | Funkcja |
 |----------|-------------|------|---------|
-| Start/Pauza | GPIO 35 | 35 | Uruchom/Pauzuj malowanie |
-| Stop | GPIO 36 | 36 | Zatrzymaj / Wejdź w menu (1s) |
-| Selektor | GPIO 37 | 37 | Nawigacja / Wejdź w opcję (1s) |
+| Start/Pauza | GPIO 38 | 38 | Uruchom/Pauzuj malowanie |
+| Stop | GPIO 39 | 39 | Zatrzymaj / Wejdź w menu (1s) |
+| Selektor | GPIO 40 | 40 | Nawigacja / Wejdź w opcję (1s) |
 
+> **UWAGA:** GPIO 33-37 są zajęte przez Octal PSRAM modułu N16R8! Nie wolno ich używać!
+>
 > **Podłączenie przycisków:** Jeden styk do GPIO, drugi do GND. Wewnętrzne rezystory pull-up są aktywowane programowo.
 
 ## 2. Schemat blokowy
@@ -80,9 +82,9 @@
     │ obrotowy│           │  GPIO  7 → SW            │
     └─────────┘           │                          │
                           │                          │
-    [START/PAUZA]─── GND ─│─ GPIO 35 (pull-up)       │
-    [STOP]──────── GND ─│─ GPIO 36 (pull-up)       │
-    [SELEKTOR]──── GND ─│─ GPIO 37 (pull-up)       │
+    [START/PAUZA]─── GND ─│─ GPIO 38 (pull-up)       │
+    [STOP]──────── GND ─│─ GPIO 39 (pull-up)       │
+    [SELEKTOR]──── GND ─│─ GPIO 40 (pull-up)       │
                           │                          │
                           │  WiFi AP: TrassarV3      │
                           │  IP: 192.168.4.1         │
@@ -92,7 +94,7 @@
 ## 3. Schemat podłączenia przycisków BS-33B
 
 ```
-    ESP32-S3 GPIO 35/36/37
+    ESP32-S3 GPIO 38/39/40
          │
          │  (wewnętrzny pull-up do 3.3V)
          │
@@ -139,3 +141,4 @@ Naciśnięcie = stan LOW.
 2. Przy dłuższych przewodach enkoder może wymagać kondensatorów filtrujących (100nF) między CLK/DT a GND
 3. Moduł DS1307 posiada baterię CR2032 - zapewnia podtrzymanie czasu po odłączeniu zasilania
 4. Przyciski BS-33B nie wymagają zewnętrznych rezystorów - wykorzystywane są wewnętrzne pull-up ESP32-S3
+5. **WAŻNE:** Na module ESP32-S3 N16R8 piny GPIO 26-37 są zajęte przez Flash i Octal PSRAM - NIE podłączać do nich niczego!

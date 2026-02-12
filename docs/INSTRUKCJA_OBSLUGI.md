@@ -131,4 +131,5 @@ Panel automatycznie odświeża dane co 1 sekundę.
 | Brak czasu/daty | Sprawdź podłączenie modułu DS1307 (SDA=17, SCL=18) |
 | Nie można połączyć WiFi | Upewnij się, że jesteś w zasięgu. SSID: TrassarV3, hasło: 12345678 |
 | Enkoder nie reaguje | Sprawdź piny CLK=5, DT=6, SW=7 |
-| Przyciski nie działają | Sprawdź podłączenie do GND i odpowiednich GPIO |
+| Przyciski nie działają | Sprawdź podłączenie do GND i GPIO 38/39/40 |
+| Restart w pętli (crash) | GPIO 33-37 zajęte przez PSRAM! Przyciski na GPIO 38/39/40 |
