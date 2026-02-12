@@ -237,9 +237,9 @@ void DisplayManager::drawHomeScreen(const char* timeStr, const char* dateStr,
     y += 8;
     tft.setFreeFont(FM9);
     tft.setTextColor(COLOR_MENU_TXT, COLOR_BG);
-    tft.drawString("START=maluj ENC=od przerwy", 6, y);
+    tft.drawString("START=maluj STOP=od przerwy", 6, y);
     y += 16;
-    tft.drawString("STOP(1s)=menu", 6, y);
+    tft.drawString("SEL=wzorzec STOP(1s)=menu", 6, y);
 
     drawStatusBar(g_state.machineState, timeStr);
 }
@@ -393,9 +393,9 @@ void DisplayManager::drawServiceMenu(int selectedIndex) {
     y += 8;
     tft.setFreeFont(FM9);
     tft.setTextColor(COLOR_MENU_TXT, COLOR_BG);
-    tft.drawString("ENC=nawiguj  SEL=wejdz", 6, y);
+    tft.drawString("SEL=dalej STOP=cofnij", 6, y);
     y += 18;
-    tft.drawString("STOP(1s)=powrot", 6, y);
+    tft.drawString("SEL(1s)=wejdz STOP(1s)=powrot", 6, y);
 
     drawStatusBar(g_state.machineState, "");
 }
@@ -752,7 +752,7 @@ void DisplayManager::drawNozzleClean(const char* patCode, const char* patName,
     y += 8;
     tft.setFreeFont(FM9);
     tft.setTextColor(COLOR_MENU_TXT, COLOR_BG);
-    tft.drawString("ENC=wzorzec TRZYMAJ START", 6, y);
+    tft.drawString("SEL=wzorzec TRZYMAJ START", 6, y);
     y += 18;
     tft.drawString("STOP(1s)=powrot", 6, y);
 

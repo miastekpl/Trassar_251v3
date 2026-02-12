@@ -7,7 +7,7 @@ TrassarV3 to komputer pokładowy malowarki pasów drogowych oparty na mikrokontr
 Urządzenie posiada:
 - Kolorowy wyświetlacz TFT ILI9341 2.8" (240x320)
 - Trzy przyciski funkcyjne BS-33B (START, STOP, SELEKTOR)
-- Enkoder obrotowy (pomiar dystansu + nawigacja menu)
+- Enkoder obrotowy (wyłącznie pomiar dystansu i prędkości)
 - Zegar RTC DS1307 z baterią podtrzymującą
 - Czytnik kart SD do zapisu raportów
 - Wbudowany serwer WWW dostępny przez WiFi (panel zdalnego sterowania)
@@ -20,18 +20,12 @@ Urządzenie posiada:
 | Przycisk | Krótkie naciśnięcie | Długie naciśnięcie (1s) |
 |----------|---------------------|-------------------------|
 | **START** | Start malowania / Pauza / Wznowienie | - |
-| **STOP** | Zatrzymanie malowania | Wejście w menu serwisowe / Powrót |
+| **STOP** | Start od przerwy (HOME) / Zatrzymanie (malowanie) / Cofnij (menu) | Wejście w menu serwisowe / Powrót |
 | **SELEKTOR** | Następna opcja / Następny wzorzec | Wejście w funkcję / Odwróć wzorzec |
 
 ### 2.2 Enkoder obrotowy
 
-| Akcja | Funkcja |
-|-------|---------|
-| **Obrót w prawo (CW)** | Następny wzorzec / Przewijanie menu |
-| **Obrót w lewo (CCW)** | Poprzedni wzorzec / Przewijanie menu |
-| **Naciśnięcie (krótkie)** | **Start od przerwy** (na ekranie głównym) / Wejście w opcję (w menu) |
-
-> **Uwaga:** Enkoder pełni podwójną rolę - mierzy dystans podczas jazdy oraz służy do nawigacji w menu i wyboru wzorców.
+Enkoder obrotowy służy **wyłącznie** do pomiaru dystansu i prędkości. **Nie jest używany do nawigacji ani sterowania interfejsem.** Cała obsługa menu i wybór wzorców odbywa się za pomocą trzech przycisków (START, STOP, SELEKTOR).
 
 ## 3. Pistolety natryskowe
 
@@ -119,8 +113,8 @@ Wyświetla się po uruchomieniu:
 | Przycisk | Akcja |
 |----------|-------|
 | **START** | Rozpocznij malowanie (od początku wzorca) |
-| **Przycisk enkodera** | **Start od przerwy** - rozpocznij od przerwy we wzorcu |
-| **SELEKTOR / Enkoder CW/CCW** | Zmień wzorzec |
+| **STOP (krótko)** | **Start od przerwy** - rozpocznij od przerwy we wzorcu |
+| **SELEKTOR** | Następny wzorzec |
 | **SELEKTOR (1s)** | Odwróć wzorzec (P-3a/P-3b) |
 | **STOP (1s)** | Wejdź do menu serwisowego |
 
@@ -139,7 +133,7 @@ Automatycznie po rozpoczęciu malowania:
 |----------|-------|
 | **START** | Pauza / Wznowienie |
 | **STOP** | Zatrzymanie (powrót do HOME, zapis raportu) |
-| **SELEKTOR / Enkoder** | Zmiana wzorca w trakcie malowania |
+| **SELEKTOR** | Zmiana wzorca w trakcie malowania |
 | **SELEKTOR (1s)** | Odwróć wzorzec |
 
 > **Bezpieczeństwo:** Pistolety włączają się automatycznie dopiero po osiągnięciu prędkości **3 km/h**. Poniżej tej prędkości pistolety są wyłączone, nawet jeśli malowanie trwa.
@@ -161,9 +155,9 @@ Dostęp: **STOP (1s)** na ekranie głównym.
 
 | Przycisk | Akcja |
 |----------|-------|
-| **SELEKTOR (krótko) / Enkoder CW** | Następna pozycja |
-| **Enkoder CCW** | Poprzednia pozycja |
-| **SELEKTOR (1s) / Przycisk enkodera** | Wejdź w wybraną opcję |
+| **SELEKTOR (krótko)** | Następna pozycja |
+| **STOP (krótko)** | Poprzednia pozycja |
+| **SELEKTOR (1s)** | Wejdź w wybraną opcję |
 | **STOP (1s)** | Powrót do ekranu głównego |
 
 ### 5.4 Kalibracja enkodera
@@ -211,7 +205,7 @@ Powrót: **STOP (1s)**
 
 Tryb ręcznego testowania i czyszczenia pistoletów:
 
-1. Wybierz wzorzec enkoderem lub selektorem (określa które pistolety będą aktywne)
+1. Wybierz wzorzec selektorem (określa które pistolety będą aktywne)
 2. **Trzymaj przycisk START** - pistolety włączą się na czas trzymania
 3. Puść START - pistolety natychmiast się wyłączą
 
@@ -234,7 +228,7 @@ Normalny start (przycisk START):
 Kreska → Przerwa → Kreska → Przerwa → ...
 ```
 
-Start od przerwy (przycisk enkodera):
+Start od przerwy (przycisk STOP krótko):
 ```
 Przerwa → Kreska → Przerwa → Kreska → ...
 ```
@@ -243,7 +237,7 @@ System przesuwa punkt startowy wzorca o długość kreski, dzięki czemu cykl za
 
 ### 6.3 Aktywacja
 
-- **Na urządzeniu:** Naciśnij **przycisk enkodera** na ekranie głównym
+- **Na urządzeniu:** Naciśnij krótko **przycisk STOP** na ekranie głównym
 - **W panelu WWW:** Przycisk **START OD PRZERWY** (żółty)
 
 Na ekranie malowania pojawi się znacznik **[PRZERWA]** informujący, że użyto startu od przerwy.
@@ -306,7 +300,7 @@ Pistolety wyłączają się automatycznie przy:
 
 1. **Przygotowanie:**
    - Włącz urządzenie - pojawi się ekran główny
-   - Obróć enkoder aby wybrać wzorzec **P-1a** (Przerywana długa)
+   - Naciśnij SELEKTOR aby wybrać wzorzec **P-1a** (Przerywana długa)
    - Sprawdź status kalibracji (powinno być "OK")
 
 2. **Kalibracja (jeśli pierwszy raz):**
@@ -376,7 +370,7 @@ Pistolety wyłączają się automatycznie przy:
    - Wybierz **P-1b** (Przerywana krótka: 3m kreska, 3m przerwa)
 
 2. **Start od przerwy:**
-   - Naciśnij **przycisk enkodera** (nie START!)
+   - Naciśnij krótko **przycisk STOP** (nie START!)
    - Na ekranie malowania pojawi się znacznik **[PRZERWA]**
    - System przesunął punkt startowy o 3m (długość kreski)
 
@@ -387,7 +381,7 @@ Pistolety wyłączają się automatycznie przy:
    - Dalej normalny cykl: 3m przerwa → 3m kreska → ...
 
 4. **Alternatywa - panel WWW:**
-   - Zamiast przycisku enkodera, na telefonie naciśnij żółty przycisk **START OD PRZERWY**
+   - Zamiast przycisku STOP, na telefonie naciśnij żółty przycisk **START OD PRZERWY**
    - Efekt identyczny
 
 **Porównanie:**
@@ -407,12 +401,12 @@ START OD PRZERWY: ░░░███░░░███░░░███  (zaczy
 
 1. **Wejście w tryb czyszczenia:**
    - Na ekranie głównym przytrzymaj **STOP (1s)** → menu serwisowe
-   - Enkoderem lub selektorem przejdź do pozycji 4: **Czyszczenie dysz**
-   - Naciśnij przycisk enkodera lub przytrzymaj SELEKTOR (1s)
+   - Selektorem przejdź do pozycji 4: **Czyszczenie dysz**
+   - Przytrzymaj SELEKTOR (1s) aby wejść
 
 2. **Wybór wzorca do testu:**
    - Domyślnie wybrany jest aktualny wzorzec
-   - Obróć enkoder aby wybrać wzorzec, który chcesz przetestować
+   - Naciskaj SELEKTOR aby wybrać wzorzec, który chcesz przetestować
    - Np. **P-4** (podwójna ciągła) aktywuje P1 i P3 jednocześnie
    - Np. **P-1a** aktywuje tylko P2
 

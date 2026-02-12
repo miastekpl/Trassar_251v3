@@ -26,13 +26,11 @@
 #define PIN_RTC_SDA      17
 #define PIN_RTC_SCL      18
 
-// ============ Enkoder obrotowy (dystans + nawigacja) ============
+// ============ Enkoder obrotowy (tylko pomiar dystansu/predkosci) ============
 #define PIN_ENC_CLK       5
 #define PIN_ENC_DT        6
 #define PIN_ENC_SW        7
 #define ENC_ISR_DEBOUNCE_US   200    // Minimalny odstep miedzy impulsami ISR [us]
-#define ENC_NAV_STEP_PULSES     4    // Ile impulsow = 1 krok nawigacji menu
-#define ENC_NAV_MAX_SPEED_KMH 0.5f   // Powyzej tej predkosci enkoder nie nawiguje
 
 // ============ Przyciski funkcyjne BS-33B ============
 // GPIO 33-37 zajęte przez Octal PSRAM na N16R8!

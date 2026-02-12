@@ -62,18 +62,18 @@ void MenuSystem::handleHomeScreen(ButtonEvent e) {
             goToScreen(SCREEN_PAINTING);
             break;
 
+        case EVT_STOP_SHORT:
+            // Start od przerwy (przycisk STOP krotki)
+            paintEngine.startFromGap();
+            goToScreen(SCREEN_PAINTING);
+            break;
+
         case EVT_STOP_LONG:
             goToScreen(SCREEN_SERVICE_MENU);
             break;
 
         case EVT_SELECT_SHORT:
-        case EVT_ENC_CW:
             patternMgr.nextPattern();
-            g_state.displayNeedsUpdate = true;
-            break;
-
-        case EVT_ENC_CCW:
-            patternMgr.prevPattern();
             g_state.displayNeedsUpdate = true;
             break;
 
@@ -82,11 +82,6 @@ void MenuSystem::handleHomeScreen(ButtonEvent e) {
                 patternMgr.toggleReverse();
                 g_state.displayNeedsUpdate = true;
             }
-            break;
-
-        case EVT_ENC_SHORT:
-            // Start od przerwy (przycisk enkodera)
-            paintEngine.startFromGap();
             break;
 
         default:
@@ -137,20 +132,18 @@ void MenuSystem::handlePaintingScreen(ButtonEvent e) {
 void MenuSystem::handleServiceMenu(ButtonEvent e) {
     switch (e) {
         case EVT_SELECT_SHORT:
-        case EVT_ENC_CW:
             g_state.menuIndex++;
             if (g_state.menuIndex >= SERVICE_MENU_ITEMS) g_state.menuIndex = 0;
             g_state.displayNeedsUpdate = true;
             break;
 
-        case EVT_ENC_CCW:
+        case EVT_STOP_SHORT:
             g_state.menuIndex--;
             if (g_state.menuIndex < 0) g_state.menuIndex = SERVICE_MENU_ITEMS - 1;
             g_state.displayNeedsUpdate = true;
             break;
 
         case EVT_SELECT_LONG:
-        case EVT_ENC_SHORT:
             switch (g_state.menuIndex) {
                 case 0: goToScreen(SCREEN_CALIBRATION);    break;
                 case 1: goToScreen(SCREEN_DISTANCE_METER); break;
@@ -251,13 +244,12 @@ void MenuSystem::handleReports(ButtonEvent e) {
 void MenuSystem::handleNozzleClean(ButtonEvent e) {
     switch (e) {
         case EVT_SELECT_SHORT:
-        case EVT_ENC_CW:
             nozzlePatternIdx++;
             if (nozzlePatternIdx >= PAT_COUNT) nozzlePatternIdx = 0;
             g_state.displayNeedsUpdate = true;
             break;
 
-        case EVT_ENC_CCW:
+        case EVT_SELECT_LONG:
             nozzlePatternIdx--;
             if (nozzlePatternIdx < 0) nozzlePatternIdx = PAT_COUNT - 1;
             g_state.displayNeedsUpdate = true;

@@ -17,9 +17,6 @@ public:
     long  getTotalPulses() const;
     void  resetDistance();
 
-    // Nawigacja menu (delta od ostatniego odczytu)
-    int consumeDelta();
-
     // Kalibracja
     void startCalibration();
     void finishCalibration();
@@ -38,7 +35,6 @@ public:
 private:
     static EncoderDistance* instance;
     static volatile long totalPulses;
-    static volatile int  pendingDelta;
 
     float pulsesPerMeter = DEFAULT_PULSES_PER_METER;
     bool  calibrated = false;

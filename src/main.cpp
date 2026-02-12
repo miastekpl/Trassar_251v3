@@ -67,7 +67,7 @@ void setup() {
         Serial.println("[INIT] UWAGA: RTC niedostepny");
     }
 
-    // 4. Enkoder (dystans + nawigacja)
+    // 4. Enkoder (pomiar dystansu/predkosci)
     Serial.println("[INIT] Enkoder dystansu...");
     encoderDist.begin();
 
@@ -109,7 +109,6 @@ void setup() {
     delay(1500);
 
     // Wyrzuc szum enkodera nazbierany podczas inicjalizacji
-    encoderDist.consumeDelta();
     encoderDist.resetDistance();
 
     g_state.currentScreen = SCREEN_HOME;

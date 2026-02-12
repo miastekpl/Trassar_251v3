@@ -8,7 +8,6 @@
 EncoderDistance encoderDist;
 EncoderDistance* EncoderDistance::instance = nullptr;
 volatile long EncoderDistance::totalPulses = 0;
-volatile int  EncoderDistance::pendingDelta = 0;
 
 void IRAM_ATTR EncoderDistance::encoderISR() {
     if (!instance) return;
@@ -23,10 +22,8 @@ void IRAM_ATTR EncoderDistance::encoderISR() {
     if (clk != instance->lastClkState) {
         if (dt != clk) {
             totalPulses++;
-            pendingDelta++;
         } else {
             totalPulses--;
-            pendingDelta--;
         }
         instance->lastClkState = clk;
     }
@@ -35,14 +32,12 @@ void IRAM_ATTR EncoderDistance::encoderISR() {
 void EncoderDistance::begin() {
     instance = this;
     totalPulses = 0;
-    pendingDelta = 0;
     currentSpeed = 0;
     lastSpeedPulses = 0;
     lastSpeedTime = millis();
 
     pinMode(PIN_ENC_CLK, INPUT_PULLUP);
     pinMode(PIN_ENC_DT, INPUT_PULLUP);
-    pinMode(PIN_ENC_SW, INPUT_PULLUP);
     lastClkState = digitalRead(PIN_ENC_CLK);
 
     attachInterrupt(digitalPinToInterrupt(PIN_ENC_CLK), encoderISR, CHANGE);
@@ -101,18 +96,9 @@ long EncoderDistance::getTotalPulses() const {
 void EncoderDistance::resetDistance() {
     noInterrupts();
     totalPulses = 0;
-    pendingDelta = 0;
     interrupts();
     lastSpeedPulses = 0;
     currentSpeed = 0;
-}
-
-int EncoderDistance::consumeDelta() {
-    noInterrupts();
-    int d = pendingDelta;
-    pendingDelta = 0;
-    interrupts();
-    return d;
 }
 
 // ============ Kalibracja ============

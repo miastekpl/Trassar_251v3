@@ -4,7 +4,6 @@
 // ============================================================
 
 #include "button_handler.h"
-#include "encoder_distance.h"
 
 ButtonHandler buttons;
 
@@ -12,7 +11,6 @@ void ButtonHandler::begin() {
     initBtn(btnStart, PIN_BTN_START);
     initBtn(btnStop, PIN_BTN_STOP);
     initBtn(btnSelect, PIN_BTN_SELECT);
-    initBtn(btnEnc, PIN_ENC_SW);
 }
 
 void ButtonHandler::initBtn(BtnState& b, uint8_t pin) {
@@ -57,7 +55,6 @@ void ButtonHandler::update() {
     processBtn(btnStart);
     processBtn(btnStop);
     processBtn(btnSelect);
-    processBtn(btnEnc);
 }
 
 ButtonEvent ButtonHandler::getEvent() {
@@ -66,29 +63,6 @@ ButtonEvent ButtonHandler::getEvent() {
     if (btnStop.pendingShort)   { btnStop.pendingShort = false;  return EVT_STOP_SHORT; }
     if (btnSelect.pendingLong)  { btnSelect.pendingLong = false; return EVT_SELECT_LONG; }
     if (btnSelect.pendingShort) { btnSelect.pendingShort = false;return EVT_SELECT_SHORT; }
-    if (btnEnc.pendingShort)    { btnEnc.pendingShort = false;   return EVT_ENC_SHORT; }
-
-    // Enkoder: zawsze konsumuj delta (zeby nie narastalo w nieskonczonosc),
-    // ale generuj zdarzenia nawigacji CW/CCW TYLKO gdy maszyna stoi.
-    // Podczas jazdy enkoder sluzy wylacznie do pomiaru dystansu.
-    int delta = encoderDist.consumeDelta();
-
-    if (encoderDist.getSpeedKmh() < ENC_NAV_MAX_SPEED_KMH) {
-        // Maszyna stoi - enkoder moze nawigowac
-        navAccumulator += delta;
-
-        if (navAccumulator >= ENC_NAV_STEP_PULSES) {
-            navAccumulator = 0;
-            return EVT_ENC_CW;
-        }
-        if (navAccumulator <= -ENC_NAV_STEP_PULSES) {
-            navAccumulator = 0;
-            return EVT_ENC_CCW;
-        }
-    } else {
-        // Maszyna jedzie - wyzeruj akumulator, brak nawigacji
-        navAccumulator = 0;
-    }
 
     return EVT_NONE;
 }

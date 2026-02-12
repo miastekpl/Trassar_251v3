@@ -45,19 +45,17 @@
 
 > **Uwaga:** Moduł DS1307 wymaga zasilania 5V. Linie I2C mają wbudowane rezystory pull-up na module.
 
-### Enkoder obrotowy (dystans + nawigacja)
+### Enkoder obrotowy (wyłącznie pomiar dystansu/prędkości)
 
 | Pin enkodera | Pin ESP32-S3 | GPIO | Opis |
 |-------------|-------------|------|------|
 | GND | GND | - | Masa |
 | CLK (A) | GPIO 5 | 5 | Sygnał A (z przerwaniem ISR) |
 | DT (B) | GPIO 6 | 6 | Sygnał B |
-| SW | GPIO 7 | 7 | Przycisk (**Start od przerwy** na HOME) |
+| SW | GPIO 7 | 7 | Przycisk (nieużywany w firmware) |
 | + (VCC) | 3V3 | - | Zasilanie (jeśli wymagane) |
 
-> **Uwaga:** Piny CLK, DT i SW mają włączone wewnętrzne rezystory pull-up ESP32-S3. Enkoder mierzy dystans (ISR na CLK/CHANGE) i jednocześnie służy do nawigacji menu.
->
-> **Funkcja "Start od przerwy":** Krótkie naciśnięcie przycisku enkodera (SW, GPIO 7) na ekranie głównym uruchamia malowanie od przerwy we wzorcu (zamiast od kreski). Nie wymaga osobnego przycisku - wykorzystuje wbudowany przycisk enkodera.
+> **Uwaga:** Piny CLK i DT mają włączone wewnętrzne rezystory pull-up ESP32-S3. Enkoder służy **wyłącznie** do pomiaru dystansu i prędkości (ISR na CLK/CHANGE). **Nie jest używany do nawigacji menu** - cała obsługa interfejsu odbywa się za pomocą trzech przycisków BS-33B.
 
 ### Przyciski BS-33B (monostabilne)
 
@@ -89,19 +87,22 @@
 | Funkcja | Przycisk / Element | GPIO | Uwagi |
 |---------|-------------------|------|-------|
 | **Start malowania** | START (BS-33B) | 38 | Krótkie naciśnięcie na ekranie HOME |
-| **Start od przerwy** | Przycisk enkodera (SW) | **7** | **Krótkie naciśnięcie na ekranie HOME** |
+| **Start od przerwy** | STOP (BS-33B) | 39 | Krótkie naciśnięcie na ekranie HOME |
 | **Start od przerwy (WWW)** | Panel WWW | - | Przycisk "START OD PRZERWY" w przeglądarce |
 | **Pauza / Wznowienie** | START (BS-33B) | 38 | Krótkie naciśnięcie podczas malowania |
 | **Zatrzymanie** | STOP (BS-33B) | 39 | Krótkie naciśnięcie podczas malowania |
 | **Menu serwisowe** | STOP (BS-33B) | 39 | Długie naciśnięcie (1s) na HOME |
-| **Zmiana wzorca** | Enkoder obrót CW/CCW | 5, 6 | Na ekranie HOME lub malowania |
+| **Zmiana wzorca** | SELEKTOR (BS-33B) | 40 | Krótkie naciśnięcie na HOME lub malowania |
 | **Odwrócenie wzorca** | SELEKTOR (BS-33B) | 40 | Długie naciśnięcie (1s) |
-| **Wejście w opcję menu** | Przycisk enkodera (SW) | 7 | Krótkie naciśnięcie w menu |
+| **Nawigacja menu dalej** | SELEKTOR (BS-33B) | 40 | Krótkie naciśnięcie w menu |
+| **Nawigacja menu cofnij** | STOP (BS-33B) | 39 | Krótkie naciśnięcie w menu |
+| **Wejście w opcję menu** | SELEKTOR (BS-33B) | 40 | Długie naciśnięcie (1s) w menu |
 | **Czyszczenie dysz** | START (BS-33B) | 38 | Trzymaj w trybie czyszczenia dysz |
+| **Pomiar dystansu** | Enkoder CLK/DT | 5, 6 | Tylko pomiar (ISR), brak funkcji UI |
 
 ## 3. Schemat blokowy
 
-> Na schemacie: GPIO 7 (SW enkodera) = przycisk **"Start od przerwy"**
+> Enkoder = tylko pomiar dystansu. Nawigacja = 3 przyciski BS-33B (GPIO 38/39/40)
 
 ```
                           ┌──────────────────────────────┐
@@ -164,7 +165,7 @@
 Przycisk łączy GPIO do GND. W stanie spoczynku pin jest w stanie HIGH (pull-up).
 Naciśnięcie = stan LOW.
 
-## 5. Schemat podłączenia enkodera (dystans + Start od przerwy)
+## 5. Schemat podłączenia enkodera (tylko pomiar dystansu)
 
 ```
           3V3 (opcjonalne)
@@ -176,15 +177,13 @@ Naciśnięcie = stan LOW.
     │      │
     │  DT  ├──── GPIO 6  (pull-up)
     │      │
-    │  SW  ├──── GPIO 7  (pull-up) ← "START OD PRZERWY"
+    │  SW  ├──── GPIO 7  (nieużywany w firmware)
     │      │
     │  GND ├──── GND
     └──────┘
 ```
 
-> **Pin SW (GPIO 7)** pełni podwójną funkcję:
-> - Na ekranie HOME: krótkie naciśnięcie = **Start od przerwy** (malowanie od przerwy)
-> - W menu serwisowym: krótkie naciśnięcie = wejście w wybraną opcję
+> Enkoder służy **wyłącznie** do pomiaru dystansu i prędkości. Pin SW (GPIO 7) nie jest wykorzystywany w firmware - cała nawigacja odbywa się przez 3 przyciski BS-33B.
 
 ## 6. Schemat podłączenia przekaźników
 
@@ -252,7 +251,7 @@ Naciśnięcie = stan LOW.
 | 4 | Przekaźnik P6 | OUTPUT |
 | 5 | Enkoder CLK | INPUT_PULLUP, ISR |
 | 6 | Enkoder DT | INPUT_PULLUP |
-| 7 | Enkoder SW / **Start od przerwy** | INPUT_PULLUP |
+| 7 | Enkoder SW (nieużywany) | INPUT_PULLUP |
 | 9 | TFT DC | OUTPUT |
 | 10 | TFT CS | OUTPUT |
 | 11 | TFT MOSI / SD MOSI | SPI (HSPI) |

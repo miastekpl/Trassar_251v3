@@ -11,10 +11,7 @@ enum ButtonEvent : uint8_t {
     EVT_STOP_SHORT,
     EVT_STOP_LONG,
     EVT_SELECT_SHORT,
-    EVT_SELECT_LONG,
-    EVT_ENC_SHORT,
-    EVT_ENC_CW,
-    EVT_ENC_CCW
+    EVT_SELECT_LONG
 };
 
 class ButtonHandler {
@@ -37,12 +34,9 @@ private:
     BtnState btnStart;
     BtnState btnStop;
     BtnState btnSelect;
-    BtnState btnEnc;
 
     void initBtn(BtnState& b, uint8_t pin);
     void processBtn(BtnState& b);
-
-    int navAccumulator = 0;   // Akumulator impulsow enkodera dla nawigacji
 
 public:
     // Surowy stan przycisku START (dla czyszczenia dysz)
