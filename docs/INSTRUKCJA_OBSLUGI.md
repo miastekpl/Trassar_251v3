@@ -63,12 +63,23 @@ System posiada **4 przyciski fizyczne**. Każdy przycisk obsługuje krótkie nac
 |----------|------|---------------------|--------------------------|
 | **START** | 38 | Start malowania / Pauza / Wznowienie | — |
 | **STOP** | 39 | Zatrzymanie malowania / Cofnij w menu | Wejście w menu serwisowe / Powrót |
-| **SELEKTOR** | 40 | Odwróć wzorzec* / Następna opcja w menu | Wejdź w opcję menu |
+| **SELEKTOR** | 40 | *Zależy od ekranu (patrz niżej)* | Wejdź w opcję menu |
 | **GAP (od przerwy)** | 7 | Start od przerwy (na ekranie HOME) | — |
 
-> \* Odwracanie wzorca działa **wyłącznie** dla wzorców P-3a i P-3b (przekraczalne). Dla pozostałych wzorców krótkie naciśnięcie selektora na ekranie głównym i ekranie malowania nie wywołuje żadnej akcji.
+### 3.2 Funkcja selektora w zależności od ekranu
 
-### 3.2 Enkoder obrotowy
+Przycisk **SELEKTOR** pełni różne funkcje w zależności od aktualnie wyświetlanego ekranu:
+
+| Ekran | Krótkie naciśnięcie | Długie naciśnięcie (1 s) |
+|-------|---------------------|--------------------------|
+| **Ekran główny (HOME)** | Odwróć wzorzec (tylko P-3a / P-3b)* | — |
+| **Ekran malowania** | Odwróć wzorzec (tylko P-3a / P-3b)* | — |
+| **Menu serwisowe** | **Następna pozycja w menu** | **Wejdź w wybraną opcję** |
+| **Czyszczenie dysz** | Następny wzorzec | Poprzedni wzorzec |
+
+> \* Na ekranie głównym i ekranie malowania selektor służy **wyłącznie** do odwracania wzorców P-3a i P-3b. Dla pozostałych wzorców krótkie naciśnięcie jest ignorowane. Zmiana wzorca odbywa się wyłącznie przez panel WWW.
+
+### 3.3 Enkoder obrotowy
 
 Enkoder obrotowy (piny CLK = GPIO 5, DT = GPIO 6) służy **wyłącznie** do pomiaru dystansu i prędkości. **Nie jest używany do nawigacji ani sterowania interfejsem.** Obrót enkodera jest rejestrowany przez przerwanie sprzętowe (ISR) na pinie CLK.
 

@@ -115,7 +115,7 @@
 |----------|-------------|------|----------|---------|
 | START | GPIO 38 | 38 | INPUT_PULLUP | Start / Pauza / Wznów |
 | STOP | GPIO 39 | 39 | INPUT_PULLUP | Stop / Menu (1 s) / Cofnij |
-| SELEKTOR | GPIO 40 | 40 | INPUT_PULLUP | Odwróć wzorzec (P-3a/P-3b) / Nawigacja menu |
+| SELEKTOR | GPIO 40 | 40 | INPUT_PULLUP | Odwróć P-3a/P-3b (HOME/PAINTING), nawigacja + wejście w opcję (menu serwis.) |
 | GAP (od przerwy) | GPIO 7 | 7 | INPUT_PULLUP | Start od przerwy (HOME) |
 
 > **UWAGA:** GPIO 26–37 są zajęte przez Octal PSRAM modułu N16R8! NIE wolno ich używać!
