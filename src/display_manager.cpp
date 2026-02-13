@@ -156,7 +156,7 @@ void DisplayManager::drawProgressBar(int x, int y, int w, int h, int percent, ui
 void DisplayManager::drawHomeScreen(const char* patCode, const char* patName,
                                     float speedKmh, float areaM2,
                                     const GunPatternCfg gunsCfg[6],
-                                    bool reversed) {
+                                    bool reversed, bool hasReverse) {
     clear();
     char buf[48];
 
@@ -202,20 +202,22 @@ void DisplayManager::drawHomeScreen(const char* patCode, const char* patName,
     tft.setFreeFont(FM9);
     tft.setTextColor(COLOR_MENU_TXT, COLOR_BG);
     tft.setTextDatum(TL_DATUM);
-    tft.drawString("START=maluj GAP=przerwa SEL=wzorzec", 8, sepY + 4);
+    tft.drawString("START=maluj GAP=przerwa STOP(1s)=menu", 8, sepY + 4);
 
-    // ---- Status: Gotowy ----
+    // ---- Status: Gotowy + SEL=odwroc (dla P-3a/P-3b) ----
     tft.setFreeFont(FSB9);
     tft.setTextColor(COLOR_ACCENT, COLOR_BG);
     tft.setTextDatum(TL_DATUM);
     tft.drawString("Gotowy", 8, sepY + 20);
 
-    // STOP(1s)=menu
-    tft.setFreeFont(FM9);
-    tft.setTextColor(COLOR_MENU_TXT, COLOR_BG);
-    tft.setTextDatum(TR_DATUM);
-    tft.drawString("STOP(1s)=menu", TFT_SCREEN_W - 8, sepY + 20);
-    tft.setTextDatum(TL_DATUM);
+    if (hasReverse) {
+        // Wzorzec obsluguje odwracanie (P-3a, P-3b)
+        tft.setFreeFont(FM9);
+        tft.setTextColor(COLOR_WARNING, COLOR_BG);
+        tft.setTextDatum(TR_DATUM);
+        tft.drawString("SEL=odwroc", TFT_SCREEN_W - 8, sepY + 20);
+        tft.setTextDatum(TL_DATUM);
+    }
 
     // ---- DOL: 6 prostokatow pistoletow ----
     // gunStates = NULL (HOME, nie strzela), paused = false
@@ -287,9 +289,9 @@ void DisplayManager::drawPaintingScreen(MachineState state, const char* patCode,
     tft.setFreeFont(FM9);
     tft.setTextColor(COLOR_MENU_TXT, COLOR_BG);
     if (state == STATE_PAINTING) {
-        tft.drawString("START=pauza  STOP=stop  SEL=wzorzec", 8, sepY + 4);
+        tft.drawString("START=pauza  STOP=stop", 8, sepY + 4);
     } else if (state == STATE_PAUSED) {
-        tft.drawString("START=wznow  STOP=stop  SEL=wzorzec", 8, sepY + 4);
+        tft.drawString("START=wznow  STOP=stop", 8, sepY + 4);
     }
 
     // ---- DOL: 6 prostokatow pistoletow ----

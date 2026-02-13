@@ -17,7 +17,7 @@ public:
     void drawHomeScreen(const char* patCode, const char* patName,
                         float speedKmh, float areaM2,
                         const GunPatternCfg gunsCfg[6],
-                        bool reversed);
+                        bool reversed, bool hasReverse);
     void drawPaintingScreen(MachineState state, const char* patCode,
                             float speedKmh, float areaM2,
                             const GunPatternCfg gunsCfg[6],

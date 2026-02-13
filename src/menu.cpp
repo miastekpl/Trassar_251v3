@@ -1,5 +1,5 @@
 // ============================================================
-// TrassarV3 - System menu v2.1  (menu serwisowe)
+// TrassarV3 - System menu v2.3  (menu serwisowe)
 // ============================================================
 
 #include "menu.h"
@@ -73,11 +73,7 @@ void MenuSystem::handleHomeScreen(ButtonEvent e) {
             break;
 
         case EVT_SELECT_SHORT:
-            patternMgr.nextPattern();
-            g_state.displayNeedsUpdate = true;
-            break;
-
-        case EVT_SELECT_LONG:
+            // Odwracanie wzorca (tylko P-3a, P-3b)
             if (patternMgr.getCurrent().hasReverse) {
                 patternMgr.toggleReverse();
                 g_state.displayNeedsUpdate = true;
@@ -107,19 +103,12 @@ void MenuSystem::handlePaintingScreen(ButtonEvent e) {
             goToScreen(SCREEN_HOME);
             break;
 
-        case EVT_SELECT_SHORT: {
-            // Zmiana wzorca tylko przyciskiem SELEKTOR (nie enkoderem!)
-            // Enkoder podczas malowania sluzy WYLACZNIE do pomiaru dystansu.
-            int next = (int)g_state.currentPattern + 1;
-            if (next >= PAT_COUNT) next = 0;
-            paintEngine.setPattern((PatternID)next);
-            g_state.displayNeedsUpdate = true;
-            break;
-        }
-
-        case EVT_SELECT_LONG:
-            paintEngine.toggleReverse();
-            g_state.displayNeedsUpdate = true;
+        case EVT_SELECT_SHORT:
+            // Odwracanie wzorca (tylko P-3a, P-3b)
+            if (patternMgr.getCurrent().hasReverse) {
+                paintEngine.toggleReverse();
+                g_state.displayNeedsUpdate = true;
+            }
             break;
 
         default:
@@ -304,7 +293,8 @@ void MenuSystem::update() {
                 encoderDist.getSpeedKmh(),
                 stats.getSessionArea(),
                 pat.guns,
-                g_state.patternReversed
+                g_state.patternReversed,
+                pat.hasReverse
             );
             break;
         }
