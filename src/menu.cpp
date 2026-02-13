@@ -279,8 +279,15 @@ void MenuSystem::update() {
 
     // --- Renderowanie ---
     if (!g_state.displayNeedsUpdate) return;
+
+    bool fullRedraw = g_state.forceFullRedraw;
     g_state.displayNeedsUpdate = false;
     g_state.forceFullRedraw = false;
+
+    // Pelne czyszczenie tylko przy zmianie ekranu (eliminacja migania)
+    if (fullRedraw) {
+        display.clear();
+    }
 
     switch (g_state.currentScreen) {
 

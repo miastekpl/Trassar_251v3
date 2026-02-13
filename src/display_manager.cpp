@@ -1,13 +1,15 @@
 // ============================================================
 // TrassarV3 - Implementacja modulu wyswietlacza ILI9341
 // 320x240 landscape, podswietlenie LEDC PWM
-// v2.3.0 - Nowy layout: wzorzec TL, predkosc/pow TR, 6 pistoletow na dole
+// v2.3.0 - Wzorzec FSB24 u gory, predkosc FSB24, status nad pistoletami
+//           Bez migania: setTextPadding zamiast clear()
 // ============================================================
 
 #include "display_manager.h"
 #include "patterns.h"
 
 // Skróty do czcionek GFX (includowane automatycznie przez TFT_eSPI z LOAD_GFXFF=1)
+#define FSB24 &FreeSansBold24pt7b
 #define FSB18 &FreeSansBold18pt7b
 #define FSB12 &FreeSansBold12pt7b
 #define FSB9  &FreeSansBold9pt7b
@@ -36,17 +38,17 @@ void DisplayManager::begin() {
     tft.setTextDatum(MC_DATUM);
     tft.setTextSize(1);
 
-    tft.setFreeFont(FSB18);
+    tft.setFreeFont(FSB24);
     tft.drawString("TrassarV3", TFT_SCREEN_W / 2, TFT_SCREEN_H / 2 - 40);
 
     tft.setFreeFont(FS9);
     tft.setTextColor(COLOR_MENU_TXT, COLOR_BG);
-    tft.drawString("Malowarka drogowa", TFT_SCREEN_W / 2, TFT_SCREEN_H / 2);
+    tft.drawString("Malowarka drogowa", TFT_SCREEN_W / 2, TFT_SCREEN_H / 2 + 10);
 
     char verBuf[32];
     snprintf(verBuf, sizeof(verBuf), "v%s", FW_VERSION);
     tft.setTextColor(COLOR_ACCENT, COLOR_BG);
-    tft.drawString(verBuf, TFT_SCREEN_W / 2, TFT_SCREEN_H / 2 + 30);
+    tft.drawString(verBuf, TFT_SCREEN_W / 2, TFT_SCREEN_H / 2 + 40);
 
     tft.setFreeFont(FM9);
     tft.setTextColor(COLOR_MENU_TXT, COLOR_BG);
@@ -150,149 +152,163 @@ void DisplayManager::drawProgressBar(int x, int y, int w, int h, int percent, ui
 
 // ============================================================
 //  EKRAN GLOWNY (HOME) - landscape 320x240
-//  Layout: Lewy gora = wzorzec (duzy), Prawy gora = predkosc + pow.
-//  Dol = 6 prostokatow pistoletow (zolty = we wzorcu)
+//  Bez clear() - uzywa setTextPadding do nadpisywania tresci
+//  Layout:
+//    Gora-lewo:  Wzorzec FSB24 + nazwa
+//    Gora-prawo: Predkosc FSB24 + km/h + powierzchnia
+//    Srodek:     Status "Gotowy"
+//    Dol:        6 prostokatow pistoletow
 // ============================================================
 void DisplayManager::drawHomeScreen(const char* patCode, const char* patName,
                                     float speedKmh, float areaM2,
                                     const GunPatternCfg gunsCfg[6],
                                     bool reversed, bool hasReverse) {
-    clear();
     char buf[48];
 
-    // ---- LEWY GORNY ROG: Wzorzec ----
-    tft.setFreeFont(FSB18);
+    // ---- LEWY GORNY: Wzorzec (duzy, FSB24) u samej gory ----
+    tft.setFreeFont(FSB24);
     tft.setTextColor(COLOR_ACCENT, COLOR_BG);
     tft.setTextDatum(TL_DATUM);
-    tft.drawString(patCode, 8, 8);
+    tft.setTextPadding(180);
+    tft.drawString(patCode, 8, 2);
+    tft.setTextPadding(0);
 
     // Nazwa wzorca pod kodem
     tft.setFreeFont(FS9);
     tft.setTextColor(COLOR_MENU_TXT, COLOR_BG);
-    tft.drawString(patName, 8, 42);
+    tft.setTextPadding(180);
+    tft.drawString(patName, 8, 46);
+    tft.setTextPadding(0);
 
+    // [ODW] jesli odwrocony
+    tft.fillRect(8, 64, 80, 18, COLOR_BG);
     if (reversed) {
         tft.setTextColor(COLOR_WARNING, COLOR_BG);
-        tft.drawString("[ODW]", 8, 60);
+        tft.drawString("[ODW]", 8, 64);
     }
 
-    // ---- PRAWY GORNY ROG: Predkosc ----
-    tft.setFreeFont(FSB18);
+    // ---- PRAWY GORNY: Predkosc (duza, FSB24) ----
+    tft.setFreeFont(FSB24);
     tft.setTextColor(COLOR_TEXT, COLOR_BG);
     tft.setTextDatum(TR_DATUM);
     snprintf(buf, sizeof(buf), "%.1f", speedKmh);
-    tft.drawString(buf, TFT_SCREEN_W - 8, 8);
+    tft.setTextPadding(140);
+    tft.drawString(buf, TFT_SCREEN_W - 8, 2);
+    tft.setTextPadding(0);
 
-    // Jednostka km/h pod wartoscia
+    // Jednostka km/h
     tft.setFreeFont(FS9);
     tft.setTextColor(COLOR_MENU_TXT, COLOR_BG);
-    tft.drawString("km/h", TFT_SCREEN_W - 8, 42);
+    tft.setTextPadding(60);
+    tft.drawString("km/h", TFT_SCREEN_W - 8, 46);
+    tft.setTextPadding(0);
 
-    // ---- PRAWY: Powierzchnia pod predkoscia ----
+    // Powierzchnia
     tft.setFreeFont(FSB12);
     tft.setTextColor(COLOR_TEXT, COLOR_BG);
     snprintf(buf, sizeof(buf), "%.1f m2", areaM2);
+    tft.setTextPadding(140);
     tft.drawString(buf, TFT_SCREEN_W - 8, 64);
-
-    // ---- Separator miedzy gora a dolem ----
-    int sepY = 90;
-    tft.drawFastHLine(4, sepY, TFT_SCREEN_W - 8, COLOR_DIVIDER);
-
-    // ---- Podpowiedzi klawiszy (nad prostokatami) ----
-    tft.setFreeFont(FM9);
-    tft.setTextColor(COLOR_MENU_TXT, COLOR_BG);
+    tft.setTextPadding(0);
     tft.setTextDatum(TL_DATUM);
-    tft.drawString("START=maluj GAP=przerwa STOP(1s)=menu", 8, sepY + 4);
 
-    // ---- Status: Gotowy + SEL=odwroc (dla P-3a/P-3b) ----
-    tft.setFreeFont(FSB9);
+    // ---- Separator ----
+    tft.drawFastHLine(4, 86, TFT_SCREEN_W - 8, COLOR_DIVIDER);
+
+    // ---- SRODEK: Status "Gotowy" nad prostokatami ----
+    tft.setFreeFont(FSB18);
     tft.setTextColor(COLOR_ACCENT, COLOR_BG);
+    tft.setTextDatum(MC_DATUM);
+    tft.setTextPadding(240);
+    tft.drawString("Gotowy", TFT_SCREEN_W / 2, 126);
+    tft.setTextPadding(0);
     tft.setTextDatum(TL_DATUM);
-    tft.drawString("Gotowy", 8, sepY + 20);
-
-    if (hasReverse) {
-        // Wzorzec obsluguje odwracanie (P-3a, P-3b)
-        tft.setFreeFont(FM9);
-        tft.setTextColor(COLOR_WARNING, COLOR_BG);
-        tft.setTextDatum(TR_DATUM);
-        tft.drawString("SEL=odwroc", TFT_SCREEN_W - 8, sepY + 20);
-        tft.setTextDatum(TL_DATUM);
-    }
 
     // ---- DOL: 6 prostokatow pistoletow ----
-    // gunStates = NULL (HOME, nie strzela), paused = false
-    // Zolty = uzyty we wzorcu, szary = nie
     bool homeGunStates[6] = {false, false, false, false, false, false};
     drawGunRects(TFT_SCREEN_H - 66, gunsCfg, homeGunStates, false);
 }
 
 // ============================================================
 //  EKRAN MALOWANIA - landscape 320x240
-//  Layout: LG = wzorzec+status, PG = predkosc + powierzchnia
-//  Dol = 6 prostokatow (zielony=strzela, zolty miganie=pauza)
+//  Bez clear() - uzywa setTextPadding do nadpisywania tresci
+//  Layout:
+//    Gora-lewo:  Wzorzec FSB24 + flagi [ODW] [GAP]
+//    Gora-prawo: Predkosc FSB24 + km/h + powierzchnia
+//    Srodek:     Status malowania (kolorowy)
+//    Dol:        6 prostokatow pistoletow (zielony/zolty miganie)
 // ============================================================
 void DisplayManager::drawPaintingScreen(MachineState state, const char* patCode,
                                         float speedKmh, float areaM2,
                                         const GunPatternCfg gunsCfg[6],
                                         const bool gunStates[6],
                                         bool reversed, bool gapStart) {
-    clear();
     char buf[48];
-
     bool paused = (state == STATE_PAUSED);
 
-    // ---- LEWY GORNY: Status malowania (duzy napis) ----
-    uint16_t sc = stateColor(state);
-    tft.setFreeFont(FSB18);
-    tft.setTextColor(sc, COLOR_BG);
-    tft.setTextDatum(TL_DATUM);
-    tft.drawString(stateStr(state), 8, 8);
-
-    // Wzorzec pod statusem
-    tft.setFreeFont(FSB12);
+    // ---- LEWY GORNY: Wzorzec (duzy, FSB24) u samej gory ----
+    tft.setFreeFont(FSB24);
     tft.setTextColor(COLOR_ACCENT, COLOR_BG);
-    if (reversed && gapStart) {
-        snprintf(buf, sizeof(buf), "%s [ODW] [GAP]", patCode);
-    } else if (reversed) {
-        snprintf(buf, sizeof(buf), "%s [ODW]", patCode);
-    } else if (gapStart) {
-        snprintf(buf, sizeof(buf), "%s [GAP]", patCode);
-    } else {
-        snprintf(buf, sizeof(buf), "%s", patCode);
-    }
-    tft.drawString(buf, 8, 42);
+    tft.setTextDatum(TL_DATUM);
+    tft.setTextPadding(180);
+    tft.drawString(patCode, 8, 2);
+    tft.setTextPadding(0);
 
-    // ---- PRAWY GORNY: Predkosc ----
-    tft.setFreeFont(FSB18);
+    // Flagi [ODW] [GAP] pod kodem wzorca
+    tft.setFreeFont(FS9);
+    tft.setTextPadding(180);
+    if (reversed && gapStart) {
+        tft.setTextColor(COLOR_WARNING, COLOR_BG);
+        tft.drawString("[ODW] [GAP]", 8, 46);
+    } else if (reversed) {
+        tft.setTextColor(COLOR_WARNING, COLOR_BG);
+        tft.drawString("[ODW]", 8, 46);
+    } else if (gapStart) {
+        tft.setTextColor(COLOR_WARNING, COLOR_BG);
+        tft.drawString("[GAP]", 8, 46);
+    } else {
+        tft.setTextColor(COLOR_BG, COLOR_BG);
+        tft.drawString(" ", 8, 46);
+    }
+    tft.setTextPadding(0);
+
+    // ---- PRAWY GORNY: Predkosc (duza, FSB24) ----
+    tft.setFreeFont(FSB24);
     tft.setTextColor(COLOR_TEXT, COLOR_BG);
     tft.setTextDatum(TR_DATUM);
     snprintf(buf, sizeof(buf), "%.1f", speedKmh);
-    tft.drawString(buf, TFT_SCREEN_W - 8, 8);
+    tft.setTextPadding(140);
+    tft.drawString(buf, TFT_SCREEN_W - 8, 2);
+    tft.setTextPadding(0);
 
-    // Jednostka
+    // km/h
     tft.setFreeFont(FS9);
     tft.setTextColor(COLOR_MENU_TXT, COLOR_BG);
-    tft.drawString("km/h", TFT_SCREEN_W - 8, 42);
+    tft.setTextPadding(60);
+    tft.drawString("km/h", TFT_SCREEN_W - 8, 46);
+    tft.setTextPadding(0);
 
-    // ---- PRAWY: Powierzchnia ----
+    // Powierzchnia
     tft.setFreeFont(FSB12);
     tft.setTextColor(COLOR_TEXT, COLOR_BG);
     snprintf(buf, sizeof(buf), "%.1f m2", areaM2);
+    tft.setTextPadding(140);
     tft.drawString(buf, TFT_SCREEN_W - 8, 64);
+    tft.setTextPadding(0);
     tft.setTextDatum(TL_DATUM);
 
     // ---- Separator ----
-    int sepY = 90;
-    tft.drawFastHLine(4, sepY, TFT_SCREEN_W - 8, COLOR_DIVIDER);
+    tft.drawFastHLine(4, 86, TFT_SCREEN_W - 8, COLOR_DIVIDER);
 
-    // ---- Podpowiedzi klawiszy ----
-    tft.setFreeFont(FM9);
-    tft.setTextColor(COLOR_MENU_TXT, COLOR_BG);
-    if (state == STATE_PAINTING) {
-        tft.drawString("START=pauza  STOP=stop", 8, sepY + 4);
-    } else if (state == STATE_PAUSED) {
-        tft.drawString("START=wznow  STOP=stop", 8, sepY + 4);
-    }
+    // ---- SRODEK: Status pracy nad prostokatami ----
+    uint16_t sc = stateColor(state);
+    tft.setFreeFont(FSB18);
+    tft.setTextColor(sc, COLOR_BG);
+    tft.setTextDatum(MC_DATUM);
+    tft.setTextPadding(240);
+    tft.drawString(stateStr(state), TFT_SCREEN_W / 2, 126);
+    tft.setTextPadding(0);
+    tft.setTextDatum(TL_DATUM);
 
     // ---- DOL: 6 prostokatow pistoletow ----
     drawGunRects(TFT_SCREEN_H - 66, gunsCfg, gunStates, paused);
@@ -596,10 +612,9 @@ void DisplayManager::drawNozzleClean(const char* patCode, const char* patName,
     tft.setTextDatum(TL_DATUM);
     tft.drawString(patCode, 8, y);
 
-    // Nazwa - obok kodu
+    // Nazwa - pod kodem
     tft.setFreeFont(FS9);
     tft.setTextColor(COLOR_MENU_TXT, COLOR_BG);
-    tft.setTextDatum(TL_DATUM);
     tft.drawString(patName, 8, y + 32);
 
     y += 56;
