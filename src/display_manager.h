@@ -1,7 +1,7 @@
 #pragma once
 // ============================================================
-// TrassarV3 - Modul wyswietlacza ILI9341  240x320
-// Komputer pokladowy malowarki pasow drogowych  v2.1.0
+// TrassarV3 - Modul wyswietlacza ILI9341  320x240 landscape
+// Komputer pokladowy malowarki pasow drogowych  v2.3.0
 // ============================================================
 
 #include <TFT_eSPI.h>
@@ -13,11 +13,15 @@ public:
     void setBacklight(uint8_t brightness);
     void clear();
 
-    // ---- Ekrany ----
-    void drawHomeScreen(const char* timeStr, const char* dateStr, const char* patCode, const char* patName,
-                        float speedKmh, float distanceM, bool calibrated, bool reversed);
-    void drawPaintingScreen(MachineState state, const char* patCode, float speedKmh, float distM,
-                            float areaM2, unsigned long elapsedSec, const bool gunStates[6],
+    // ---- Ekrany glowne ----
+    void drawHomeScreen(const char* patCode, const char* patName,
+                        float speedKmh, float areaM2,
+                        const GunPatternCfg gunsCfg[6],
+                        bool reversed);
+    void drawPaintingScreen(MachineState state, const char* patCode,
+                            float speedKmh, float areaM2,
+                            const GunPatternCfg gunsCfg[6],
+                            const bool gunStates[6],
                             bool reversed, bool gapStart = false);
 
     // Menu serwisowe
@@ -30,8 +34,8 @@ public:
 
     // ---- Elementy pomocnicze ----
     void drawHeader(const char* title);
-    void drawStatusBar(MachineState state, const char* timeStr);
-    void drawGunIndicators(int y, const bool gunStates[6]);
+    void drawGunRects(int y, const GunPatternCfg gunsCfg[6],
+                      const bool gunStates[6], bool paused);
     void drawProgressBar(int x, int y, int w, int h, int percent, uint16_t color);
 
     TFT_eSPI& getTFT() { return tft; }

@@ -299,13 +299,11 @@ void MenuSystem::update() {
         case SCREEN_HOME: {
             const PatternDef& pat = patternMgr.getCurrent();
             display.drawHomeScreen(
-                rtcModule.getTimeStr(),
-                rtcModule.getDateStr(),
                 pat.code,
                 pat.name,
                 encoderDist.getSpeedKmh(),
-                encoderDist.getDistanceMeters(),
-                encoderDist.isCalibrated(),
+                stats.getSessionArea(),
+                pat.guns,
                 g_state.patternReversed
             );
             break;
@@ -322,9 +320,8 @@ void MenuSystem::update() {
                 g_state.machineState,
                 pat.code,
                 encoderDist.getSpeedKmh(),
-                stats.getSessionDistance(),
                 stats.getSessionArea(),
-                stats.getSessionTimeSec(),
+                pat.guns,
                 gunStates,
                 g_state.patternReversed,
                 paintEngine.isGapStart()

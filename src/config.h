@@ -53,8 +53,8 @@
 #define BTN_LONG_PRESS_MS   1000
 
 // ============ Parametry wyświetlacza ============
-#define TFT_SCREEN_W        240
-#define TFT_SCREEN_H        320
+#define TFT_SCREEN_W        320
+#define TFT_SCREEN_H        240
 #define TFT_BACKLIGHT_PWM   200
 #define TFT_BL_LEDC_CH       0
 #define TFT_BL_LEDC_FREQ  5000
