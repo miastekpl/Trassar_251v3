@@ -1,4 +1,4 @@
-# TrassarV3 - API serwera WWW v2.1.0
+# TrassarV3 - API serwera WWW v2.3.0
 
 ## Informacje ogólne
 
@@ -45,7 +45,7 @@ Zwraca aktualny stan systemu w formacie JSON.
     "distance": "0.0",
     "area": "0.00",
     "elapsed": 0,
-    "firmware": "2.0.0",
+    "firmware": "2.3.0",
     "freeHeap": 245760,
     "uptime": 3600,
     "clients": 1,
