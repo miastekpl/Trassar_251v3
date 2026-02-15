@@ -45,7 +45,7 @@ private:
     const char* stateStr(MachineState s);
     uint16_t stateColor(MachineState s);
     void fmtTime(unsigned long sec, char* buf, size_t len);
-    void drawPatternVisualization(int y, int maxH,
+    void drawPatternVisualization(int vizX, int vizY, int vizW, int vizH,
                                   const GunPatternCfg gunsCfg[6],
                                   bool reversed, bool gapStart);
 };
