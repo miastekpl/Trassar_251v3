@@ -230,13 +230,106 @@ void DisplayManager::drawHomeScreen(const char* patCode, const char* patName,
 }
 
 // ============================================================
+//  Wizualizacja wzorca - graficzne paski linia/przerwa
+//  Rysuje 1 pasek na kazdy aktywny pistolet we wzorcu
+//  Ciagle = pelny zielony pasek, Przerywane = segmenty
+// ============================================================
+void DisplayManager::drawPatternVisualization(int y, int maxH,
+                                              const GunPatternCfg gunsCfg[6],
+                                              bool reversed, bool gapStart) {
+    // Efektywna konfiguracja (uwzglednia odwrocenie P1<->P3)
+    GunPatternCfg cfg[NUM_GUNS];
+    for (int i = 0; i < NUM_GUNS; i++) cfg[i] = gunsCfg[i];
+    if (reversed) {
+        GunPatternCfg tmp = cfg[GUN_P1];
+        cfg[GUN_P1] = cfg[GUN_P3];
+        cfg[GUN_P3] = tmp;
+    }
+
+    // Znajdz aktywne pistolety
+    int activeIdx[NUM_GUNS];
+    int activeCount = 0;
+    for (int i = 0; i < NUM_GUNS; i++) {
+        if (cfg[i].mode != GUN_OFF) {
+            activeIdx[activeCount++] = i;
+        }
+    }
+    if (activeCount == 0) return;
+
+    // Wymiary paskow
+    const int labelW = 28;
+    const int barX = labelW + 4;
+    const int barW = TFT_SCREEN_W - barX - 8;
+    const int rowGap = 3;
+    int barH = (maxH - (activeCount - 1) * rowGap) / activeCount;
+    if (barH > 20) barH = 20;
+    if (barH < 8)  barH = 8;
+
+    // Czyszczenie calego obszaru wizualizacji (unika artefaktow)
+    tft.fillRect(0, y, TFT_SCREEN_W, maxH, COLOR_BG);
+
+    tft.setFreeFont(FM9);
+
+    for (int a = 0; a < activeCount; a++) {
+        int gi = activeIdx[a];
+        int by = y + a * (barH + rowGap);
+
+        // Etykieta pistoletu (P1..P6)
+        char lbl[4];
+        snprintf(lbl, sizeof(lbl), "P%d", gi + 1);
+        tft.setTextColor(COLOR_MENU_TXT, COLOR_BG);
+        tft.setTextDatum(MR_DATUM);
+        tft.drawString(lbl, barX - 3, by + barH / 2);
+
+        if (cfg[gi].mode == GUN_CONTINUOUS) {
+            // Ciagla linia - pelny pasek zielony
+            tft.fillRect(barX, by, barW, barH, COLOR_GUN_ON);
+        } else if (cfg[gi].mode == GUN_DASHED) {
+            float lineLen = cfg[gi].lineLen;
+            float gapLen  = cfg[gi].gapLen;
+            float cycle   = lineLen + gapLen;
+            if (cycle <= 0) continue;
+
+            // Tlo = kolor przerwy
+            tft.fillRect(barX, by, barW, barH, COLOR_GUN_OFF);
+
+            // Ile cykli pokazac (2-4 zaleznie od dlugosci cyklu)
+            int numCycles = 2;
+            if (cycle <= 3.0f) numCycles = 3;
+            if (cycle <= 1.5f) numCycles = 4;
+            float totalLen = cycle * numCycles;
+            float scale = (float)barW / totalLen;
+
+            // Rysuj segmenty linii
+            // Przy gap start: przesuniecio o gapLen (zaczynamy od przerwy)
+            float offset = gapStart ? gapLen : 0;
+            float pos = offset;
+            while (pos < totalLen) {
+                int x1 = barX + (int)(pos * scale);
+                int x2 = barX + (int)((pos + lineLen) * scale);
+                if (x1 >= barX + barW) break;
+                if (x2 > barX + barW) x2 = barX + barW;
+                tft.fillRect(x1, by, x2 - x1, barH, COLOR_GUN_ON);
+                pos += cycle;
+            }
+        }
+
+        // Ramka paska
+        tft.drawRect(barX, by, barW, barH, COLOR_DIVIDER);
+    }
+
+    tft.setTextDatum(TL_DATUM);
+}
+
+// ============================================================
 //  EKRAN MALOWANIA - landscape 320x240
 //  Bez clear() - uzywa setTextPadding do nadpisywania tresci
 //  Layout:
 //    Gora-lewo:  Wzorzec FSB24 + flagi [ODW] [GAP]
 //    Gora-prawo: Predkosc FSB24 + km/h + powierzchnia
-//    Srodek:     Status malowania (kolorowy)
-//    Dol:        6 prostokatow pistoletow (zielony/zolty miganie)
+//    Srodek-gora: Wizualizacja graficzna wzorca (paski)
+//    Srodek-dol:  Status malowania (mniejsza czcionka, blizej pistoletow)
+//    Dol:         6 prostokatow pistoletow (zielony/zolty miganie)
 // ============================================================
 void DisplayManager::drawPaintingScreen(MachineState state, const char* patCode,
                                         float speedKmh, float areaM2,
@@ -300,13 +393,25 @@ void DisplayManager::drawPaintingScreen(MachineState state, const char* patCode,
     // ---- Separator ----
     tft.drawFastHLine(4, 86, TFT_SCREEN_W - 8, COLOR_DIVIDER);
 
-    // ---- SRODEK: Status pracy nad prostokatami ----
+    // ---- SRODEK-GORA: Wizualizacja graficzna wzorca ----
+    drawPatternVisualization(92, 52, gunsCfg, reversed, gapStart);
+
+    // ---- Cienki separator pod wizualizacja ----
+    tft.drawFastHLine(20, 148, TFT_SCREEN_W - 40, COLOR_DIVIDER);
+
+    // ---- SRODEK-DOL: Status pracy (mniejsza czcionka, blizej pistoletow) ----
     uint16_t sc = stateColor(state);
-    tft.setFreeFont(FSB18);
+    tft.setFreeFont(FSB12);
     tft.setTextColor(sc, COLOR_BG);
     tft.setTextDatum(MC_DATUM);
-    tft.setTextPadding(240);
-    tft.drawString(stateStr(state), TFT_SCREEN_W / 2, 126);
+    tft.setTextPadding(280);
+    char statusBuf[32];
+    if (gapStart) {
+        snprintf(statusBuf, sizeof(statusBuf), "%s [GAP]", stateStr(state));
+    } else {
+        snprintf(statusBuf, sizeof(statusBuf), "%s", stateStr(state));
+    }
+    tft.drawString(statusBuf, TFT_SCREEN_W / 2, 160);
     tft.setTextPadding(0);
     tft.setTextDatum(TL_DATUM);
 
