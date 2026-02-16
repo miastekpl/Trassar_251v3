@@ -1,4 +1,4 @@
-# TrassarV3 - API serwera WWW v2.3.0
+# TrassarV3 - API serwera WWW v2.4.0
 
 ## Informacje ogólne
 
@@ -25,6 +25,7 @@ Panel zawiera:
 - Przycisk odwracania (dla P-3a/P-3b)
 - Wskaźniki 6 pistoletów (P1-P6)
 - Sekcja kalibracji enkodera
+- Sekcja alarmu prędkości (suwak konfiguracji progu max.)
 - Informacje systemowe
 
 ---
@@ -41,11 +42,12 @@ Zwraca aktualny stan systemu w formacie JSON.
     "pattern": "P-1a",
     "patternName": "Przerywana dluga",
     "reversed": false,
+    "gapStart": false,
     "speed": "0.0",
     "distance": "0.0",
     "area": "0.00",
     "elapsed": 0,
-    "firmware": "2.3.0",
+    "firmware": "2.4.0",
     "freeHeap": 245760,
     "uptime": 3600,
     "clients": 1,
@@ -53,8 +55,10 @@ Zwraca aktualny stan systemu w formacie JSON.
     "ppm": "100.0",
     "calibrating": false,
     "calPulses": "0",
-    "guns": [false, false, false, false, false, false],
-    "gapStart": false
+    "maxSpeed": "15.0",
+    "overspeed": false,
+    "lowSpeed": false,
+    "guns": [false, false, false, false, false, false]
 }
 ```
 
@@ -78,6 +82,9 @@ Zwraca aktualny stan systemu w formacie JSON.
 | `ppm` | string | Impulsy na metr |
 | `calibrating` | bool | Czy trwa kalibracja |
 | `calPulses` | string | Impulsy zebrane podczas kalibracji |
+| `maxSpeed` | string | Próg alarmu przekroczenia prędkości [km/h] |
+| `overspeed` | bool | Czy prędkość przekracza próg maks. |
+| `lowSpeed` | bool | Czy prędkość jest poniżej 3 km/h podczas malowania |
 | `guns` | array[6] | Stan pistoletów P1-P6 (true = ON) |
 | `gapStart` | bool | Czy aktywny jest tryb "start od przerwy" |
 
@@ -106,6 +113,7 @@ Wysyła komendę sterującą do systemu.
 | `toggle_reverse` | - | Odwróć wzorzec (P-3a/P-3b) |
 | `cal_start` | - | Rozpocznij kalibrację enkodera |
 | `cal_finish` | - | Zakończ kalibrację enkodera |
+| `set_max_speed` | 5.0–30.0 | Ustaw próg alarmu prędkości [km/h] (zapis do NVS) |
 
 **Mapowanie indeksów wzorców:**
 
@@ -157,6 +165,9 @@ curl -X POST -d "action=cal_start" http://192.168.4.1/api/control
 
 # Zakończ kalibrację (po przejechaniu 10m)
 curl -X POST -d "action=cal_finish" http://192.168.4.1/api/control
+
+# Ustaw próg alarmu prędkości na 12 km/h
+curl -X POST -d "action=set_max_speed&value=12" http://192.168.4.1/api/control
 ```
 
 ## Kody odpowiedzi HTTP

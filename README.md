@@ -15,7 +15,11 @@ Obsługuje **6 pistoletów natryskowych**, **15 wzorców malowania** zgodnych z 
 - **Serwer WWW** - panel sterowania przez WiFi AP z 15 przyciskami wzorców
 - **Zegar RTC DS1307** - czas rzeczywisty z podtrzymaniem bateryjnym
 - **Statystyki** - sesja + łączne (dystans, powierzchnia, czas pracy)
-- **Pamięć trwała NVS** - kalibracja, statystyki, ostatni wzorzec
+- **Pamięć trwała NVS** - kalibracja, statystyki, ostatni wzorzec, próg prędkości
+- **Watchdog timer** (3 s) - auto-reset ESP32 przy zawieszeniu loop()
+- **Gun keepalive** (300 ms) - awaryjne wyłączenie pistoletów przy braku update
+- **Alarm przekroczenia prędkości** - migający wyświetlacz + buzzer, próg konfigurowalny z WWW
+- **Buzzer** (GPIO 8) - sygnalizacja dźwiękowa: start/stop, niska prędkość, overspeed, błędy
 
 ## Pistolety i ich zastosowanie
 
@@ -58,6 +62,7 @@ Obsługuje **6 pistoletów natryskowych**, **15 wzorców malowania** zgodnych z 
 | BS-33B x3 | Przyciski monostabilne (Start/Pauza, Stop, Selektor) |
 | Enkoder obrotowy | Pomiar dystansu + nawigacja menu |
 | Moduły przekaźnikowe x6 | Sterowanie pistoletami P1-P6 |
+| Buzzer pasywny | Sygnalizacja dźwiękowa (GPIO 8) |
 
 ## Podłączenie WiFi
 
@@ -102,7 +107,8 @@ TrassarV3/
 │   ├── button_handler.h/cpp    # Obsługa przycisków BS-33B
 │   ├── rtc_handler.h/cpp       # Obsługa zegara RTC DS1307
 │   ├── web_server.h/cpp        # Serwer WWW (WiFi AP + REST API)
-│   └── menu.h/cpp              # System menu (nawigacja 9 ekranów)
+│   ├── menu.h/cpp              # System menu (nawigacja 9 ekranów)
+│   └── buzzer.h/cpp            # Sygnalizacja dźwiękowa (LEDC PWM)
 ├── docs/
 │   ├── INSTRUKCJA_OBSLUGI.md   # Instrukcja obsługi
 │   ├── SCHEMAT_PODLACZEN.md    # Schemat podłączeń
@@ -120,7 +126,7 @@ TrassarV3/
 
 ## Wersja
 
-Aktualna wersja firmware: **v2.0.0**
+Aktualna wersja firmware: **v2.4.0**
 
 ## Licencja
 

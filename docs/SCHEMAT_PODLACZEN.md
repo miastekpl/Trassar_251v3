@@ -1,4 +1,4 @@
-# TrassarV3 - Dokumentacja techniczna i schemat podłączeń v2.3.0
+# TrassarV3 - Dokumentacja techniczna i schemat podłączeń v2.4.0
 
 ## Spis treści
 
@@ -39,14 +39,15 @@
 | Enkoder | Obrotowy (koło pomiarowe) | Digital + ISR | CLK/DT + przycisk SW |
 | Przyciski | BS-33B monostabilne × 3 + 1 | Digital (pull-up) | START, STOP, SELEKTOR, GAP |
 | Przekaźniki | Moduł 6-kanałowy 5V | Digital | Sterowanie pistoletami P1–P6 |
+| Buzzer | Pasywny | LEDC PWM (kanał 1) | Sygnalizacja dźwiękowa, GPIO 8 |
 
 ### 1.3 Firmware
 
 | Parametr | Wartość |
 |----------|---------|
-| Wersja | 2.3.0 |
+| Wersja | 2.4.0 |
 | Platforma | ESP32-S3 (PlatformIO) |
-| Biblioteki | TFT_eSPI, ArduinoJson v7, SD, Wire, WiFi |
+| Biblioteki | TFT_eSPI, ArduinoJson v7, SD, Wire, WiFi, esp_task_wdt |
 | Orientacja ekranu | Landscape (setRotation 1) |
 | Anti-flicker | setTextPadding() zamiast clear() na HOME/PAINTING |
 
@@ -148,6 +149,7 @@
 | **5** | Enkoder CLK | INPUT_PULLUP | ISR CHANGE, debounce 200 μs |
 | **6** | Enkoder DT | INPUT_PULLUP | Sygnał kierunku |
 | **7** | Przycisk GAP (SW enkodera) | INPUT_PULLUP | "Start od przerwy" |
+| **8** | Buzzer | PWM (LEDC ch1) | Sygnalizacja dźwiękowa (pasywny) |
 | **9** | TFT DC | OUTPUT | Data/Command |
 | **10** | TFT CS | OUTPUT | Chip Select wyświetlacza |
 | **11** | SPI MOSI | OUTPUT | Wspólny TFT + SD |
@@ -241,6 +243,12 @@ Na fizycznym panelu sterowania (ekran HOME i PAINTING) przycisk SELEKTOR **nie z
     │ [STOP]────│── GND ──│── GPIO 39                         │
     │ [SELECT]──│── GND ──│── GPIO 40                         │
     └───────────┘         │                                   │
+                          │  --- BUZZER ---                   │
+    ┌───────────┐         │                                   │
+    │  Buzzer   │         │                                   │
+    │  pasywny  ├─────────│── GPIO  8  (PWM LEDC ch1)        │
+    │           ├── GND ──│── GND                             │
+    └───────────┘         │                                   │
                           │  --- PRZEKAŹNIKI ---              │
     ┌───────────┐         │                                   │
     │ Moduł     │         │                                   │
@@ -303,7 +311,21 @@ Na fizycznym panelu sterowania (ekran HOME i PAINTING) przycisk SELEKTOR **nie z
 
 > Pin SW enkodera (GPIO 7) pełni rolę dedykowanego przycisku "Start od przerwy". Obroty enkodera (CLK/DT) służą wyłącznie do pomiaru dystansu i prędkości.
 
-### 6.3 Podłączenie przekaźników
+### 6.3 Podłączenie buzzera pasywnego
+
+```
+    ESP32-S3               Buzzer pasywny
+    ┌──────────┐           ┌───────────┐
+    │          │           │           │
+    │ GPIO  8  ├───────────┤ +  (sygnał)│
+    │          │           │           │
+    │    GND   ├───────────┤ -  (masa)  │
+    └──────────┘           └───────────┘
+```
+
+> **Uwaga:** Buzzer musi być **pasywny** (bez wbudowanego generatora). Sygnał generowany jest przez LEDC PWM (kanał 1, oddzielny od podświetlenia TFT na kanale 0). Częstotliwość tonów: 600 Hz – 3 kHz.
+
+### 6.4 Podłączenie przekaźników
 
 ```
     ESP32-S3                       Moduł przekaźnikowy 5V
@@ -324,7 +346,7 @@ Na fizycznym panelu sterowania (ekran HOME i PAINTING) przycisk SELEKTOR **nie z
     Logika: HIGH na GPIO = przekaźnik włączony = pistolet maluje
 ```
 
-### 6.4 Podłączenie wyświetlacza i karty SD (wspólna magistrala SPI)
+### 6.5 Podłączenie wyświetlacza i karty SD (wspólna magistrala SPI)
 
 ```
     ESP32-S3               Moduł ILI9341 2.8" (TFT + SD + Touch)
@@ -353,7 +375,7 @@ Na fizycznym panelu sterowania (ekran HOME i PAINTING) przycisk SELEKTOR **nie z
       GPIO 15 = LOW → komunikacja z Touch
 ```
 
-### 6.5 Podłączenie zegara RTC DS1307
+### 6.6 Podłączenie zegara RTC DS1307
 
 ```
     ESP32-S3               Moduł DS1307
@@ -426,20 +448,24 @@ Na fizycznym panelu sterowania (ekran HOME i PAINTING) przycisk SELEKTOR **nie z
 | **storage** | storage.cpp/h | Pamięć NVS (kalibracja, ostatni wzorzec) |
 | **rtc_handler** | rtc_handler.cpp/h | Obsługa zegara RTC DS1307 |
 | **report_logger** | report_logger.cpp/h | Zapis raportów CSV na kartę SD |
+| **buzzer** | buzzer.cpp/h | Sygnalizacja dźwiękowa (LEDC PWM, non-blocking) |
 | **web_server** | web_server.cpp/h | WiFi AP + serwer HTTP + API REST |
 
 ### 8.2 Pętla główna (loop)
 
 ```
 loop() {
-    1. buttons.update()          → Odczyt przycisków (debounce)
-    2. menu.handleEvent(event)   → Obsługa zdarzeń UI
-    3. encoderDist.update()      → Przeliczenie prędkości
-    4. rtcModule.update()        → Aktualizacja czasu RTC
-    5. paintEngine.update()      → Sterowanie pistoletami (główna logika)
-    6. Dynamiczny refresh (500ms) → Flaga displayNeedsUpdate
-    7. menu.update() (100ms)     → Renderowanie wyświetlacza
-    8. webServer.update()        → Obsługa żądań HTTP
+    0. esp_task_wdt_reset()          → Karmienie watchdoga (3 s timeout)
+    1. buttons.update()              → Odczyt przycisków (debounce)
+    2. menu.handleEvent(event)       → Obsługa zdarzeń UI
+    3. encoderDist.update()          → Przeliczenie prędkości
+    4. rtcModule.update()            → Aktualizacja czasu RTC
+    5. paintEngine.update()          → Sterowanie pistoletami + alarmy prędkości
+    5b. paintEngine.checkGunKeepAlive() → Awaryjne wyłączenie (300 ms timeout)
+    5c. buzzer.update()              → Sekwencje tonów (non-blocking)
+    6. Dynamiczny refresh (500ms)    → Flaga displayNeedsUpdate
+    7. menu.update() (100ms)         → Renderowanie wyświetlacza
+    8. webServer.update()            → Obsługa żądań HTTP
     delay(1)
 }
 ```
@@ -455,6 +481,8 @@ loop() {
 | BTN_DEBOUNCE_MS | 50 ms | Debouncing przycisków |
 | BTN_LONG_PRESS_MS | 1000 ms | Próg długiego naciśnięcia |
 | Auto-refresh WWW | 1000 ms | Odpytywanie /api/status przez JavaScript |
+| WDT_TIMEOUT_SEC | 3000 ms | Watchdog timer — auto-reset ESP32 |
+| GUN_KEEPALIVE_TIMEOUT_MS | 300 ms | Awaryjne wyłączenie pistoletów |
 
 ### 8.4 Maszyna stanów
 
@@ -506,7 +534,7 @@ paintEngine.update():
 |----------|--------|------|
 | `/` | GET | Strona HTML panelu sterowania |
 | `/api/status` | GET | JSON ze stanem systemu |
-| `/api/control` | POST | Sterowanie maszyną (action=start\|pause\|stop\|start_from_gap\|set_pattern\|toggle_reverse\|cal_start\|cal_finish) |
+| `/api/control` | POST | Sterowanie maszyną (action=start\|pause\|stop\|start_from_gap\|set_pattern\|toggle_reverse\|cal_start\|cal_finish\|set_max_speed) |
 
 Szczegółowa dokumentacja API → [API_WWW.md](API_WWW.md)
 
@@ -518,7 +546,7 @@ Szczegółowa dokumentacja API → [API_WWW.md](API_WWW.md)
 
 | Parametr | Wartość | Opis |
 |----------|---------|------|
-| FW_VERSION | "2.3.0" | Wersja firmware |
+| FW_VERSION | "2.4.0" | Wersja firmware |
 | FW_NAME | "TrassarV3" | Nazwa systemu |
 | WIFI_AP_SSID | "TrassarV3" | Nazwa sieci WiFi |
 | WIFI_AP_PASS | "12345678" | Hasło WiFi |
@@ -537,6 +565,11 @@ Szczegółowa dokumentacja API → [API_WWW.md](API_WWW.md)
 | ENC_ISR_DEBOUNCE_US | 200 | Debounce ISR enkodera [μs] |
 | SPEED_CALC_INTERVAL_MS | 250 | Interwał obliczania prędkości [ms] |
 | SPEED_FILTER_ALPHA | 0.3 | Współczynnik filtra wykładniczego prędkości |
+| PIN_BUZZER | 8 | GPIO pinu buzzera pasywnego |
+| BUZZER_LEDC_CH | 1 | Kanał LEDC dla buzzera (0 = podświetlenie TFT) |
+| DEFAULT_MAX_PAINT_SPEED_KMH | 15.0 | Domyślny próg alarmu prędkości [km/h] |
+| WDT_TIMEOUT_SEC | 3 | Timeout watchdoga [s] z auto-resetem |
+| GUN_KEEPALIVE_TIMEOUT_MS | 300 | Timeout keepalive pistoletów [ms] |
 
 ### 9.2 Kolory UI (format RGB565)
 
@@ -598,5 +631,5 @@ Szczegółowa dokumentacja API → [API_WWW.md](API_WWW.md)
 
 ---
 
-*TrassarV3 — Dokumentacja techniczna v2.3.0*
+*TrassarV3 — Dokumentacja techniczna v2.4.0*
 *ESP32-S3 N16R8 | ILI9341 320×240 | 6 pistoletów | 15 wzorców | WiFi AP*

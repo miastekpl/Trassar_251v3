@@ -7,6 +7,66 @@ Wersjonowanie zgodne z [Semantic Versioning](https://semver.org/lang/pl/).
 
 ---
 
+## [2.4.0] - 2025-02-16
+
+### Dodano - Bezpieczeństwo i sygnalizacja dźwiękowa
+
+#### Watchdog timer (3 s)
+- Sprzętowy watchdog ESP32 (Task WDT) z timeoutem 3 sekund i automatycznym resetem
+- `esp_task_wdt_init(3, true)` i `esp_task_wdt_add(NULL)` w `setup()`
+- `esp_task_wdt_reset()` na początku każdego cyklu `loop()`
+- Zabezpieczenie: jeśli `loop()` się zawiesi, ESP32 zrestartuje się po 3 s — piny GPIO wracają do LOW, pistolety się zamykają
+
+#### Gun keepalive (300 ms)
+- Niezależna warstwa bezpieczeństwa — awaryjne wyłączenie pistoletów jeśli `paintEngine.update()` nie zostanie wywołane przez 300 ms
+- Metoda `PaintingEngine::checkGunKeepAlive()` wywoływana w `loop()` niezależnie od `update()`
+- Pole `lastGunUpdateMs` aktualizowane w każdym cyklu sterowania pistoletami
+- Zabezpiecza przed scenariuszem: loop działa (watchdog karmiony), ale painting engine nie steruje pistoletami
+
+#### Alarm przekroczenia prędkości
+- Próg domyślny: 15 km/h (`DEFAULT_MAX_PAINT_SPEED_KMH`)
+- Próg konfigurowalny z panelu WWW (suwak 5–30 km/h, krok 0.5), zapisywany trwale do NVS
+- Wyświetlacz: prędkość miga na czerwono (cykl 300 ms) + etykieta "km/h" też miga
+- Buzzer: trojkowy alarm 3 kHz powtarzany co 2 s
+- Niska prędkość (<3 km/h podczas malowania): żółty kolor prędkości, buzzer co 3 s
+- Nowe pola API JSON: `maxSpeed`, `overspeed`, `lowSpeed`
+- Nowa akcja API: `set_max_speed` (value: 5.0–30.0)
+
+#### Buzzer (sygnalizacja dźwiękowa)
+- Nowy moduł: `buzzer.h/cpp`
+- Pasywny buzzer na GPIO 8, sterowany LEDC PWM (kanał 1)
+- Non-blocking: sekwencje tonów zarządzane w `buzzer.update()` — nie blokuje `loop()`
+- Sygnały dźwiękowe:
+  - **Start malowania / wznowienie** — krótki beep 2 kHz 100 ms
+  - **Pauza / stop malowania** — podwójny beep 2 kHz 80 ms
+  - **Niska prędkość (<3 km/h)** — podwójny puls 1.5 kHz (powtarzany co 3 s)
+  - **Przekroczenie prędkości maks.** — trojkowy alarm 3 kHz (powtarzany co 2 s)
+  - **Błąd (brak SD, RTC niedostępny)** — opadający ton 1000→800→600 Hz
+- Metody: `play(BuzzerSignal)`, `beep(freq, duration)`, `stop()`, `update()`
+
+### Zmieniono
+- Wersja firmware: 2.3.0 → **2.4.0**
+- `painting_engine`: rozbudowana o keepalive, alarmy prędkości i sygnały buzzera
+- `display_manager::drawPaintingScreen()`: nowe parametry `overspeed` i `lowSpeed` do sterowania kolorem prędkości
+- `storage`: nowe metody `saveMaxSpeed()` / `loadMaxSpeed()`
+- `web_server`: nowe pole API `maxSpeed`, `overspeed`, `lowSpeed`; nowa akcja `set_max_speed`; nowa sekcja HTML "Alarm prędkości" z suwakiem
+- `main.cpp`: dodano inicjalizację watchdoga, buzzera, gun keepalive; sygnał błędu przy braku RTC/SD
+
+#### Nowe pliki
+- `src/buzzer.h` — deklaracja klasy `BuzzerController`
+- `src/buzzer.cpp` — implementacja buzzera z sekwencjami tonów LEDC
+
+#### Nowe stałe w config.h
+| Stała | Wartość | Opis |
+|-------|---------|------|
+| `PIN_BUZZER` | 8 | GPIO pinu buzzera |
+| `BUZZER_LEDC_CH` | 1 | Kanał LEDC (0 = podświetlenie TFT) |
+| `DEFAULT_MAX_PAINT_SPEED_KMH` | 15.0 | Domyślny próg alarmu prędkości [km/h] |
+| `WDT_TIMEOUT_SEC` | 3 | Timeout watchdoga [s] |
+| `GUN_KEEPALIVE_TIMEOUT_MS` | 300 | Timeout keepalive pistoletów [ms] |
+
+---
+
 ## [2.0.0] - 2025-02-12
 
 ### Dodano - Komputer pokładowy malowarki pasów drogowych

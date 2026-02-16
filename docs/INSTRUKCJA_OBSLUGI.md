@@ -1,4 +1,4 @@
-# TrassarV3 - Instrukcja obsługi v2.3.0
+# TrassarV3 - Instrukcja obsługi v2.4.0
 
 ## Spis treści
 
@@ -13,8 +13,9 @@
 9. [Kalibracja enkodera](#9-kalibracja-enkodera)
 10. [Raporty na karcie SD](#10-raporty-na-karcie-sd)
 11. [Zabezpieczenia](#11-zabezpieczenia)
-12. [Przykłady zastosowania](#12-przykłady-zastosowania)
-13. [Rozwiązywanie problemów](#13-rozwiązywanie-problemów)
+12. [Sygnalizacja dźwiękowa (buzzer)](#12-sygnalizacja-dźwiękowa-buzzer)
+13. [Przykłady zastosowania](#13-przykłady-zastosowania)
+14. [Rozwiązywanie problemów](#14-rozwiązywanie-problemów)
 
 ---
 
@@ -37,17 +38,21 @@ System zapewnia:
 | Parametr | Wartość |
 |----------|---------|
 | Mikrokontroler | ESP32-S3 N16R8 (16 MB Flash, 8 MB PSRAM) |
-| Firmware | v2.3.0 |
+| Firmware | v2.4.0 |
 | Wyświetlacz | ILI9341 2.8" TFT, 320×240 px, tryb landscape |
 | Interfejs SPI | HSPI (SPI3), 27 MHz |
 | Zegar RTC | DS1307 z baterią CR2032 |
 | Enkoder | Obrotowy, ISR na pinie CLK (CHANGE) |
 | Przyciski | 4 szt. monostabilne (START, STOP, SELEKTOR, GAP) |
 | Przekaźniki | 6 szt. (pistolety P1–P6), logika HIGH = ON |
+| Buzzer | Pasywny, GPIO 8, LEDC PWM kanał 1 |
 | Karta SD | Slot zintegrowany w module wyświetlacza, FAT32 |
 | WiFi | Access Point, SSID: TrassarV3, hasło: 12345678 |
 | Serwer WWW | HTTP port 80, max 4 klientów, auto-refresh 1 s |
 | Prędkość min. | 3 km/h (zabezpieczenie pistoletów) |
+| Prędkość maks. | Domyślnie 15 km/h (alarm, konfigurowalny z WWW) |
+| Watchdog | 3 s timeout, auto-reset ESP32 |
+| Gun keepalive | 300 ms — awaryjne wyłączenie pistoletów |
 | Kalibracja | Odcinek 10 m, zapis do NVS |
 | Zasilanie | USB-C 5V (ESP32-S3 DevKit) |
 
@@ -390,6 +395,7 @@ Panel sterowania w przeglądarce oferuje pełną kontrolę nad maszyną:
 | **Odwracanie** | Przycisk "Odwróć" — aktywny tylko dla P-3a / P-3b |
 | **Pistolety** | 6 kółek P1–P6 (zielone = ON, szare = OFF) |
 | **Kalibracja** | Przycisk rozpoczęcia/zakończenia, licznik impulsów, impulsy/metr |
+| **Alarm prędkości** | Bieżący próg maks., suwak konfiguracji (5–30 km/h), przycisk zapisu do NVS |
 | **System** | Wersja firmware, wolna RAM, uptime, liczba klientów WiFi |
 
 ### 8.3 Zmiana wzorca przez panel WWW
@@ -473,14 +479,80 @@ Pistolety wyłączają się natychmiast przy:
 - Spadku prędkości poniżej 3 km/h
 - Wyjściu z trybu czyszczenia dysz
 - Puszczeniu przycisku START w trybie czyszczenia dysz
+- Zadziałaniu mechanizmu gun keepalive (brak aktualizacji silnika malowania >300 ms)
 
-### 11.3 Odszumianie enkodera
+### 11.3 Watchdog timer
+
+System posiada sprzętowy watchdog timer ESP32 z timeoutem **3 sekund**. Jeśli pętla główna (`loop()`) zawiesi się z dowolnej przyczyny:
+- Watchdog zrestartuje mikrokontroler po 3 sekundach
+- Wszystkie piny GPIO wracają do stanu LOW — pistolety się zamykają
+- System uruchamia się od nowa z zapisanymi ustawieniami z NVS
+
+> **Uwaga:** Reset watchdoga jest widoczny w monitorze szeregowym jako komunikat restartu.
+
+### 11.4 Gun keepalive (300 ms)
+
+Niezależna od watchdoga warstwa bezpieczeństwa. Chroni przed scenariuszem, w którym pętla `loop()` działa (watchdog jest karmiony), ale silnik malowania z jakiegoś powodu nie steruje pistoletami:
+- Jeśli silnik malowania nie zaktualizuje stanu pistoletów przez **300 ms**, system wykonuje awaryjne wyłączenie wszystkich pistoletów (`guns.allOff()`)
+- Informacja o zadziałaniu keepalive jest logowana na port szeregowy
+
+### 11.5 Alarm przekroczenia prędkości
+
+Przy zbyt dużej prędkości jakość malowania spada (farba się rozpryskuje, linie nie są równe). System alarmuje operatora:
+
+- **Próg domyślny:** 15 km/h
+- **Konfiguracja:** Panel WWW → sekcja "Alarm prędkości" → suwak 5–30 km/h → przycisk "Zapisz"
+- **Próg jest zapisywany trwale w NVS** — przetrwa restart urządzenia
+
+**Sygnalizacja przy przekroczeniu:**
+- **Wyświetlacz:** Prędkość miga na czerwono (cykl 300 ms)
+- **Buzzer:** Trojkowy alarm 3 kHz, powtarzany co 2 sekundy
+- **Panel WWW:** Napis "PRZEKROCZENIE!" w sekcji alarmu prędkości, kolor prędkości na czerwono
+
+**Sygnalizacja przy niskiej prędkości (<3 km/h podczas malowania):**
+- **Wyświetlacz:** Prędkość wyświetlana na żółto
+- **Buzzer:** Podwójny puls 1.5 kHz, powtarzany co 3 sekundy
+
+### 11.6 Odszumianie enkodera
 
 Podczas inicjalizacji systemu enkoder może rejestrować drobne drgania. Po zakończeniu inicjalizacji system automatycznie zeruje licznik dystansu (`resetDistance()`), eliminując szum nazbierany podczas startu.
 
 ---
 
-## 12. Przykłady zastosowania
+## 12. Sygnalizacja dźwiękowa (buzzer)
+
+System wyposażony jest w pasywny buzzer (GPIO 8) generujący sygnały dźwiękowe informujące operatora o zdarzeniach. Sygnały są szczególnie przydatne w hałaśliwym środowisku pracy (maszyna drogowa, ruch uliczny).
+
+### 12.1 Tabela sygnałów dźwiękowych
+
+| Zdarzenie | Sygnał | Częstotliwość | Opis |
+|-----------|--------|---------------|------|
+| **Start malowania** | 1× krótki beep | 2 kHz, 100 ms | Potwierdzenie rozpoczęcia malowania |
+| **Wznowienie po pauzie** | 1× krótki beep | 2 kHz, 100 ms | Potwierdzenie wznowienia |
+| **Pauza malowania** | 2× krótki beep | 2 kHz, 80 ms + 80 ms | Potwierdzenie pauzy |
+| **Stop malowania** | 2× krótki beep | 2 kHz, 80 ms + 80 ms | Potwierdzenie zatrzymania |
+| **Niska prędkość** | 2× puls | 1.5 kHz, 150 ms + 150 ms | Prędkość <3 km/h podczas malowania (co 3 s) |
+| **Przekroczenie prędkości** | 3× alarm | 3 kHz, 60 ms × 3 | Prędkość > próg maks. (co 2 s) |
+| **Błąd (RTC/SD)** | Opadający ton | 1000→800→600 Hz | Brak karty SD lub RTC niedostępny przy starcie |
+
+### 12.2 Specyfikacja techniczna buzzera
+
+| Parametr | Wartość |
+|----------|---------|
+| Typ | Pasywny (wymaga sygnału PWM) |
+| GPIO | 8 |
+| Sterowanie | LEDC PWM, kanał 1, duty cycle 50% |
+| Tryb pracy | Non-blocking (sekwencje zarządzane w pętli głównej) |
+
+### 12.3 Uwagi
+
+- Buzzer nie blokuje pracy systemu — sekwencje tonów są przetwarzane w tle
+- Alarmy prędkości powtarzają się cyklicznie dopóki warunek jest spełniony
+- Sygnał błędu odtwarzany jest jednokrotnie przy uruchomieniu systemu (jeśli wykryto problem)
+
+---
+
+## 13. Przykłady zastosowania
 
 ### Przykład 1: Malowanie linii przerywanej P-1a na nowej drodze
 
@@ -489,7 +561,7 @@ Podczas inicjalizacji systemu enkoder może rejestrować drobne drgania. Po zako
 **Kroki:**
 
 1. **Przygotowanie:**
-   - Włącz urządzenie — pojawi się ekran powitalny "TrassarV3 v2.3.0", a po chwili ekran główny
+   - Włącz urządzenie — pojawi się ekran powitalny "TrassarV3 v2.4.0", a po chwili ekran główny
    - Sprawdź wyświetlany wzorzec w lewym górnym rogu
    - Jeśli wyświetlany wzorzec to nie P-1a, zmień go przez panel WWW: połącz się z WiFi "TrassarV3" (hasło: 12345678), otwórz http://192.168.4.1 i kliknij przycisk **P-1a**
    - Sprawdź status kalibracji w panelu WWW — powinno być "Skalibrowany"
@@ -635,7 +707,7 @@ START OD PRZERWY (GAP):  ░░░░██░░░░██░░░░██ 
 
 ---
 
-## 13. Rozwiązywanie problemów
+## 14. Rozwiązywanie problemów
 
 | Problem | Możliwa przyczyna | Rozwiązanie |
 |---------|-------------------|-------------|
@@ -656,8 +728,13 @@ START OD PRZERWY (GAP):  ░░░░██░░░░██░░░░██ 
 | Brak raportów na karcie | Raport nie został zapisany | Raporty zapisują się po naciśnięciu STOP (zakończenie malowania) |
 | "Start od przerwy" nie działa | Wzorzec ciągły | Dla P-2a/P-2b/P-4/P-7b/P-7d start od przerwy = normalny start |
 | Panel WWW nie odpowiada | Serwer przeciążony | Max 4 klientów. Zamknij zbędne połączenia |
+| Buzzer nie działa | Brak buzzera lub zły pin | Sprawdź podłączenie buzzera pasywnego do GPIO 8 |
+| ESP32 restartuje się co 3 s | Watchdog timeout | Pętla główna się zawiesza — sprawdź monitor szeregowy |
+| Pistolety wyłączają się co chwilę | Gun keepalive | Silnik malowania nie nadąża — sprawdź obciążenie procesora |
+| Alarm prędkości miga ciągle | Próg za niski | Panel WWW → Alarm prędkości → zwiększ próg suwakiem |
+| Prędkość miga na żółto | Niska prędkość | Przyspiesz powyżej 3 km/h — to ostrzeżenie, nie błąd |
 
 ---
 
 *TrassarV3 — Komputer pokładowy malowarki pasów drogowych*
-*Firmware v2.3.0 | ESP32-S3 N16R8 | 6 pistoletów, 15 wzorców*
+*Firmware v2.4.0 | ESP32-S3 N16R8 | 6 pistoletów, 15 wzorców, buzzer, watchdog*
