@@ -1,13 +1,14 @@
 // ============================================================
 // TrassarV3 - Komputer pokładowy malowarki pasów drogowych
-// Firmware v2.0.0
+// Firmware v2.5.0
 //
-// Platforma:    ESP32-S3 N16R8
+// Platforma:    ESP32-S3 N16R8 (dual-core)
 // Wyświetlacz:  ILI9341 2.8" 240x320 SPI
 // RTC:          DS1307
 // Wejścia:      3x BS-33B + enkoder obrotowy
 // Wyjścia:      6x przekaźnik (pistolety P1-P6)
-// Sieć:         WiFi AP + serwer HTTP
+// Sieć:         WiFi AP + serwer HTTP (Core 0)
+// Krytyczna pętla:  Core 1 (enkoder, pistolety, buzzer)
 // ============================================================
 
 #include "config.h"
@@ -25,6 +26,7 @@
 #include "report_logger.h"
 #include "buzzer.h"
 #include <esp_task_wdt.h>
+#include <esp_heap_caps.h>
 
 // Globalny stan systemu
 SystemState g_state;
@@ -32,8 +34,12 @@ SystemState g_state;
 // Timery
 unsigned long lastDisplayRefresh = 0;
 unsigned long lastDynamicUpdate = 0;
+unsigned long lastDiagPrint = 0;
+unsigned long lastLifetimeSave = 0;
 const unsigned long DISPLAY_REFRESH_MS = 100;
 const unsigned long DYNAMIC_UPDATE_MS  = 500;
+const unsigned long DIAG_PRINT_MS      = 30000;  // Diagnostyka co 30s
+const unsigned long LIFETIME_SAVE_MS   = 60000;  // Zapis statystyk co 60s
 
 void setup() {
     Serial.begin(115200);
@@ -190,8 +196,31 @@ void loop() {
         menu.update();
     }
 
-    // 7. Serwer WWW
-    webServer.update();
+    // 7. Serwer WWW - obsluga HTTP na Core 0 (osobny task FreeRTOS)
+    // webServer.update() jest teraz puste - klienci obslugiwani autonomicznie
+
+    // 8. Okresowy zapis statystyk lifetime (co 60s podczas malowania)
+    if (g_state.machineState == STATE_PAINTING) {
+        if (now - lastLifetimeSave >= LIFETIME_SAVE_MS) {
+            lastLifetimeSave = now;
+            stats.saveLifetime();
+        }
+    } else {
+        lastLifetimeSave = now;  // Reset timera gdy nie malujemy
+    }
+
+    // 9. Diagnostyka systemowa (co 30s)
+    if (now - lastDiagPrint >= DIAG_PRINT_MS) {
+        lastDiagPrint = now;
+        Serial.printf("[DIAG] Heap: %u/%u B (min: %u)  Frag: %.0f%%  WWW-stack: %u  Core: %d\n",
+                      ESP.getFreeHeap(),
+                      ESP.getHeapSize(),
+                      ESP.getMinFreeHeap(),
+                      100.0f * (1.0f - (float)heap_caps_get_largest_free_block(MALLOC_CAP_8BIT) /
+                                        (float)ESP.getFreeHeap()),
+                      webServer.getTaskStackHWM(),
+                      xPortGetCoreID());
+    }
 
     delay(1);
 }

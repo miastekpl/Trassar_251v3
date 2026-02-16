@@ -12,7 +12,7 @@ Obsługuje **6 pistoletów natryskowych**, **15 wzorców malowania** zgodnych z 
 - **Zmiana wzorca w trakcie malowania** (on-the-fly)
 - **Odwracanie wzorców P-3a/P-3b** (zamiana ciągła ↔ przerywana)
 - **Wyświetlacz TFT 2.8" ILI9341** (240x320, SPI) - 9 ekranów interfejsu
-- **Serwer WWW** - panel sterowania przez WiFi AP z 15 przyciskami wzorców
+- **Serwer WWW na Core 0** - panel sterowania przez WiFi AP (nie blokuje krytycznej pętli)
 - **Zegar RTC DS1307** - czas rzeczywisty z podtrzymaniem bateryjnym
 - **Statystyki** - sesja + łączne (dystans, powierzchnia, czas pracy)
 - **Pamięć trwała NVS** - kalibracja, statystyki, ostatni wzorzec, próg prędkości
@@ -20,6 +20,11 @@ Obsługuje **6 pistoletów natryskowych**, **15 wzorców malowania** zgodnych z 
 - **Gun keepalive** (300 ms) - awaryjne wyłączenie pistoletów przy braku update
 - **Alarm przekroczenia prędkości** - migający wyświetlacz + buzzer, próg konfigurowalny z WWW
 - **Buzzer** (GPIO 8) - sygnalizacja dźwiękowa: start/stop, niska prędkość, overspeed, błędy
+- **Dual-core FreeRTOS** - Core 0: WiFi/HTTP, Core 1: enkoder/pistolety/buzzer/display
+- **Anti-flicker** - ekrany TFT bez migania (setTextPadding na wszystkich ekranach)
+- **Diagnostyka** - heap monitoring, stack HWM, fragmentacja, logi co 30 s
+- **Okresowy zapis statystyk** - lifetime stats co 60 s (ochrona przed utratą danych)
+- **Szybki ISR enkodera** - bezpośredni odczyt rejestru GPIO (~50 ns vs ~2 μs)
 
 ## Pistolety i ich zastosowanie
 
@@ -126,7 +131,7 @@ TrassarV3/
 
 ## Wersja
 
-Aktualna wersja firmware: **v2.4.0**
+Aktualna wersja firmware: **v2.5.0**
 
 ## Licencja
 

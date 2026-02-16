@@ -1,7 +1,7 @@
 #pragma once
 // ============================================================
 // TrassarV3 - Modul wyswietlacza ILI9341  320x240 landscape
-// Komputer pokladowy malowarki pasow drogowych  v2.3.0
+// Komputer pokladowy malowarki pasow drogowych  v2.5.0
 // ============================================================
 
 #include <TFT_eSPI.h>
@@ -23,7 +23,9 @@ public:
                             const GunPatternCfg gunsCfg[6],
                             const bool gunStates[6],
                             bool reversed, bool gapStart = false,
-                            bool overspeed = false, bool lowSpeed = false);
+                            bool overspeed = false, bool lowSpeed = false,
+                            unsigned long sessionTimeSec = 0,
+                            float sessionDistM = 0);
 
     // Menu serwisowe
     void drawServiceMenu(int selectedIndex);

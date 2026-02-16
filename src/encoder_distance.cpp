@@ -1,13 +1,19 @@
 // ============================================================
 // TrassarV3 - Enkoder: dystans, prędkość, kalibracja
+// v2.5.0 - Bezposredni odczyt rejestru GPIO w ISR (~50ns vs ~2us digitalRead)
 // ============================================================
 
 #include "encoder_distance.h"
 #include "storage.h"
+#include <soc/gpio_struct.h>
 
 EncoderDistance encoderDist;
 EncoderDistance* EncoderDistance::instance = nullptr;
 volatile long EncoderDistance::totalPulses = 0;
+
+// Makra do szybkiego odczytu GPIO (piny 0-31 -> GPIO.in, piny 32-39 -> GPIO.in1.val)
+#define FAST_GPIO_READ(pin) \
+    (((pin) < 32) ? ((GPIO.in >> (pin)) & 1) : ((GPIO.in1.val >> ((pin) - 32)) & 1))
 
 void IRAM_ATTR EncoderDistance::encoderISR() {
     if (!instance) return;
@@ -17,8 +23,9 @@ void IRAM_ATTR EncoderDistance::encoderISR() {
     if (nowUs - instance->lastISRMicros < ENC_ISR_DEBOUNCE_US) return;
     instance->lastISRMicros = nowUs;
 
-    int clk = digitalRead(PIN_ENC_CLK);
-    int dt  = digitalRead(PIN_ENC_DT);
+    // Bezposredni odczyt rejestru GPIO - ~50ns zamiast ~2-3us (digitalRead)
+    int clk = FAST_GPIO_READ(PIN_ENC_CLK);
+    int dt  = FAST_GPIO_READ(PIN_ENC_DT);
     if (clk != instance->lastClkState) {
         if (dt != clk) {
             totalPulses++;

@@ -1,4 +1,4 @@
-# TrassarV3 - Dokumentacja techniczna i schemat podłączeń v2.4.0
+# TrassarV3 - Dokumentacja techniczna i schemat podłączeń v2.5.0
 
 ## Spis treści
 
@@ -45,7 +45,7 @@
 
 | Parametr | Wartość |
 |----------|---------|
-| Wersja | 2.4.0 |
+| Wersja | 2.5.0 |
 | Platforma | ESP32-S3 (PlatformIO) |
 | Biblioteki | TFT_eSPI, ArduinoJson v7, SD, Wire, WiFi, esp_task_wdt |
 | Orientacja ekranu | Landscape (setRotation 1) |
@@ -451,23 +451,26 @@ Na fizycznym panelu sterowania (ekran HOME i PAINTING) przycisk SELEKTOR **nie z
 | **buzzer** | buzzer.cpp/h | Sygnalizacja dźwiękowa (LEDC PWM, non-blocking) |
 | **web_server** | web_server.cpp/h | WiFi AP + serwer HTTP + API REST |
 
-### 8.2 Pętla główna (loop)
+### 8.2 Architektura dual-core (v2.5.0)
 
 ```
-loop() {
-    0. esp_task_wdt_reset()          → Karmienie watchdoga (3 s timeout)
-    1. buttons.update()              → Odczyt przycisków (debounce)
-    2. menu.handleEvent(event)       → Obsługa zdarzeń UI
-    3. encoderDist.update()          → Przeliczenie prędkości
-    4. rtcModule.update()            → Aktualizacja czasu RTC
-    5. paintEngine.update()          → Sterowanie pistoletami + alarmy prędkości
-    5b. paintEngine.checkGunKeepAlive() → Awaryjne wyłączenie (300 ms timeout)
-    5c. buzzer.update()              → Sekwencje tonów (non-blocking)
-    6. Dynamiczny refresh (500ms)    → Flaga displayNeedsUpdate
-    7. menu.update() (100ms)         → Renderowanie wyświetlacza
-    8. webServer.update()            → Obsługa żądań HTTP
-    delay(1)
-}
+╔══════════════════════════════════╗  ╔══════════════════════════════╗
+║         CORE 1 (loop)           ║  ║      CORE 0 (FreeRTOS)      ║
+║                                  ║  ║                              ║
+║  0. esp_task_wdt_reset()         ║  ║  webTaskFunc() {             ║
+║  1. buttons.update()             ║  ║      for(;;) {               ║
+║  2. menu.handleEvent()           ║  ║          server.handleClient()║
+║  3. encoderDist.update()         ║  ║          vTaskDelay(2ms)     ║
+║  4. rtcModule.update()           ║  ║      }                       ║
+║  5. paintEngine.update()         ║  ║  }                           ║
+║  5b. checkGunKeepAlive()         ║  ║                              ║
+║  5c. buzzer.update()             ║  ║  Stack: 8192 B               ║
+║  6. display refresh (500ms)      ║  ║  Priorytet: 1                ║
+║  7. menu.update() (100ms)        ║  ╚══════════════════════════════╝
+║  8. lifetime save (60s)          ║
+║  9. diagnostyka (30s)            ║
+║  delay(1)                        ║
+╚══════════════════════════════════╝
 ```
 
 ### 8.3 Timery i interwały
@@ -483,6 +486,8 @@ loop() {
 | Auto-refresh WWW | 1000 ms | Odpytywanie /api/status przez JavaScript |
 | WDT_TIMEOUT_SEC | 3000 ms | Watchdog timer — auto-reset ESP32 |
 | GUN_KEEPALIVE_TIMEOUT_MS | 300 ms | Awaryjne wyłączenie pistoletów |
+| LIFETIME_SAVE_MS | 60000 ms | Okresowy zapis statystyk do NVS |
+| DIAG_PRINT_MS | 30000 ms | Diagnostyka systemowa (Serial) |
 
 ### 8.4 Maszyna stanów
 
@@ -546,7 +551,7 @@ Szczegółowa dokumentacja API → [API_WWW.md](API_WWW.md)
 
 | Parametr | Wartość | Opis |
 |----------|---------|------|
-| FW_VERSION | "2.4.0" | Wersja firmware |
+| FW_VERSION | "2.5.0" | Wersja firmware |
 | FW_NAME | "TrassarV3" | Nazwa systemu |
 | WIFI_AP_SSID | "TrassarV3" | Nazwa sieci WiFi |
 | WIFI_AP_PASS | "12345678" | Hasło WiFi |
@@ -631,5 +636,5 @@ Szczegółowa dokumentacja API → [API_WWW.md](API_WWW.md)
 
 ---
 
-*TrassarV3 — Dokumentacja techniczna v2.4.0*
+*TrassarV3 — Dokumentacja techniczna v2.5.0*
 *ESP32-S3 N16R8 | ILI9341 320×240 | 6 pistoletów | 15 wzorców | WiFi AP*

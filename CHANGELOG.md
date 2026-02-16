@@ -7,6 +7,64 @@ Wersjonowanie zgodne z [Semantic Versioning](https://semver.org/lang/pl/).
 
 ---
 
+## [2.5.0] - 2026-02-16
+
+### Dodano - Optymalizacja wielordzeniowa i diagnostyka
+
+#### A) Wielordzeniowość FreeRTOS (dual-core ESP32-S3)
+- Serwer WWW przeniesiony na **Core 0** jako osobny task FreeRTOS (`xTaskCreatePinnedToCore`)
+- Krytyczna pętla `loop()` (enkoder, pistolety, buzzer, wyświetlacz) działa na **Core 1**
+- Stack tasku WWW: 8192 B, priorytet 1
+- Eliminuje blokowanie krytycznej pętli przez klientów HTTP (np. szybkie odświeżanie)
+
+#### B) Okresowy zapis statystyk lifetime co 60 s
+- Nowy timer `LIFETIME_SAVE_MS = 60000` w `loop()` — statystyki zapisywane automatycznie co 60 s podczas malowania
+- Zabezpiecza przed utratą danych przy resecie watchdoga, zaniku zasilania, awarii w trakcie sesji
+- Timer resetowany gdy maszyna nie maluje
+
+#### D) Anti-flicker na WSZYSTKICH ekranach
+- Usunięto `clear()` z ekranów: Menu serwisowe, Kalibracja, Pomiar dystansu, Raporty, Czyszczenie dysz
+- Zastosowano `setTextPadding()` + `fillRect()` na stałych pozycjach Y — tekst nadpisywany bez migania
+- Początkowe czyszczenie ekranu obsługiwane przez `forceFullRedraw` w `menu.cpp`
+
+#### E) PROGMEM + chunked transfer strony HTML
+- Strona HTML (~7 KB) podzielona na 2 bloki `static const char[] PROGMEM`
+- Wysyłanie fragmentami: `sendContent_P()` — brak alokacji całej strony w RAM
+- Jedyna dynamiczna wstawka: `FW_VERSION` (5 bajtów)
+
+#### F) Szybszy ISR enkodera — bezpośredni odczyt GPIO
+- Zamiana `digitalRead()` (~2–3 μs) na makro `FAST_GPIO_READ()` (~50 ns)
+- Bezpośredni dostęp do rejestru `GPIO.in` / `GPIO.in1.val`
+- Eliminuje gubienie impulsów przy dużych prędkościach z gęstym enkoderem
+
+#### H) Diagnostyka i monitoring systemowy
+- Nowy log `[DIAG]` co 30 s: heap wolny/łączny, min free heap, fragmentacja %, stack HWM tasku WWW, numer core
+- Nowe pola API JSON: `minFreeHeap`, `webStackHWM`
+- Stack high-water mark tasku WWW: `TrassarWebServer::getTaskStackHWM()`
+
+#### I) Czas sesji i dystans na ekranie malowania
+- Ekran `SCREEN_PAINTING`: nowe pola w lewej kolumnie pod statusem
+  - Czas sesji (format MM:SS lub H:MM:SS) — `stats.getSessionTimeSec()`
+  - Dystans sesji (m lub km przy ≥1000 m) — `stats.getSessionDistance()`
+- Rozszerzona sygnatura `drawPaintingScreen()` o parametry `sessionTimeSec` i `sessionDistM`
+
+### Zmieniono
+- Wersja firmware: 2.4.0 → **2.5.0**
+- `web_server`: Core 0 task, chunked HTML, nowe pola JSON diagnostyczne
+- `encoder_distance`: ISR z bezpośrednim GPIO zamiast digitalRead
+- `display_manager`: wersja nagłówka v2.5.0, anti-flicker na 5 ekranach, czas/dystans na painting
+- `main.cpp`: dual-core opis, timery diagnostyki i lifetime save, include `esp_heap_caps.h`
+- `config.h`: wersja 2.5.0
+- `menu.cpp`: nowe parametry w wywołaniu `drawPaintingScreen()`
+
+#### Nowe stałe/timery
+| Stała | Wartość | Opis |
+|-------|---------|------|
+| `DIAG_PRINT_MS` | 30000 | Interwał diagnostyki Serial [ms] |
+| `LIFETIME_SAVE_MS` | 60000 | Interwał zapisu statystyk do NVS [ms] |
+
+---
+
 ## [2.4.0] - 2025-02-16
 
 ### Dodano - Bezpieczeństwo i sygnalizacja dźwiękowa

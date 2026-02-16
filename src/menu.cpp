@@ -323,7 +323,9 @@ void MenuSystem::update() {
                 g_state.patternReversed,
                 paintEngine.isGapStart(),
                 paintEngine.isOverspeed(),
-                paintEngine.isLowSpeed()
+                paintEngine.isLowSpeed(),
+                stats.getSessionTimeSec(),
+                stats.getSessionDistance()
             );
             break;
         }

@@ -1,4 +1,4 @@
-# TrassarV3 - Instrukcja obsługi v2.4.0
+# TrassarV3 - Instrukcja obsługi v2.5.0
 
 ## Spis treści
 
@@ -14,8 +14,10 @@
 10. [Raporty na karcie SD](#10-raporty-na-karcie-sd)
 11. [Zabezpieczenia](#11-zabezpieczenia)
 12. [Sygnalizacja dźwiękowa (buzzer)](#12-sygnalizacja-dźwiękowa-buzzer)
-13. [Przykłady zastosowania](#13-przykłady-zastosowania)
-14. [Rozwiązywanie problemów](#14-rozwiązywanie-problemów)
+13. [Architektura wielordzeniowa](#13-architektura-wielordzeniowa)
+14. [Diagnostyka systemowa](#14-diagnostyka-systemowa)
+15. [Przykłady zastosowania](#15-przykłady-zastosowania)
+16. [Rozwiązywanie problemów](#16-rozwiązywanie-problemów)
 
 ---
 
@@ -38,7 +40,7 @@ System zapewnia:
 | Parametr | Wartość |
 |----------|---------|
 | Mikrokontroler | ESP32-S3 N16R8 (16 MB Flash, 8 MB PSRAM) |
-| Firmware | v2.4.0 |
+| Firmware | v2.5.0 |
 | Wyświetlacz | ILI9341 2.8" TFT, 320×240 px, tryb landscape |
 | Interfejs SPI | HSPI (SPI3), 27 MHz |
 | Zegar RTC | DS1307 z baterią CR2032 |
@@ -552,7 +554,54 @@ System wyposażony jest w pasywny buzzer (GPIO 8) generujący sygnały dźwięko
 
 ---
 
-## 13. Przykłady zastosowania
+## 13. Architektura wielordzeniowa
+
+TrassarV3 v2.5.0 wykorzystuje oba rdzenie procesora ESP32-S3:
+
+| Rdzeń | Zadania |
+|-------|---------|
+| **Core 0** | Serwer WWW (WiFi, obsługa HTTP, API REST) |
+| **Core 1** | Krytyczna pętla: enkoder, pistolety, buzzer, wyświetlacz, statystyki |
+
+### Korzyści
+- Obciążenie serwera HTTP (np. szybkie odświeżanie panelu) **nie wpływa** na czas reakcji pistoletów
+- Gun keepalive (300 ms) jest niezawodny nawet przy wielu klientach HTTP
+- Watchdog monitoruje tylko Core 1 (krytyczny)
+
+### Okresowy zapis statystyk
+- Podczas malowania statystyki lifetime zapisywane automatycznie do NVS **co 60 sekund**
+- Ochrona przed utratą danych przy: watchdog reset, zanik zasilania, awaria sprzętu
+
+---
+
+## 14. Diagnostyka systemowa
+
+### Logi diagnostyczne (Serial, co 30 s)
+```
+[DIAG] Heap: 185000/327680 B (min: 165000)  Frag: 12%  WWW-stack: 2048  Core: 1
+```
+
+| Pole | Opis |
+|------|------|
+| Heap | Wolna / łączna pamięć RAM |
+| min | Minimalna wolna RAM od startu |
+| Frag | Fragmentacja heap (%) |
+| WWW-stack | Stack high-water mark tasku WWW (Core 0) |
+| Core | Numer rdzenia dla loop() |
+
+### API JSON (diagnostyka)
+Nowe pola w `GET /api/status`:
+- `minFreeHeap` — minimalna wolna RAM od uruchomienia [bajty]
+- `webStackHWM` — stack high-water mark tasku serwera HTTP
+
+### Ekran malowania
+Na ekranie malowania wyświetlane są dodatkowe informacje w lewej kolumnie:
+- **Czas sesji** — format MM:SS (lub H:MM:SS dla sesji >1h)
+- **Dystans sesji** — w metrach (lub km przy dystansie ≥1000 m)
+
+---
+
+## 15. Przykłady zastosowania
 
 ### Przykład 1: Malowanie linii przerywanej P-1a na nowej drodze
 
@@ -561,7 +610,7 @@ System wyposażony jest w pasywny buzzer (GPIO 8) generujący sygnały dźwięko
 **Kroki:**
 
 1. **Przygotowanie:**
-   - Włącz urządzenie — pojawi się ekran powitalny "TrassarV3 v2.4.0", a po chwili ekran główny
+   - Włącz urządzenie — pojawi się ekran powitalny "TrassarV3 v2.5.0", a po chwili ekran główny
    - Sprawdź wyświetlany wzorzec w lewym górnym rogu
    - Jeśli wyświetlany wzorzec to nie P-1a, zmień go przez panel WWW: połącz się z WiFi "TrassarV3" (hasło: 12345678), otwórz http://192.168.4.1 i kliknij przycisk **P-1a**
    - Sprawdź status kalibracji w panelu WWW — powinno być "Skalibrowany"
@@ -707,7 +756,7 @@ START OD PRZERWY (GAP):  ░░░░██░░░░██░░░░██ 
 
 ---
 
-## 14. Rozwiązywanie problemów
+## 16. Rozwiązywanie problemów
 
 | Problem | Możliwa przyczyna | Rozwiązanie |
 |---------|-------------------|-------------|
@@ -737,4 +786,4 @@ START OD PRZERWY (GAP):  ░░░░██░░░░██░░░░██ 
 ---
 
 *TrassarV3 — Komputer pokładowy malowarki pasów drogowych*
-*Firmware v2.4.0 | ESP32-S3 N16R8 | 6 pistoletów, 15 wzorców, buzzer, watchdog*
+*Firmware v2.5.0 | ESP32-S3 N16R8 | 6 pistoletów, 15 wzorców, buzzer, watchdog*

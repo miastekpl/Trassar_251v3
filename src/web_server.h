@@ -1,6 +1,7 @@
 #pragma once
 // ============================================================
 // TrassarV3 - Modul serwera WWW (WiFi AP)
+// Dziala na Core 0 jako osobny task FreeRTOS
 // ============================================================
 
 #include <WiFi.h>
@@ -9,13 +10,17 @@
 
 class TrassarWebServer {
 public:
-    void begin();
-    void update();
+    void begin();       // Inicjalizacja WiFi + start tasku na Core 0
+    void update();      // Wywolywane przez task na Core 0 (nie z loop!)
     String getIPAddress();
     int getConnectedClients();
 
+    // Stack high-water mark tasku WWW (diagnostyka)
+    uint32_t getTaskStackHWM() const;
+
 private:
     WebServer server{WEB_SERVER_PORT};
+    TaskHandle_t webTaskHandle = nullptr;
 
     void setupRoutes();
     void handleRoot();
@@ -25,6 +30,8 @@ private:
 
     String buildHtmlPage();
     String getStateJson();
+
+    static void webTaskFunc(void* param);
 };
 
 extern TrassarWebServer webServer;

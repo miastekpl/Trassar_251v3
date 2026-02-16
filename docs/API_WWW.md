@@ -1,4 +1,4 @@
-# TrassarV3 - API serwera WWW v2.4.0
+# TrassarV3 - API serwera WWW v2.5.0
 
 ## Informacje ogólne
 
@@ -47,10 +47,12 @@ Zwraca aktualny stan systemu w formacie JSON.
     "distance": "0.0",
     "area": "0.00",
     "elapsed": 0,
-    "firmware": "2.4.0",
+    "firmware": "2.5.0",
     "freeHeap": 245760,
+    "minFreeHeap": 210000,
     "uptime": 3600,
     "clients": 1,
+    "webStackHWM": 2048,
     "calibrated": true,
     "ppm": "100.0",
     "calibrating": false,
@@ -76,7 +78,9 @@ Zwraca aktualny stan systemu w formacie JSON.
 | `elapsed` | int | Czas malowania sesji [sekundy] |
 | `firmware` | string | Wersja firmware |
 | `freeHeap` | int | Wolna pamięć RAM [bajty] |
+| `minFreeHeap` | int | Minimalna wolna pamięć od startu [bajty] |
 | `uptime` | int | Czas pracy od uruchomienia [sekundy] |
+| `webStackHWM` | int | Stack high-water mark tasku WWW [bajty] |
 | `clients` | int | Liczba podłączonych klientów WiFi |
 | `calibrated` | bool | Czy enkoder jest skalibrowany |
 | `ppm` | string | Impulsy na metr |

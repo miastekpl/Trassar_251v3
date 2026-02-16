@@ -29,10 +29,39 @@ void TrassarWebServer::begin() {
     setupRoutes();
     server.begin();
     Serial.println("[WWW] Serwer HTTP uruchomiony na porcie 80");
+
+    // Uruchom task WWW na Core 0 (Arduino loop() dziala na Core 1)
+    xTaskCreatePinnedToCore(
+        webTaskFunc,        // Funkcja tasku
+        "WebServer",        // Nazwa (debug)
+        8192,               // Stack size [bytes]
+        this,               // Parametr -> wskaznik na obiekt
+        1,                  // Priorytet (1 = niski, nie blokuje krytycznych taskow)
+        &webTaskHandle,     // Uchwyt tasku
+        0                   // Core 0
+    );
+    Serial.println("[WWW] Task WWW uruchomiony na Core 0");
+}
+
+// Task FreeRTOS na Core 0 - obsluga klientow HTTP
+void TrassarWebServer::webTaskFunc(void* param) {
+    TrassarWebServer* self = static_cast<TrassarWebServer*>(param);
+    for (;;) {
+        self->server.handleClient();
+        vTaskDelay(pdMS_TO_TICKS(2));  // 2ms yield - nie blokuj innych taskow
+    }
 }
 
 void TrassarWebServer::update() {
-    server.handleClient();
+    // Puste - obsluga HTTP przeniesiona do tasku na Core 0
+    // Metoda zachowana dla kompatybilnosci wstecznej
+}
+
+uint32_t TrassarWebServer::getTaskStackHWM() const {
+    if (webTaskHandle) {
+        return uxTaskGetStackHighWaterMark(webTaskHandle);
+    }
+    return 0;
 }
 
 String TrassarWebServer::getIPAddress() {
@@ -54,10 +83,16 @@ void TrassarWebServer::setupRoutes() {
 }
 
 // ============================================================
-// GET / - Strona HTML
+// GET / - Strona HTML (chunked transfer z PROGMEM)
+// Nie alokuje calej strony w RAM - wysyla fragmentami z flash
 // ============================================================
 void TrassarWebServer::handleRoot() {
-    server.send(200, "text/html", buildHtmlPage());
+    server.setContentLength(CONTENT_LENGTH_UNKNOWN);
+    server.send(200, "text/html", "");
+    server.sendContent_P(HTML_PART1);
+    server.sendContent(FW_VERSION);
+    server.sendContent_P(HTML_PART2);
+    server.sendContent("");  // koniec chunked
 }
 
 // ============================================================
@@ -174,8 +209,10 @@ String TrassarWebServer::getStateJson() {
     // System
     doc["firmware"] = FW_VERSION;
     doc["freeHeap"] = ESP.getFreeHeap();
+    doc["minFreeHeap"] = ESP.getMinFreeHeap();
     doc["uptime"] = millis() / 1000;
     doc["clients"] = WiFi.softAPgetStationNum();
+    doc["webStackHWM"] = webServer.getTaskStackHWM();
 
     // Kalibracja
     doc["calibrated"] = encoderDist.isCalibrated();
@@ -201,9 +238,12 @@ String TrassarWebServer::getStateJson() {
 
 // ============================================================
 // HTML - strona panelu sterowania
+// Podzielona na 2 czesci PROGMEM (punkt podzialu: FW_VERSION w stopce)
+// Wysylana chunkami - nie alokuje ~7KB String w RAM
 // ============================================================
-String TrassarWebServer::buildHtmlPage() {
-    String html = R"rawhtml(<!DOCTYPE html>
+
+// --- HTML PART 1: od poczatku do FW_VERSION ---
+static const char HTML_PART1[] PROGMEM = R"rawhtml(<!DOCTYPE html>
 <html lang="pl">
 <head>
 <meta charset="UTF-8">
@@ -520,8 +560,8 @@ body{
 <div class="footer">
     TRASSAR V3 &copy; 2025 | Firmware v)rawhtml";
 
-    html += FW_VERSION;
-    html += R"rawhtml(
+// --- HTML PART 2: od FW_VERSION do konca ---
+static const char HTML_PART2[] PROGMEM = R"rawhtml(
 </div>
 
 <script>
@@ -708,5 +748,7 @@ fetchStatus();
 </body>
 </html>)rawhtml";
 
-    return html;
+// buildHtmlPage() - nie uzywane, HTML wysylany chunkami z handleRoot()
+String TrassarWebServer::buildHtmlPage() {
+    return String();
 }
