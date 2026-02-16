@@ -1,6 +1,6 @@
 // ============================================================
 // TrassarV3 - Komputer pokładowy malowarki pasów drogowych
-// Firmware v2.5.0
+// Firmware v2.6.0
 //
 // Platforma:    ESP32-S3 N16R8 (dual-core)
 // Wyświetlacz:  ILI9341 2.8" 240x320 SPI
@@ -31,15 +31,20 @@
 // Globalny stan systemu
 SystemState g_state;
 
+// Stan detekcji anomalii pistoletow
+GunAnomalyState gunAnomaly;
+
 // Timery
 unsigned long lastDisplayRefresh = 0;
 unsigned long lastDynamicUpdate = 0;
 unsigned long lastDiagPrint = 0;
 unsigned long lastLifetimeSave = 0;
+unsigned long lastReportCacheRefresh = 0;
 const unsigned long DISPLAY_REFRESH_MS = 100;
 const unsigned long DYNAMIC_UPDATE_MS  = 500;
 const unsigned long DIAG_PRINT_MS      = 30000;  // Diagnostyka co 30s
 const unsigned long LIFETIME_SAVE_MS   = 60000;  // Zapis statystyk co 60s
+const unsigned long REPORT_CACHE_MS    = 15000;  // Odswiezanie cache raportow SD co 15s
 
 void setup() {
     Serial.begin(115200);
@@ -220,6 +225,49 @@ void loop() {
                                         (float)ESP.getFreeHeap()),
                       webServer.getTaskStackHWM(),
                       xPortGetCoreID());
+    }
+
+    // 10. Detekcja anomalii pistoletow (co 10s podczas malowania)
+    if (g_state.machineState == STATE_PAINTING) {
+        if (now - gunAnomaly.lastCheckMs >= GUN_ANOMALY_CHECK_MS) {
+            gunAnomaly.lastCheckMs = now;
+            float sessionDist = stats.getSessionDistance();
+            if (sessionDist >= GUN_ANOMALY_DISTANCE_M) {
+                bool anyAnomaly = false;
+                for (int i = 0; i < NUM_GUNS; i++) {
+                    GunPatternCfg cfg = patternMgr.getGunConfig((GunID)i);
+                    if (cfg.mode != GUN_OFF && stats.getGunDistance(i) < 1.0f) {
+                        gunAnomaly.alert[i] = true;
+                        anyAnomaly = true;
+                    } else {
+                        gunAnomaly.alert[i] = false;
+                    }
+                }
+                gunAnomaly.detected = anyAnomaly;
+                if (anyAnomaly && !gunAnomaly.alerted) {
+                    gunAnomaly.alerted = true;
+                    buzzer.play(BUZ_GUN_ANOMALY);
+                    Serial.print("[ANOMALY] Pistolety bez aktywnosci:");
+                    for (int i = 0; i < NUM_GUNS; i++) {
+                        if (gunAnomaly.alert[i]) Serial.printf(" P%d", i + 1);
+                    }
+                    Serial.printf(" (dystans sesji: %.1fm)\n", sessionDist);
+                }
+            }
+        }
+    } else {
+        // Reset anomalii przy zatrzymaniu
+        if (gunAnomaly.detected || gunAnomaly.alerted) {
+            gunAnomaly.detected = false;
+            gunAnomaly.alerted = false;
+            for (int i = 0; i < NUM_GUNS; i++) gunAnomaly.alert[i] = false;
+        }
+    }
+
+    // 11. Odswiezanie cache listy raportow SD (co 15s, na Core 1 - bezpieczny dostep SPI)
+    if (now - lastReportCacheRefresh >= REPORT_CACHE_MS) {
+        lastReportCacheRefresh = now;
+        reportLogger.refreshReportCache();
     }
 
     delay(1);

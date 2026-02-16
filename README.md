@@ -25,6 +25,9 @@ Obsługuje **6 pistoletów natryskowych**, **15 wzorców malowania** zgodnych z 
 - **Diagnostyka** - heap monitoring, stack HWM, fragmentacja, logi co 30 s
 - **Okresowy zapis statystyk** - lifetime stats co 60 s (ochrona przed utratą danych)
 - **Szybki ISR enkodera** - bezpośredni odczyt rejestru GPIO (~50 ns vs ~2 μs)
+- **API statystyk lifetime** (`/api/stats`) - dystans, powierzchnia, czas pracy przez WWW
+- **API raportów SD** (`/api/reports`) - lista plików raportów CSV przez WWW
+- **Detekcja anomalii pistoletów** - alert gdy pistolet nie strzela mimo aktywnej konfiguracji
 
 ## Pistolety i ich zastosowanie
 
@@ -131,7 +134,7 @@ TrassarV3/
 
 ## Wersja
 
-Aktualna wersja firmware: **v2.5.0**
+Aktualna wersja firmware: **v2.6.0**
 
 ## Licencja
 

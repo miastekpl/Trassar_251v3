@@ -1,6 +1,6 @@
 // ============================================================
 // TrassarV3 - Enkoder: dystans, prędkość, kalibracja
-// v2.5.0 - Bezposredni odczyt rejestru GPIO w ISR (~50ns vs ~2us digitalRead)
+// v2.6.0 - Bezposredni odczyt rejestru GPIO w ISR (~50ns vs ~2us digitalRead)
 // ============================================================
 
 #include "encoder_distance.h"

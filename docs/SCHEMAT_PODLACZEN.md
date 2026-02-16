@@ -1,4 +1,4 @@
-# TrassarV3 - Dokumentacja techniczna i schemat podłączeń v2.5.0
+# TrassarV3 - Dokumentacja techniczna i schemat podłączeń v2.6.0
 
 ## Spis treści
 
@@ -451,7 +451,7 @@ Na fizycznym panelu sterowania (ekran HOME i PAINTING) przycisk SELEKTOR **nie z
 | **buzzer** | buzzer.cpp/h | Sygnalizacja dźwiękowa (LEDC PWM, non-blocking) |
 | **web_server** | web_server.cpp/h | WiFi AP + serwer HTTP + API REST |
 
-### 8.2 Architektura dual-core (v2.5.0)
+### 8.2 Architektura dual-core (v2.6.0)
 
 ```
 ╔══════════════════════════════════╗  ╔══════════════════════════════╗
@@ -464,11 +464,13 @@ Na fizycznym panelu sterowania (ekran HOME i PAINTING) przycisk SELEKTOR **nie z
 ║  4. rtcModule.update()           ║  ║      }                       ║
 ║  5. paintEngine.update()         ║  ║  }                           ║
 ║  5b. checkGunKeepAlive()         ║  ║                              ║
-║  5c. buzzer.update()             ║  ║  Stack: 8192 B               ║
+║  5c. buzzer.update()             ║  ║  Stack: 12288 B              ║
 ║  6. display refresh (500ms)      ║  ║  Priorytet: 1                ║
 ║  7. menu.update() (100ms)        ║  ╚══════════════════════════════╝
 ║  8. lifetime save (60s)          ║
 ║  9. diagnostyka (30s)            ║
+║  10. anomalia pistoletów (10s)   ║
+║  11. cache raportów SD (15s)     ║
 ║  delay(1)                        ║
 ╚══════════════════════════════════╝
 ```
@@ -488,6 +490,8 @@ Na fizycznym panelu sterowania (ekran HOME i PAINTING) przycisk SELEKTOR **nie z
 | GUN_KEEPALIVE_TIMEOUT_MS | 300 ms | Awaryjne wyłączenie pistoletów |
 | LIFETIME_SAVE_MS | 60000 ms | Okresowy zapis statystyk do NVS |
 | DIAG_PRINT_MS | 30000 ms | Diagnostyka systemowa (Serial) |
+| GUN_ANOMALY_CHECK_MS | 10000 ms | Sprawdzanie anomalii pistoletów |
+| REPORT_CACHE_MS | 15000 ms | Odświeżanie cache raportów SD |
 
 ### 8.4 Maszyna stanów
 
@@ -538,7 +542,9 @@ paintEngine.update():
 | Endpoint | Metoda | Opis |
 |----------|--------|------|
 | `/` | GET | Strona HTML panelu sterowania |
-| `/api/status` | GET | JSON ze stanem systemu |
+| `/api/status` | GET | JSON ze stanem systemu (+ anomalia pistoletów) |
+| `/api/stats` | GET | Statystyki lifetime + sesja + per-gun |
+| `/api/reports` | GET | Lista plików raportów CSV z karty SD |
 | `/api/control` | POST | Sterowanie maszyną (action=start\|pause\|stop\|start_from_gap\|set_pattern\|toggle_reverse\|cal_start\|cal_finish\|set_max_speed) |
 
 Szczegółowa dokumentacja API → [API_WWW.md](API_WWW.md)
@@ -551,7 +557,7 @@ Szczegółowa dokumentacja API → [API_WWW.md](API_WWW.md)
 
 | Parametr | Wartość | Opis |
 |----------|---------|------|
-| FW_VERSION | "2.5.0" | Wersja firmware |
+| FW_VERSION | "2.6.0" | Wersja firmware |
 | FW_NAME | "TrassarV3" | Nazwa systemu |
 | WIFI_AP_SSID | "TrassarV3" | Nazwa sieci WiFi |
 | WIFI_AP_PASS | "12345678" | Hasło WiFi |
@@ -575,6 +581,8 @@ Szczegółowa dokumentacja API → [API_WWW.md](API_WWW.md)
 | DEFAULT_MAX_PAINT_SPEED_KMH | 15.0 | Domyślny próg alarmu prędkości [km/h] |
 | WDT_TIMEOUT_SEC | 3 | Timeout watchdoga [s] z auto-resetem |
 | GUN_KEEPALIVE_TIMEOUT_MS | 300 | Timeout keepalive pistoletów [ms] |
+| GUN_ANOMALY_DISTANCE_M | 50.0 | Min dystans sesji do detekcji anomalii [m] |
+| GUN_ANOMALY_CHECK_MS | 10000 | Interwał sprawdzania anomalii [ms] |
 
 ### 9.2 Kolory UI (format RGB565)
 
@@ -636,5 +644,5 @@ Szczegółowa dokumentacja API → [API_WWW.md](API_WWW.md)
 
 ---
 
-*TrassarV3 — Dokumentacja techniczna v2.5.0*
+*TrassarV3 — Dokumentacja techniczna v2.6.0*
 *ESP32-S3 N16R8 | ILI9341 320×240 | 6 pistoletów | 15 wzorców | WiFi AP*

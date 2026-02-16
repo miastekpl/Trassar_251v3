@@ -71,6 +71,57 @@ int ReportLogger::getReportCount() {
     return count;
 }
 
+void ReportLogger::refreshReportCache() {
+    if (!sdReady) { cachedReportList = "[]"; cacheValid = true; return; }
+
+    File dir = SD.open("/reports");
+    if (!dir) { cachedReportList = "[]"; cacheValid = true; return; }
+
+    // Zbierz nazwy plikow (max 50 najnowszych)
+    struct FileInfo { char name[32]; size_t size; };
+    FileInfo files[50];
+    int count = 0;
+
+    while (count < 50) {
+        File entry = dir.openNextFile();
+        if (!entry) break;
+        if (!entry.isDirectory()) {
+            strncpy(files[count].name, entry.name(), sizeof(files[count].name) - 1);
+            files[count].name[sizeof(files[count].name) - 1] = 0;
+            files[count].size = entry.size();
+            count++;
+        }
+        entry.close();
+    }
+    dir.close();
+
+    // Sortuj malejaco (najnowsze pliki pierwsze - nazwy RRRRMMDD sortuja chronologicznie)
+    for (int i = 0; i < count - 1; i++) {
+        for (int j = i + 1; j < count; j++) {
+            if (strcmp(files[j].name, files[i].name) > 0) {
+                FileInfo tmp = files[i];
+                files[i] = files[j];
+                files[j] = tmp;
+            }
+        }
+    }
+
+    // Buduj JSON
+    String json = "[";
+    for (int i = 0; i < count; i++) {
+        if (i > 0) json += ",";
+        json += "{\"file\":\"";
+        json += files[i].name;
+        json += "\",\"size\":";
+        json += String(files[i].size);
+        json += "}";
+    }
+    json += "]";
+
+    cachedReportList = json;
+    cacheValid = true;
+}
+
 bool ReportLogger::getLastReport(char* buf, size_t len) {
     if (!sdReady) { buf[0] = 0; return false; }
 

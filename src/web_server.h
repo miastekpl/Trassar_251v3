@@ -25,11 +25,15 @@ private:
     void setupRoutes();
     void handleRoot();
     void handleStatus();
+    void handleStats();
+    void handleReports();
     void handleControl();
     void handleNotFound();
 
     String buildHtmlPage();
     String getStateJson();
+    String getStatsJson();
+    String getReportsJson();
 
     static void webTaskFunc(void* param);
 };

@@ -1,4 +1,4 @@
-# TrassarV3 - API serwera WWW v2.5.0
+# TrassarV3 - API serwera WWW v2.6.0
 
 ## Informacje ogólne
 
@@ -60,7 +60,9 @@ Zwraca aktualny stan systemu w formacie JSON.
     "maxSpeed": "15.0",
     "overspeed": false,
     "lowSpeed": false,
-    "guns": [false, false, false, false, false, false]
+    "guns": [false, false, false, false, false, false],
+    "gunAnomalyDetected": false,
+    "gunAnomaly": [false, false, false, false, false, false]
 }
 ```
 
@@ -91,6 +93,68 @@ Zwraca aktualny stan systemu w formacie JSON.
 | `lowSpeed` | bool | Czy prędkość jest poniżej 3 km/h podczas malowania |
 | `guns` | array[6] | Stan pistoletów P1-P6 (true = ON) |
 | `gapStart` | bool | Czy aktywny jest tryb "start od przerwy" |
+| `gunAnomalyDetected` | bool | Czy wykryto anomalię pistoletów |
+| `gunAnomaly` | array[6] | Flagi anomalii per pistolet (true = brak aktywności mimo konfiguracji) |
+
+---
+
+### GET /api/stats
+
+Zwraca statystyki lifetime i bieżącej sesji.
+
+**Odpowiedź:** `application/json`
+
+```json
+{
+    "lifetimeDistanceM": "12500.5",
+    "lifetimeAreaM2": "3200.75",
+    "lifetimePaintTimeSec": 86400,
+    "sessionDistanceM": "250.3",
+    "sessionAreaM2": "30.04",
+    "sessionTimeSec": 180,
+    "gunDistances": ["250.3", "0.0", "250.3", "0.0", "0.0", "0.0"],
+    "sdReady": true,
+    "reportCount": 12
+}
+```
+
+**Pola:**
+
+| Pole | Typ | Opis |
+|------|-----|------|
+| `lifetimeDistanceM` | string | Łączny dystans malowania od początku [m] |
+| `lifetimeAreaM2` | string | Łączna powierzchnia od początku [m²] |
+| `lifetimePaintTimeSec` | int | Łączny czas malowania [sekundy] |
+| `sessionDistanceM` | string | Dystans bieżącej sesji [m] |
+| `sessionAreaM2` | string | Powierzchnia bieżącej sesji [m²] |
+| `sessionTimeSec` | int | Czas bieżącej sesji [sekundy] |
+| `gunDistances` | array[6] | Dystans per pistolet w sesji [m] |
+| `sdReady` | bool | Czy karta SD jest dostępna |
+| `reportCount` | int | Liczba plików raportów na karcie SD |
+
+---
+
+### GET /api/reports
+
+Zwraca listę plików raportów z karty SD (z cache, odświeżany co 15 s).
+
+**Odpowiedź:** `application/json`
+
+```json
+[
+    {"file": "20260216.csv", "size": 1234},
+    {"file": "20260215.csv", "size": 890}
+]
+```
+
+**Pola elementu tablicy:**
+
+| Pole | Typ | Opis |
+|------|-----|------|
+| `file` | string | Nazwa pliku raportu (format RRRRMMDD.csv) |
+| `size` | int | Rozmiar pliku [bajty] |
+
+> **Uwaga:** Lista sortowana malejąco (najnowsze pierwsze). Cache odświeżany co 15 s na Core 1 (bezpieczny dostęp SPI/SD).
 
 ---
 
@@ -145,6 +209,12 @@ Wysyła komendę sterującą do systemu.
 ```bash
 # Sprawdź status
 curl http://192.168.4.1/api/status
+
+# Statystyki lifetime i sesji
+curl http://192.168.4.1/api/stats
+
+# Lista raportów SD
+curl http://192.168.4.1/api/reports
 
 # Rozpocznij malowanie
 curl -X POST -d "action=start" http://192.168.4.1/api/control

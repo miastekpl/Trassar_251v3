@@ -14,6 +14,7 @@ enum BuzzerSignal : uint8_t {
     BUZ_PAINT_STOP,        // Stop malowania - podwojny krotki
     BUZ_LOW_SPEED,         // Predkosc < 3 km/h podczas malowania
     BUZ_OVERSPEED,         // Przekroczenie predkosci maks.
+    BUZ_GUN_ANOMALY,       // Pistolet nie strzela mimo aktywnej konfiguracji
     BUZ_ERROR              // Blad (brak SD, RTC niedostepny)
 };
 

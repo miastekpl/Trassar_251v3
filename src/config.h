@@ -1,13 +1,13 @@
 #pragma once
 // ============================================================
-// TrassarV3 - Konfiguracja sprzętowa v2.5.0
+// TrassarV3 - Konfiguracja sprzętowa v2.6.0
 // Komputer pokładowy malowarki pasów drogowych
 // ============================================================
 
 #include <Arduino.h>
 
 // ============ WERSJA FIRMWARE ============
-#define FW_VERSION      "2.5.0"
+#define FW_VERSION      "2.6.0"
 #define FW_NAME         "TrassarV3"
 #define FW_DATE         __DATE__
 
@@ -84,6 +84,10 @@
 // ============ Pomiar prędkości ============
 #define SPEED_CALC_INTERVAL_MS    250
 #define SPEED_FILTER_ALPHA       0.3f
+
+// ============ Detekcja anomalii pistoletów ============
+#define GUN_ANOMALY_DISTANCE_M   50.0f   // Min dystans sesji do uruchomienia detekcji [m]
+#define GUN_ANOMALY_CHECK_MS     10000   // Interwał sprawdzania anomalii [ms]
 
 // ============ Kolory UI ============
 #define COLOR_BG          0x0000
@@ -184,6 +188,16 @@ struct SystemState {
 };
 
 extern SystemState g_state;
+
+// ============ Stan detekcji anomalii pistoletów ============
+struct GunAnomalyState {
+    bool detected = false;           // Czy wykryto anomalie
+    bool alert[NUM_GUNS] = {};       // Ktory pistolet jest anomalny
+    unsigned long lastCheckMs = 0;   // Timestamp ostatniego sprawdzenia
+    bool alerted = false;            // Czy buzzer juz zagral (raz na wykrycie)
+};
+
+extern GunAnomalyState gunAnomaly;
 
 // ============ Szerokości pistoletów [m] ============
 static const float GUN_WIDTHS_M[NUM_GUNS] = {

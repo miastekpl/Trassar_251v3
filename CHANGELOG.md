@@ -7,6 +7,58 @@ Wersjonowanie zgodne z [Semantic Versioning](https://semver.org/lang/pl/).
 
 ---
 
+## [2.6.0] - 2026-02-16
+
+### Dodano - Rozszerzone API, detekcja anomalii, raporty SD
+
+#### 1) Endpoint `/api/stats` — statystyki lifetime i sesji
+- Nowy endpoint `GET /api/stats` zwracający JSON z pełnymi statystykami
+- Dane lifetime: łączny dystans, powierzchnia, czas malowania
+- Dane sesji: dystans, powierzchnia, czas, dystans per pistolet (`gunDistances[6]`)
+- Status karty SD i liczba raportów
+
+#### 2) Stack webservera 8192 → 12288 B
+- Zwiększono rozmiar stosu tasku HTTP na Core 0 z 8192 do 12288 bajtów
+- Eliminuje ryzyko stack overflow przy dużych odpowiedziach JSON
+
+#### 3) Endpoint `/api/reports` — lista raportów SD
+- Nowy endpoint `GET /api/reports` zwracający JSON z listą plików CSV
+- Odpowiedź: `[{"file":"RRRRMMDD.csv","size":1234},...]`
+- Lista sortowana malejąco (najnowsze pierwsze, max 50)
+- Cache raportów odświeżany co 15 s na Core 1 (bezpieczny dostęp SPI/SD)
+
+#### 4) Detekcja anomalii pistoletów
+- Sprawdzanie co 10 s podczas malowania (`GUN_ANOMALY_CHECK_MS`)
+- Aktywacja: dystans sesji ≥ 50 m (`GUN_ANOMALY_DISTANCE_M`)
+- Logika: pistolet skonfigurowany ale dystans <1 m → anomalia
+- Buzzer: nowy sygnał `BUZ_GUN_ANOMALY` (800/1200 Hz, niski-wysoki-niski)
+- Alert jednokrotny (buzzer + Serial log)
+- Reset anomalii przy zatrzymaniu malowania
+- Nowe pola API: `gunAnomalyDetected`, `gunAnomaly[6]`
+
+### Zmieniono
+- Wersja firmware: 2.5.0 → **2.6.0**
+- `web_server`: stack 12288 B, 5 endpointów, anomalia w status JSON
+- `report_logger`: cache raportów z odświeżaniem co 15 s
+- `buzzer`: nowy sygnał `BUZ_GUN_ANOMALY`
+- `config.h`: stałe anomalii, struct `GunAnomalyState`
+- `main.cpp`: detekcja anomalii (10), cache raportów (11)
+
+#### Nowe stałe/timery
+| Stała | Wartość | Opis |
+|-------|---------|------|
+| `GUN_ANOMALY_DISTANCE_M` | 50.0 | Min dystans sesji do detekcji anomalii [m] |
+| `GUN_ANOMALY_CHECK_MS` | 10000 | Interwał sprawdzania anomalii [ms] |
+| `REPORT_CACHE_MS` | 15000 | Interwał odświeżania cache raportów SD [ms] |
+
+#### Nowe endpointy API
+| Endpoint | Metoda | Opis |
+|----------|--------|------|
+| `/api/stats` | GET | Statystyki lifetime + sesja + per-gun |
+| `/api/reports` | GET | Lista plików raportów CSV z karty SD |
+
+---
+
 ## [2.5.0] - 2026-02-16
 
 ### Dodano - Optymalizacja wielordzeniowa i diagnostyka

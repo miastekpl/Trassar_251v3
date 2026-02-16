@@ -12,6 +12,7 @@
 #include "patterns.h"
 #include "rtc_handler.h"
 #include "storage.h"
+#include "report_logger.h"
 
 TrassarWebServer webServer;
 
@@ -34,7 +35,7 @@ void TrassarWebServer::begin() {
     xTaskCreatePinnedToCore(
         webTaskFunc,        // Funkcja tasku
         "WebServer",        // Nazwa (debug)
-        8192,               // Stack size [bytes]
+        12288,              // Stack size [bytes]
         this,               // Parametr -> wskaznik na obiekt
         1,                  // Priorytet (1 = niski, nie blokuje krytycznych taskow)
         &webTaskHandle,     // Uchwyt tasku
@@ -78,6 +79,8 @@ int TrassarWebServer::getConnectedClients() {
 void TrassarWebServer::setupRoutes() {
     server.on("/", HTTP_GET, [this]() { handleRoot(); });
     server.on("/api/status", HTTP_GET, [this]() { handleStatus(); });
+    server.on("/api/stats", HTTP_GET, [this]() { handleStats(); });
+    server.on("/api/reports", HTTP_GET, [this]() { handleReports(); });
     server.on("/api/control", HTTP_POST, [this]() { handleControl(); });
     server.onNotFound([this]() { handleNotFound(); });
 }
@@ -216,6 +219,13 @@ String TrassarWebServer::getStateJson() {
     JsonArray gunsArr = doc["guns"].to<JsonArray>();
     for (int i = 0; i < NUM_GUNS; i++) {
         gunsArr.add(guns.getState(i));
+    }
+
+    // Anomalia pistoletow
+    doc["gunAnomalyDetected"] = gunAnomaly.detected;
+    JsonArray anomArr = doc["gunAnomaly"].to<JsonArray>();
+    for (int i = 0; i < NUM_GUNS; i++) {
+        anomArr.add(gunAnomaly.alert[i]);
     }
 
     String output;
@@ -746,6 +756,52 @@ void TrassarWebServer::handleRoot() {
     server.sendContent(FW_VERSION);
     server.sendContent_P(HTML_PART2);
     server.sendContent("");  // koniec chunked
+}
+
+// ============================================================
+// GET /api/stats - Statystyki lifetime + sesja + per-gun
+// ============================================================
+void TrassarWebServer::handleStats() {
+    server.send(200, "application/json", getStatsJson());
+}
+
+String TrassarWebServer::getStatsJson() {
+    JsonDocument doc;
+
+    // Lifetime
+    doc["lifetimeDistanceM"] = serialized(String(stats.getLifetimeDistance(), 1));
+    doc["lifetimeAreaM2"] = serialized(String(stats.getLifetimeArea(), 2));
+    doc["lifetimePaintTimeSec"] = stats.getLifetimePaintTimeSec();
+
+    // Sesja biezaca
+    doc["sessionDistanceM"] = serialized(String(stats.getSessionDistance(), 1));
+    doc["sessionAreaM2"] = serialized(String(stats.getSessionArea(), 2));
+    doc["sessionTimeSec"] = stats.getSessionTimeSec();
+
+    // Dystans per pistolet (sesja)
+    JsonArray gunDist = doc["gunDistances"].to<JsonArray>();
+    for (int i = 0; i < NUM_GUNS; i++) {
+        gunDist.add(serialized(String(stats.getGunDistance(i), 1)));
+    }
+
+    // Raporty SD
+    doc["sdReady"] = reportLogger.isReady();
+    doc["reportCount"] = reportLogger.getReportCount();
+
+    String output;
+    serializeJson(doc, output);
+    return output;
+}
+
+// ============================================================
+// GET /api/reports - Lista raportow z karty SD (z cache)
+// ============================================================
+void TrassarWebServer::handleReports() {
+    server.send(200, "application/json", getReportsJson());
+}
+
+String TrassarWebServer::getReportsJson() {
+    return reportLogger.getReportListJson();
 }
 
 // buildHtmlPage() - nie uzywane, HTML wysylany chunkami z handleRoot()

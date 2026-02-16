@@ -15,8 +15,14 @@ public:
     int  getReportCount();
     bool getLastReport(char* buf, size_t len);
 
+    // Cache listy raportow (odswiezany z Core 1, czytany z Core 0)
+    void refreshReportCache();
+    const String& getReportListJson() const { return cachedReportList; }
+
 private:
     bool sdReady = false;
+    String cachedReportList = "[]";
+    volatile bool cacheValid = false;
 };
 
 extern ReportLogger reportLogger;

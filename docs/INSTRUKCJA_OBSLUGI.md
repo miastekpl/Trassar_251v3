@@ -1,4 +1,4 @@
-# TrassarV3 - Instrukcja obsługi v2.5.0
+# TrassarV3 - Instrukcja obsługi v2.6.0
 
 ## Spis treści
 
@@ -16,8 +16,10 @@
 12. [Sygnalizacja dźwiękowa (buzzer)](#12-sygnalizacja-dźwiękowa-buzzer)
 13. [Architektura wielordzeniowa](#13-architektura-wielordzeniowa)
 14. [Diagnostyka systemowa](#14-diagnostyka-systemowa)
-15. [Przykłady zastosowania](#15-przykłady-zastosowania)
-16. [Rozwiązywanie problemów](#16-rozwiązywanie-problemów)
+15. [Detekcja anomalii pistoletów](#15-detekcja-anomalii-pistoletów)
+16. [API statystyk i raportów SD](#16-api-statystyk-i-raportów-sd)
+17. [Przykłady zastosowania](#17-przykłady-zastosowania)
+18. [Rozwiązywanie problemów](#18-rozwiązywanie-problemów)
 
 ---
 
@@ -40,7 +42,7 @@ System zapewnia:
 | Parametr | Wartość |
 |----------|---------|
 | Mikrokontroler | ESP32-S3 N16R8 (16 MB Flash, 8 MB PSRAM) |
-| Firmware | v2.5.0 |
+| Firmware | v2.6.0 |
 | Wyświetlacz | ILI9341 2.8" TFT, 320×240 px, tryb landscape |
 | Interfejs SPI | HSPI (SPI3), 27 MHz |
 | Zegar RTC | DS1307 z baterią CR2032 |
@@ -535,6 +537,7 @@ System wyposażony jest w pasywny buzzer (GPIO 8) generujący sygnały dźwięko
 | **Stop malowania** | 2× krótki beep | 2 kHz, 80 ms + 80 ms | Potwierdzenie zatrzymania |
 | **Niska prędkość** | 2× puls | 1.5 kHz, 150 ms + 150 ms | Prędkość <3 km/h podczas malowania (co 3 s) |
 | **Przekroczenie prędkości** | 3× alarm | 3 kHz, 60 ms × 3 | Prędkość > próg maks. (co 2 s) |
+| **Anomalia pistoletu** | Niski-wysoki-niski | 800→1200→800 Hz | Pistolet nie strzela mimo konfiguracji (po 50 m) |
 | **Błąd (RTC/SD)** | Opadający ton | 1000→800→600 Hz | Brak karty SD lub RTC niedostępny przy starcie |
 
 ### 12.2 Specyfikacja techniczna buzzera
@@ -556,7 +559,7 @@ System wyposażony jest w pasywny buzzer (GPIO 8) generujący sygnały dźwięko
 
 ## 13. Architektura wielordzeniowa
 
-TrassarV3 v2.5.0 wykorzystuje oba rdzenie procesora ESP32-S3:
+TrassarV3 v2.6.0 wykorzystuje oba rdzenie procesora ESP32-S3:
 
 | Rdzeń | Zadania |
 |-------|---------|
@@ -601,7 +604,62 @@ Na ekranie malowania wyświetlane są dodatkowe informacje w lewej kolumnie:
 
 ---
 
-## 15. Przykłady zastosowania
+## 15. Detekcja anomalii pistoletów
+
+System automatycznie wykrywa sytuacje, gdy pistolet jest skonfigurowany we wzorcu (tryb CONTINUOUS lub DASHED), ale w praktyce nie maluje (dystans strzału < 1 m po 50 m jazdy).
+
+### 15.1 Jak działa
+
+- **Aktywacja:** Po przejechaniu 50 m w sesji malowania
+- **Sprawdzanie:** Co 10 sekund podczas malowania
+- **Warunek anomalii:** Pistolet skonfigurowany we wzorcu, ale jego dystans strzału < 1 m
+- **Sygnalizacja:** Buzzer (niski-wysoki-niski: 800→1200→800 Hz) + log na porcie szeregowym
+- **Reset:** Automatyczny po zatrzymaniu malowania (STOP)
+
+### 15.2 Możliwe przyczyny anomalii
+
+| Przyczyna | Rozwiązanie |
+|-----------|-------------|
+| Uszkodzony przekaźnik | Sprawdź moduł przekaźnikowy |
+| Poluzowany przewód GPIO | Sprawdź podłączenie pinu GPIO pistoletu |
+| Zatkana dysza | Wyczyść dysze w trybie Czyszczenie dysz |
+| Pusty zbiornik farby | Uzupełnij farbę |
+
+### 15.3 Informacje w API
+
+Pola w `GET /api/status`:
+- `gunAnomalyDetected` — `true` jeśli wykryto anomalię
+- `gunAnomaly` — tablica `[false, true, false, ...]` wskazująca anomalne pistolety
+
+---
+
+## 16. API statystyk i raportów SD
+
+### 16.1 Statystyki (`GET /api/stats`)
+
+Endpoint zwraca łączne (lifetime) i bieżące (sesja) statystyki malowania:
+
+```bash
+curl http://192.168.4.1/api/stats
+```
+
+Zawiera: łączny dystans i powierzchnię, czas malowania, dystans per pistolet, status karty SD.
+
+### 16.2 Raporty SD (`GET /api/reports`)
+
+Endpoint zwraca listę plików raportów CSV z karty SD:
+
+```bash
+curl http://192.168.4.1/api/reports
+```
+
+Odpowiedź: `[{"file":"20260216.csv","size":1234},...]` — sortowane malejąco (najnowsze pierwsze).
+
+> **Uwaga:** Lista raportów jest cache'owana i odświeżana co 15 sekund. Nie wymaga bezpośredniego dostępu do karty SD — dane serwowane z pamięci RAM.
+
+---
+
+## 17. Przykłady zastosowania
 
 ### Przykład 1: Malowanie linii przerywanej P-1a na nowej drodze
 
@@ -610,7 +668,7 @@ Na ekranie malowania wyświetlane są dodatkowe informacje w lewej kolumnie:
 **Kroki:**
 
 1. **Przygotowanie:**
-   - Włącz urządzenie — pojawi się ekran powitalny "TrassarV3 v2.5.0", a po chwili ekran główny
+   - Włącz urządzenie — pojawi się ekran powitalny "TrassarV3 v2.6.0", a po chwili ekran główny
    - Sprawdź wyświetlany wzorzec w lewym górnym rogu
    - Jeśli wyświetlany wzorzec to nie P-1a, zmień go przez panel WWW: połącz się z WiFi "TrassarV3" (hasło: 12345678), otwórz http://192.168.4.1 i kliknij przycisk **P-1a**
    - Sprawdź status kalibracji w panelu WWW — powinno być "Skalibrowany"
@@ -756,7 +814,7 @@ START OD PRZERWY (GAP):  ░░░░██░░░░██░░░░██ 
 
 ---
 
-## 16. Rozwiązywanie problemów
+## 18. Rozwiązywanie problemów
 
 | Problem | Możliwa przyczyna | Rozwiązanie |
 |---------|-------------------|-------------|
@@ -782,8 +840,10 @@ START OD PRZERWY (GAP):  ░░░░██░░░░██░░░░██ 
 | Pistolety wyłączają się co chwilę | Gun keepalive | Silnik malowania nie nadąża — sprawdź obciążenie procesora |
 | Alarm prędkości miga ciągle | Próg za niski | Panel WWW → Alarm prędkości → zwiększ próg suwakiem |
 | Prędkość miga na żółto | Niska prędkość | Przyspiesz powyżej 3 km/h — to ostrzeżenie, nie błąd |
+| Anomalia pistoletu (buzzer 800 Hz) | Pistolet nie strzela | Sprawdź przekaźnik, przewód GPIO, dysze, zbiornik farby |
+| `/api/reports` zwraca puste `[]` | Brak cache lub SD | Odczekaj 15 s (cache) lub sprawdź kartę SD |
 
 ---
 
 *TrassarV3 — Komputer pokładowy malowarki pasów drogowych*
-*Firmware v2.5.0 | ESP32-S3 N16R8 | 6 pistoletów, 15 wzorców, buzzer, watchdog*
+*Firmware v2.6.0 | ESP32-S3 N16R8 | 6 pistoletów, 15 wzorców, buzzer, watchdog, anomaly detect*

@@ -37,6 +37,15 @@ static const BuzzerStep SEQ_OVERSPEED[] = {
     {3000, 60}
 };
 
+// Anomalia pistoletu: dlugi niski ton + krotki wysoki (uwaga mechaniczna)
+static const BuzzerStep SEQ_GUN_ANOMALY[] = {
+    {800,  300},
+    {0,    100},
+    {1200, 150},
+    {0,    100},
+    {800,  300}
+};
+
 // Blad: niski ton opadajacy
 static const BuzzerStep SEQ_ERROR[] = {
     {1000, 200},
@@ -92,6 +101,9 @@ void BuzzerController::play(BuzzerSignal signal) {
             break;
         case BUZ_OVERSPEED:
             startSequence(SEQ_OVERSPEED, sizeof(SEQ_OVERSPEED) / sizeof(BuzzerStep));
+            break;
+        case BUZ_GUN_ANOMALY:
+            startSequence(SEQ_GUN_ANOMALY, sizeof(SEQ_GUN_ANOMALY) / sizeof(BuzzerStep));
             break;
         case BUZ_ERROR:
             startSequence(SEQ_ERROR, sizeof(SEQ_ERROR) / sizeof(BuzzerStep));
