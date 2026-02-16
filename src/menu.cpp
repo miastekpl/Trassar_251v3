@@ -321,7 +321,9 @@ void MenuSystem::update() {
                 pat.guns,
                 gunStates,
                 g_state.patternReversed,
-                paintEngine.isGapStart()
+                paintEngine.isGapStart(),
+                paintEngine.isOverspeed(),
+                paintEngine.isLowSpeed()
             );
             break;
         }

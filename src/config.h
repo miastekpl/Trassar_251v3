@@ -7,7 +7,7 @@
 #include <Arduino.h>
 
 // ============ WERSJA FIRMWARE ============
-#define FW_VERSION      "2.3.0"
+#define FW_VERSION      "2.4.0"
 #define FW_NAME         "TrassarV3"
 #define FW_DATE         __DATE__
 
@@ -63,8 +63,19 @@
 // ============ Karta SD (czytnik w module wyświetlacza) ============
 #define PIN_SD_CS            16
 
+// ============ Buzzer (pasywny, LEDC PWM) ============
+#define PIN_BUZZER            8
+#define BUZZER_LEDC_CH        1    // Kanal LEDC (0 = podswietlenie TFT)
+
 // ============ Bezpieczeństwo malowania ============
 #define MIN_PAINT_SPEED_KMH  3.0f
+#define DEFAULT_MAX_PAINT_SPEED_KMH  15.0f  // Prog alarmu przekroczenia predkosci
+
+// ============ Watchdog ============
+#define WDT_TIMEOUT_SEC       3    // Timeout watchdoga [s], auto-reset
+
+// ============ Gun keepalive ============
+#define GUN_KEEPALIVE_TIMEOUT_MS  300  // Awaryjne guns.allOff() jesli brak update >300ms
 
 // ============ Kalibracja ============
 #define DEFAULT_PULSES_PER_METER  100.0f

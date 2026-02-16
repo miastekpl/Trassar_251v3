@@ -354,7 +354,8 @@ void DisplayManager::drawPaintingScreen(MachineState state, const char* patCode,
                                         float speedKmh, float areaM2,
                                         const GunPatternCfg gunsCfg[6],
                                         const bool gunStates[6],
-                                        bool reversed, bool gapStart) {
+                                        bool reversed, bool gapStart,
+                                        bool overspeed, bool lowSpeed) {
     char buf[48];
     bool paused = (state == STATE_PAUSED);
 
@@ -410,17 +411,26 @@ void DisplayManager::drawPaintingScreen(MachineState state, const char* patCode,
     tft.setTextPadding(0);
 
     // ---- PRAWY GORNY: Predkosc (duza, FSB24) ----
+    // Kolor predkosci: czerwony migajacy = overspeed, zolty = low speed, bialy = OK
+    uint16_t speedColor = COLOR_TEXT;
+    if (overspeed) {
+        bool blinkPhase = ((millis() / 300) % 2) == 0;
+        speedColor = blinkPhase ? COLOR_ERROR : COLOR_TEXT;
+    } else if (lowSpeed) {
+        speedColor = COLOR_WARNING;
+    }
+
     tft.setFreeFont(FSB24);
-    tft.setTextColor(COLOR_TEXT, COLOR_BG);
+    tft.setTextColor(speedColor, COLOR_BG);
     tft.setTextDatum(TR_DATUM);
     snprintf(buf, sizeof(buf), "%.1f", speedKmh);
     tft.setTextPadding(100);
     tft.drawString(buf, TFT_SCREEN_W - 8, 2);
     tft.setTextPadding(0);
 
-    // km/h
+    // km/h - etykieta tez migajaca przy overspeed
     tft.setFreeFont(FS9);
-    tft.setTextColor(COLOR_MENU_TXT, COLOR_BG);
+    tft.setTextColor(overspeed ? speedColor : COLOR_MENU_TXT, COLOR_BG);
     tft.setTextPadding(100);
     tft.drawString("km/h", TFT_SCREEN_W - 8, 38);
     tft.setTextPadding(0);

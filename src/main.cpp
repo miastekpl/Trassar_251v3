@@ -23,6 +23,8 @@
 #include "statistics.h"
 #include "storage.h"
 #include "report_logger.h"
+#include "buzzer.h"
+#include <esp_task_wdt.h>
 
 // Globalny stan systemu
 SystemState g_state;
@@ -59,12 +61,17 @@ void setup() {
     Serial.println("[INIT] Wyswietlacz ILI9341...");
     display.begin();
 
+    // 2b. Buzzer
+    Serial.println("[INIT] Buzzer...");
+    buzzer.begin();
+
     // 3. Zegar RTC
     Serial.println("[INIT] Zegar RTC DS1307...");
     if (rtcModule.begin()) {
         Serial.printf("[INIT] Czas: %s\n", rtcModule.getDateTimeStr());
     } else {
         Serial.println("[INIT] UWAGA: RTC niedostepny");
+        buzzer.play(BUZ_ERROR);
     }
 
     // 4. Enkoder (pomiar dystansu/predkosci)
@@ -95,7 +102,10 @@ void setup() {
 
     // 10. Karta SD (raporty)
     Serial.println("[INIT] Karta SD...");
-    reportLogger.begin();
+    if (!reportLogger.begin()) {
+        Serial.println("[INIT] UWAGA: Karta SD niedostepna!");
+        buzzer.play(BUZ_ERROR);
+    }
 
     // 11. System menu
     Serial.println("[INIT] System menu...");
@@ -115,9 +125,19 @@ void setup() {
     g_state.displayNeedsUpdate = true;
     g_state.forceFullRedraw = true;
 
+    // Wczytaj prog predkosci maks. z NVS
+    float maxSpd = storage.loadMaxSpeed();
+    paintEngine.setMaxSpeed(maxSpd);
+
+    // Watchdog timer - 3s timeout, auto-reset przy zawieszeniu
+    Serial.println("[INIT] Watchdog timer...");
+    esp_task_wdt_init(WDT_TIMEOUT_SEC, true);
+    esp_task_wdt_add(NULL);
+
     Serial.println();
     Serial.println("[INIT] System gotowy!");
     Serial.printf("[INIT] Wzorzec: %s\n", patternMgr.getCurrent().code);
+    Serial.printf("[INIT] Max predkosc: %.1f km/h\n", maxSpd);
     Serial.printf("[INIT] WiFi: %s  http://%s\n",
                   WIFI_AP_SSID, webServer.getIPAddress().c_str());
     Serial.println();
@@ -125,6 +145,9 @@ void setup() {
 
 void loop() {
     unsigned long now = millis();
+
+    // Watchdog reset - jesli loop() sie zawiesi, ESP zresetuje sie po 3s
+    esp_task_wdt_reset();
 
     // 1. Odczyt przycisków
     buttons.update();
@@ -141,6 +164,12 @@ void loop() {
 
     // 4. Silnik malowania (sterowanie pistoletami)
     paintEngine.update();
+
+    // 4b. Gun keepalive - awaryjne wylaczenie jesli update() nie dziala
+    paintEngine.checkGunKeepAlive();
+
+    // 4c. Buzzer - obsluga sekwencji tonow (non-blocking)
+    buzzer.update();
 
     // 5. Dynamiczne odświeżanie ekranu
     if (now - lastDynamicUpdate >= DYNAMIC_UPDATE_MS) {

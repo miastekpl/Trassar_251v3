@@ -60,3 +60,17 @@ PatternID StorageManager::loadLastPattern() {
     if (val >= PAT_COUNT) val = 0;
     return (PatternID)val;
 }
+
+void StorageManager::saveMaxSpeed(float kmh) {
+    prefs.begin("trassar", false);
+    prefs.putFloat("max_spd", kmh);
+    prefs.end();
+    Serial.printf("[NVS] Zapisano max predkosc: %.1f km/h\n", kmh);
+}
+
+float StorageManager::loadMaxSpeed() {
+    prefs.begin("trassar", true);
+    float val = prefs.getFloat("max_spd", DEFAULT_MAX_PAINT_SPEED_KMH);
+    prefs.end();
+    return val;
+}

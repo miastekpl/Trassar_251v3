@@ -26,6 +26,10 @@ public:
     // Ostatni wzorzec
     void saveLastPattern(PatternID pat);
     PatternID loadLastPattern();
+
+    // Prog predkosci maks.
+    void saveMaxSpeed(float kmh);
+    float loadMaxSpeed();
 };
 
 extern StorageManager storage;

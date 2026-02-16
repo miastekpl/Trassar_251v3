@@ -22,7 +22,8 @@ public:
                             float speedKmh, float areaM2,
                             const GunPatternCfg gunsCfg[6],
                             const bool gunStates[6],
-                            bool reversed, bool gapStart = false);
+                            bool reversed, bool gapStart = false,
+                            bool overspeed = false, bool lowSpeed = false);
 
     // Menu serwisowe
     void drawServiceMenu(int selectedIndex);

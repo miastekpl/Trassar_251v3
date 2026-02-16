@@ -9,6 +9,7 @@
 #include "statistics.h"
 #include "storage.h"
 #include "report_logger.h"
+#include "buzzer.h"
 #include <math.h>
 
 PaintingEngine paintEngine;
@@ -17,6 +18,11 @@ void PaintingEngine::begin() {
     lastEncoderDist = 0;
     patternStartDist = 0;
     gapStartActive = false;
+    lastGunUpdateMs = millis();
+    overspeedActive = false;
+    lowSpeedActive = false;
+    lastLowSpeedBuzMs = 0;
+    lastOverspeedBuzMs = 0;
 }
 
 bool PaintingEngine::shouldGunFire(GunID gun, float distFromPatternStart) const {
@@ -38,7 +44,14 @@ bool PaintingEngine::shouldGunFire(GunID gun, float distFromPatternStart) const 
 }
 
 void PaintingEngine::update() {
-    if (g_state.machineState != STATE_PAINTING) return;
+    if (g_state.machineState != STATE_PAINTING) {
+        overspeedActive = false;
+        lowSpeedActive = false;
+        return;
+    }
+
+    unsigned long now = millis();
+    lastGunUpdateMs = now;  // Znacznik keepalive
 
     float currentDist = encoderDist.getDistanceMeters();
     float deltaDist = currentDist - lastEncoderDist;
@@ -47,8 +60,10 @@ void PaintingEngine::update() {
     float distFromPatternStart = currentDist - patternStartDist;
     if (distFromPatternStart < 0) distFromPatternStart = 0;
 
+    float speedKmh = encoderDist.getSpeedKmh();
+
     // Bezpieczenstwo: pistolety tylko przy >= 3 km/h
-    bool speedOK = (encoderDist.getSpeedKmh() >= MIN_PAINT_SPEED_KMH);
+    bool speedOK = (speedKmh >= MIN_PAINT_SPEED_KMH);
 
     // Aktualizuj stan każdego pistoletu
     bool gunStates[NUM_GUNS];
@@ -61,6 +76,33 @@ void PaintingEngine::update() {
     // Aktualizuj statystyki
     if (deltaDist > 0) {
         stats.updatePainting(deltaDist, gunStates);
+    }
+
+    // --- Alarm niskiej predkosci (<3 km/h podczas malowania) ---
+    bool wasLow = lowSpeedActive;
+    lowSpeedActive = !speedOK;
+    if (lowSpeedActive && !wasLow) {
+        // Dopiero spadla ponizej progu - natychmiastowy sygnal
+        buzzer.play(BUZ_LOW_SPEED);
+        lastLowSpeedBuzMs = now;
+    } else if (lowSpeedActive && (now - lastLowSpeedBuzMs >= 3000)) {
+        // Powtarzaj co 3s dopoki predkosc jest za niska
+        buzzer.play(BUZ_LOW_SPEED);
+        lastLowSpeedBuzMs = now;
+    }
+
+    // --- Alarm przekroczenia predkosci ---
+    bool wasOver = overspeedActive;
+    overspeedActive = (speedKmh > maxSpeedKmh);
+    if (overspeedActive && !wasOver) {
+        buzzer.play(BUZ_OVERSPEED);
+        lastOverspeedBuzMs = now;
+        Serial.printf("[ENGINE] UWAGA: predkosc %.1f km/h > %.1f km/h!\n",
+                      speedKmh, maxSpeedKmh);
+    } else if (overspeedActive && (now - lastOverspeedBuzMs >= 2000)) {
+        // Powtarzaj co 2s
+        buzzer.play(BUZ_OVERSPEED);
+        lastOverspeedBuzMs = now;
     }
 }
 
@@ -76,6 +118,8 @@ void PaintingEngine::start() {
         g_state.currentScreen = SCREEN_PAINTING;
         g_state.displayNeedsUpdate = true;
         g_state.forceFullRedraw = true;
+        lastGunUpdateMs = millis();
+        buzzer.play(BUZ_PAINT_START);
         Serial.printf("[ENGINE] Start malowania - wzorzec %s\n",
                       patternMgr.getCurrent().code);
     }
@@ -114,6 +158,8 @@ void PaintingEngine::startFromGap() {
     g_state.currentScreen = SCREEN_PAINTING;
     g_state.displayNeedsUpdate = true;
     g_state.forceFullRedraw = true;
+    lastGunUpdateMs = millis();
+    buzzer.play(BUZ_PAINT_START);
     Serial.printf("[ENGINE] Start OD PRZERWY - wzorzec %s, offset %.1fm\n",
                   pat.code, lineLen);
 }
@@ -123,6 +169,7 @@ void PaintingEngine::pause() {
         g_state.machineState = STATE_PAUSED;
         guns.allOff();
         stats.pauseSessionTimer();
+        buzzer.play(BUZ_PAINT_STOP);
         g_state.displayNeedsUpdate = true;
         Serial.println("[ENGINE] Pauza");
     }
@@ -131,7 +178,9 @@ void PaintingEngine::pause() {
 void PaintingEngine::resume() {
     if (g_state.machineState == STATE_PAUSED) {
         g_state.machineState = STATE_PAINTING;
+        lastGunUpdateMs = millis();
         stats.resumeSessionTimer();
+        buzzer.play(BUZ_PAINT_START);
         g_state.displayNeedsUpdate = true;
         Serial.println("[ENGINE] Wznowienie");
     }
@@ -144,6 +193,7 @@ void PaintingEngine::stop() {
         guns.allOff();
         stats.pauseSessionTimer();
         stats.saveLifetime();
+        buzzer.play(BUZ_PAINT_STOP);
 
         // Zapis raportu na karte SD
         reportLogger.logSession(
@@ -175,4 +225,21 @@ void PaintingEngine::toggleReverse() {
     g_state.displayNeedsUpdate = true;
     Serial.printf("[ENGINE] Odwrocenie: %s\n",
                   g_state.patternReversed ? "TAK" : "NIE");
+}
+
+// ============================================================
+// Gun keepalive - awaryjne wylaczenie pistoletow
+// Wywolywane w loop() niezaleznie od update()
+// Jesli update() nie bylo wywolane >300ms a pistolety sa otwarte
+// ============================================================
+void PaintingEngine::checkGunKeepAlive() {
+    if (g_state.machineState != STATE_PAINTING) return;
+
+    unsigned long now = millis();
+    if (now - lastGunUpdateMs > GUN_KEEPALIVE_TIMEOUT_MS) {
+        // Awaryjne wylaczenie wszystkich pistoletow
+        guns.allOff();
+        Serial.printf("[ENGINE] KEEPALIVE: awaryjne guns.allOff() (brak update od %lu ms)\n",
+                      now - lastGunUpdateMs);
+    }
 }

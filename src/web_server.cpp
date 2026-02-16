@@ -11,6 +11,7 @@
 #include "guns.h"
 #include "patterns.h"
 #include "rtc_handler.h"
+#include "storage.h"
 
 TrassarWebServer webServer;
 
@@ -113,6 +114,18 @@ void TrassarWebServer::handleControl() {
         encoderDist.startCalibration();
     } else if (action == "cal_finish") {
         encoderDist.finishCalibration();
+    } else if (action == "set_max_speed") {
+        if (server.hasArg("value")) {
+            float val = server.arg("value").toFloat();
+            if (val >= 5.0f && val <= 30.0f) {
+                paintEngine.setMaxSpeed(val);
+                storage.saveMaxSpeed(val);
+            } else {
+                result = "zakres 5-30 km/h";
+            }
+        } else {
+            result = "brak parametru value";
+        }
     } else {
         result = "nieznana akcja";
     }
@@ -169,6 +182,11 @@ String TrassarWebServer::getStateJson() {
     doc["ppm"] = serialized(String(encoderDist.getPulsesPerMeter(), 1));
     doc["calibrating"] = encoderDist.isCalibrating();
     doc["calPulses"] = serialized(String(encoderDist.getCalibrationPulses(), 0));
+
+    // Alarmy predkosci
+    doc["maxSpeed"] = serialized(String(paintEngine.getMaxSpeed(), 1));
+    doc["overspeed"] = paintEngine.isOverspeed();
+    doc["lowSpeed"] = paintEngine.isLowSpeed();
 
     // Pistolety
     JsonArray gunsArr = doc["guns"].to<JsonArray>();
@@ -469,6 +487,23 @@ body{
         </div>
     </div>
 
+    <!-- ========== SPEED ALARM ========== -->
+    <div class="card">
+        <h3>Alarm predkosci</h3>
+        <div class="cal-row">
+            <div class="cal-info">
+                Maks. predkosc: <span id="spdMax">15.0</span> km/h<br>
+                <span id="spdWarn" style="display:none;color:#e64040;font-weight:bold;">PRZEKROCZENIE!</span>
+            </div>
+        </div>
+        <div style="margin-top:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <input type="range" id="spdSlider" min="5" max="30" step="0.5" value="15"
+                style="flex:1;min-width:120px;accent-color:#2ae67a;">
+            <span id="spdSliderVal" style="font-size:14px;font-weight:bold;color:#2ae67a;min-width:60px;">15.0 km/h</span>
+            <button class="cal-btn" onclick="setMaxSpeed()">Zapisz</button>
+        </div>
+    </div>
+
     <!-- ========== SYSTEM INFO ========== -->
     <div class="card">
         <h3>Informacje systemowe</h3>
@@ -502,6 +537,7 @@ const PAT_CODES=[
 const REV_PATS=[7,8];
 
 let calibrating=false;
+let spdSliderLoaded=false;
 
 /* ------- Commands ------- */
 function cmd(action){
@@ -525,6 +561,21 @@ function calAction(){
         cmd('cal_start');
     }
 }
+function setMaxSpeed(){
+    let val=document.getElementById('spdSlider').value;
+    fetch('/api/control',{
+        method:'POST',
+        headers:{'Content-Type':'application/x-www-form-urlencoded'},
+        body:'action=set_max_speed&value='+val
+    }).then(r=>r.json()).then(()=>fetchStatus());
+}
+/* Speed slider live update */
+document.addEventListener('DOMContentLoaded',function(){
+    let sl=document.getElementById('spdSlider');
+    if(sl) sl.addEventListener('input',function(){
+        document.getElementById('spdSliderVal').textContent=parseFloat(this.value).toFixed(1)+' km/h';
+    });
+});
 
 /* ------- Time format ------- */
 function fmtTime(sec){
@@ -549,7 +600,11 @@ function fetchStatus(){
         /* Info cards */
         document.getElementById('vPat').textContent=d.pattern;
         document.getElementById('vPatName').textContent=d.patternName;
-        document.getElementById('vSpeed').textContent=d.speed+' km/h';
+        let spdEl=document.getElementById('vSpeed');
+        spdEl.textContent=d.speed+' km/h';
+        if(d.overspeed){spdEl.className='val';spdEl.style.color='#e64040';}
+        else if(d.lowSpeed){spdEl.className='val warn';spdEl.style.color='';}
+        else{spdEl.className='val';spdEl.style.color='';}
         document.getElementById('vDist').textContent=d.distance+' m';
         document.getElementById('vArea').innerHTML=d.area+' m&sup2;';
         document.getElementById('vTime').textContent=fmtTime(d.elapsed);
@@ -623,6 +678,17 @@ function fetchStatus(){
         }
         document.getElementById('calSt').textContent=d.calibrated?'Skalibrowany':'Domyslny';
         document.getElementById('calPpm').textContent=d.ppm;
+
+        /* Speed alarm section */
+        document.getElementById('spdMax').textContent=d.maxSpeed;
+        if(!spdSliderLoaded){
+            document.getElementById('spdSlider').value=parseFloat(d.maxSpeed);
+            document.getElementById('spdSliderVal').textContent=d.maxSpeed+' km/h';
+            spdSliderLoaded=true;
+        }
+        let spdWarnEl=document.getElementById('spdWarn');
+        if(d.overspeed){spdWarnEl.style.display='inline';}
+        else{spdWarnEl.style.display='none';}
 
         /* System info */
         document.getElementById('sFw').textContent='v'+d.firmware;
