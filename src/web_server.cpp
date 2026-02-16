@@ -83,19 +83,6 @@ void TrassarWebServer::setupRoutes() {
 }
 
 // ============================================================
-// GET / - Strona HTML (chunked transfer z PROGMEM)
-// Nie alokuje calej strony w RAM - wysyla fragmentami z flash
-// ============================================================
-void TrassarWebServer::handleRoot() {
-    server.setContentLength(CONTENT_LENGTH_UNKNOWN);
-    server.send(200, "text/html", "");
-    server.sendContent_P(HTML_PART1);
-    server.sendContent(FW_VERSION);
-    server.sendContent_P(HTML_PART2);
-    server.sendContent("");  // koniec chunked
-}
-
-// ============================================================
 // GET /api/status - JSON ze stanem maszyny
 // ============================================================
 void TrassarWebServer::handleStatus() {
@@ -747,6 +734,19 @@ fetchStatus();
 </script>
 </body>
 </html>)rawhtml";
+
+// ============================================================
+// GET / - Strona HTML (chunked transfer z PROGMEM)
+// Nie alokuje calej strony w RAM - wysyla fragmentami z flash
+// ============================================================
+void TrassarWebServer::handleRoot() {
+    server.setContentLength(CONTENT_LENGTH_UNKNOWN);
+    server.send(200, "text/html", "");
+    server.sendContent_P(HTML_PART1);
+    server.sendContent(FW_VERSION);
+    server.sendContent_P(HTML_PART2);
+    server.sendContent("");  // koniec chunked
+}
 
 // buildHtmlPage() - nie uzywane, HTML wysylany chunkami z handleRoot()
 String TrassarWebServer::buildHtmlPage() {
