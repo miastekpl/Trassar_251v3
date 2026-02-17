@@ -1,4 +1,4 @@
-# TrassarV3 - API serwera WWW v2.6.0
+# TrassarV3 - API serwera WWW v2.7.0
 
 ## Informacje ogólne
 
@@ -27,6 +27,11 @@ Panel zawiera:
 - Sekcja kalibracji enkodera
 - Sekcja alarmu prędkości (suwak konfiguracji progu max.)
 - Informacje systemowe
+- **Menu serwisowe** z zakładkami:
+  - **Statystyki** — dystans/powierzchnia/czas lifetime, status SD, dystans per pistolet
+  - **Raporty SD** — tabela plików CSV z nazwą i rozmiarem
+- **Banner anomalii pistoletów** — pulsujący alert gdy wykryto anomalię
+- Wskaźniki anomalii na kółkach pistoletów (migająca czerwona ramka)
 
 ---
 

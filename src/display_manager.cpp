@@ -1,7 +1,7 @@
 // ============================================================
 // TrassarV3 - Implementacja modulu wyswietlacza ILI9341
 // 320x240 landscape, podswietlenie LEDC PWM
-// v2.6.0 - Anti-flicker na WSZYSTKICH ekranach (setTextPadding)
+// v2.7.0 - Anti-flicker na WSZYSTKICH ekranach (setTextPadding)
 //           Pionowa wizualizacja wzorca (kolumny jak na drodze)
 //           Layout 3-kolumnowy: info | viz | predkosc
 //           Czas sesji na ekranie malowania

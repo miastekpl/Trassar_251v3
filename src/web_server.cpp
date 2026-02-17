@@ -377,6 +377,28 @@ body{
 
 /* ---------- FOOTER ---------- */
 .footer{text-align:center;padding:10px;color:#3a4a60;font-size:10px;margin-top:4px;}
+
+/* ---------- SERVICE MENU ---------- */
+.svc-tabs{display:flex;gap:4px;margin-bottom:10px;}
+.svc-tab{
+    flex:1;padding:10px 8px;border:1px solid #1e2d42;border-radius:8px;
+    background:#0d1520;color:#9eafc4;font-size:12px;font-weight:600;
+    cursor:pointer;text-align:center;transition:all .15s;
+}
+.svc-tab:active{transform:scale(.95);}
+.svc-tab.act{background:#1a3a5a;border-color:#2a7d9f;color:#fff;}
+.rep-tbl{width:100%;border-collapse:collapse;}
+.rep-tbl th{text-align:left;padding:4px;color:#6b7d9a;font-size:11px;border-bottom:1px solid #1e2d42;}
+.rep-tbl td{padding:6px 4px;color:#e0e6f0;border-bottom:1px solid #0d1520;font-size:12px;}
+.rep-tbl td:last-child{text-align:right;color:#2ae67a;}
+.anom-warn{
+    background:#3a1020;border:1px solid #e64040;border-radius:8px;
+    padding:10px;margin-bottom:10px;text-align:center;
+    font-size:12px;color:#e64040;font-weight:bold;
+    animation:anomBlink 1s infinite;
+}
+.gun-circle.anom{border-color:#e64040;animation:anomBlink 1s infinite;}
+@keyframes anomBlink{0%,100%{box-shadow:0 0 8px rgba(230,64,64,.6);}50%{box-shadow:none;}}
 </style>
 </head>
 <body>
@@ -509,6 +531,11 @@ body{
         </div>
     </div>
 
+    <!-- ========== GUN ANOMALY WARNING ========== -->
+    <div id="anomWarn" class="anom-warn" style="display:none;">
+        ANOMALIA PISTOLETU - sprawdz dysze!
+    </div>
+
     <!-- ========== CALIBRATION ========== -->
     <div class="card">
         <h3>Kalibracja enkodera</h3>
@@ -549,6 +576,31 @@ body{
             Wolna RAM: <span id="sRam">---</span><br>
             Uptime: <span id="sUp">---</span><br>
             Klienci WiFi: <span id="sCli">---</span>
+        </div>
+    </div>
+
+    <!-- ========== SERVICE MENU ========== -->
+    <div class="card">
+        <h3>Menu serwisowe</h3>
+        <div class="svc-tabs">
+            <button class="svc-tab act" onclick="svcTab(0)">Statystyki</button>
+            <button class="svc-tab" onclick="svcTab(1)">Raporty SD</button>
+        </div>
+        <div id="svcP0">
+            <div class="info-grid two">
+                <div class="info-item"><div class="lbl">Dyst. calkowity</div><div class="val" id="ltDist">---</div></div>
+                <div class="info-item"><div class="lbl">Pow. calkowita</div><div class="val" id="ltArea">---</div></div>
+            </div>
+            <div class="info-grid two" style="margin-top:6px;">
+                <div class="info-item"><div class="lbl">Czas malowania</div><div class="val" id="ltTime">---</div></div>
+                <div class="info-item"><div class="lbl">Karta SD</div><div class="val" id="ltSd">---</div></div>
+            </div>
+            <div style="margin-top:8px;font-size:11px;color:#6b7d9a;">Dystans per pistolet (sesja):</div>
+            <div class="guns-row" style="margin-top:6px;" id="gunDistRow"></div>
+        </div>
+        <div id="svcP1" style="display:none;">
+            <div id="repList" style="font-size:12px;color:#6b7d9a;">Ladowanie...</div>
+            <button class="cal-btn" style="margin-top:8px;" onclick="loadReports()">Odswiez</button>
         </div>
     </div>
 
@@ -693,12 +745,17 @@ function fetchStatus(){
             rb.classList.remove('act');
         }
 
-        /* Gun indicators */
+        /* Gun indicators + anomaly */
         for(let i=0;i<6;i++){
             let gc=document.getElementById('g'+i);
             if(d.guns[i]){gc.className='gun-circle on';}
+            else if(d.gunAnomaly&&d.gunAnomaly[i]){gc.className='gun-circle off anom';}
             else{gc.className='gun-circle off';}
         }
+        /* Gun anomaly warning */
+        let anomEl=document.getElementById('anomWarn');
+        if(d.gunAnomalyDetected){anomEl.style.display='block';}
+        else{anomEl.style.display='none';}
 
         /* Calibration section */
         calibrating=d.calibrating;
@@ -738,8 +795,55 @@ function fetchStatus(){
     }).catch(e=>console.error('Status error:',e));
 }
 
-/* Auto-refresh every 1 second */
-setInterval(fetchStatus,1000);
+/* ------- Service Menu Tabs ------- */
+let activeTab=0;
+let svcTick=0;
+function svcTab(n){
+    document.querySelectorAll('.svc-tab').forEach(function(t,i){t.classList.toggle('act',i===n);});
+    document.getElementById('svcP0').style.display=n===0?'block':'none';
+    document.getElementById('svcP1').style.display=n===1?'block':'none';
+    activeTab=n;
+    if(n===0)loadStats();
+    if(n===1)loadReports();
+}
+function loadStats(){
+    fetch('/api/stats').then(function(r){return r.json();}).then(function(d){
+        document.getElementById('ltDist').textContent=d.lifetimeDistanceM+' m';
+        document.getElementById('ltArea').innerHTML=d.lifetimeAreaM2+' m&sup2;';
+        document.getElementById('ltTime').textContent=fmtTime(d.lifetimePaintTimeSec);
+        let sdEl=document.getElementById('ltSd');
+        sdEl.textContent=d.sdReady?'OK ('+d.reportCount+')':'BRAK';
+        sdEl.style.color=d.sdReady?'':'#e64040';
+        let row=document.getElementById('gunDistRow');
+        let h='';
+        for(let i=0;i<6;i++){
+            h+='<div class="gun-item"><div class="gun-circle off" style="width:42px;height:42px;font-size:9px;">'+d.gunDistances[i]+'m</div><div class="gun-label">P'+(i+1)+'</div></div>';
+        }
+        row.innerHTML=h;
+    }).catch(function(e){console.error('Stats:',e);});
+}
+function loadReports(){
+    let el=document.getElementById('repList');
+    el.innerHTML='<span style="color:#6b7d9a;">Ladowanie...</span>';
+    fetch('/api/reports').then(function(r){return r.json();}).then(function(d){
+        if(d.length===0){el.innerHTML='Brak raportow na karcie SD.';return;}
+        let h='<table class="rep-tbl"><tr><th>Plik</th><th style="text-align:right">Rozmiar</th></tr>';
+        d.forEach(function(r){
+            let sz=r.size>1024?(r.size/1024).toFixed(1)+' KB':r.size+' B';
+            h+='<tr><td>'+r.file+'</td><td>'+sz+'</td></tr>';
+        });
+        h+='</table>';
+        el.innerHTML=h;
+    }).catch(function(){el.innerHTML='Blad ladowania raportow.';});
+}
+loadStats();
+
+/* Auto-refresh every 1 second + stats every 10s */
+setInterval(function(){
+    fetchStatus();
+    svcTick++;
+    if(svcTick%10===0&&activeTab===0)loadStats();
+},1000);
 fetchStatus();
 </script>
 </body>

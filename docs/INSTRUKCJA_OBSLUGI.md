@@ -1,4 +1,4 @@
-# TrassarV3 - Instrukcja obsługi v2.6.0
+# TrassarV3 - Instrukcja obsługi v2.7.0
 
 ## Spis treści
 
@@ -18,8 +18,9 @@
 14. [Diagnostyka systemowa](#14-diagnostyka-systemowa)
 15. [Detekcja anomalii pistoletów](#15-detekcja-anomalii-pistoletów)
 16. [API statystyk i raportów SD](#16-api-statystyk-i-raportów-sd)
-17. [Przykłady zastosowania](#17-przykłady-zastosowania)
-18. [Rozwiązywanie problemów](#18-rozwiązywanie-problemów)
+17. [Menu serwisowe w panelu WWW](#17-menu-serwisowe-w-panelu-www)
+18. [Przykłady zastosowania](#18-przykłady-zastosowania)
+19. [Rozwiązywanie problemów](#19-rozwiązywanie-problemów)
 
 ---
 
@@ -397,10 +398,12 @@ Panel sterowania w przeglądarce oferuje pełną kontrolę nad maszyną:
 | **Sterowanie** | Przyciski START / PAUZA / STOP / START OD PRZERWY |
 | **Wybór wzorca** | 15 przycisków pogrupowanych: P-1x, P-2x, P-3x, P-4/P-6, P-7x |
 | **Odwracanie** | Przycisk "Odwróć" — aktywny tylko dla P-3a / P-3b |
-| **Pistolety** | 6 kółek P1–P6 (zielone = ON, szare = OFF) |
+| **Pistolety** | 6 kółek P1–P6 (zielone = ON, szare = OFF, **czerwone migające** = anomalia) |
+| **Anomalia pistoletów** | Pulsujący banner ostrzegawczy gdy wykryto anomalię — widoczny automatycznie |
 | **Kalibracja** | Przycisk rozpoczęcia/zakończenia, licznik impulsów, impulsy/metr |
 | **Alarm prędkości** | Bieżący próg maks., suwak konfiguracji (5–30 km/h), przycisk zapisu do NVS |
 | **System** | Wersja firmware, wolna RAM, uptime, liczba klientów WiFi |
+| **Menu serwisowe** | Dwie zakładki: **Statystyki** (lifetime + sesja) i **Raporty SD** (lista plików CSV) |
 
 ### 8.3 Zmiana wzorca przez panel WWW
 
@@ -559,7 +562,7 @@ System wyposażony jest w pasywny buzzer (GPIO 8) generujący sygnały dźwięko
 
 ## 13. Architektura wielordzeniowa
 
-TrassarV3 v2.6.0 wykorzystuje oba rdzenie procesora ESP32-S3:
+TrassarV3 v2.7.0 wykorzystuje oba rdzenie procesora ESP32-S3:
 
 | Rdzeń | Zadania |
 |-------|---------|
@@ -659,7 +662,46 @@ Odpowiedź: `[{"file":"20260216.csv","size":1234},...]` — sortowane malejąco 
 
 ---
 
-## 17. Przykłady zastosowania
+## 17. Menu serwisowe w panelu WWW
+
+Panel WWW posiada sekcję **Menu serwisowe** na dole strony, z dwoma zakładkami:
+
+### 17.1 Zakładka "Statystyki"
+
+Wyświetla dane zebrane przez cały czas pracy urządzenia (lifetime) oraz bieżącą sesję:
+
+| Pole | Opis |
+|------|------|
+| **Dyst. całkowity** | Łączny dystans namalowany przez maszynę [m] |
+| **Pow. całkowita** | Łączna powierzchnia namalowana [m²] |
+| **Czas malowania** | Sumaryczny czas malowania (lifetime) |
+| **Karta SD** | Status karty SD + liczba raportów (np. "OK (12)") |
+| **Dystans per pistolet** | 6 kółek P1–P6 z dystansem w metrach (bieżąca sesja) |
+
+Dane odświeżają się automatycznie co 10 sekund.
+
+### 17.2 Zakładka "Raporty SD"
+
+Wyświetla tabelę plików raportów CSV z karty SD:
+
+| Kolumna | Opis |
+|---------|------|
+| **Plik** | Nazwa pliku (format: `RRRRMMDD.csv`) |
+| **Rozmiar** | Rozmiar pliku (w B lub KB) |
+
+Lista jest sortowana malejąco — najnowsze raporty na górze. Przycisk **Odśwież** ładuje ponownie listę z cache.
+
+### 17.3 Wskaźniki anomalii pistoletów
+
+Gdy system wykryje anomalię pistoletów (skonfigurowany pistolet nie maluje po 50 m jazdy):
+
+- Pulsujący **czerwony banner** "ANOMALIA PISTOLETU - sprawdź dysze!" pojawia się automatycznie
+- Kółka pistoletów z anomalią **migają czerwoną ramką**
+- Banner znika automatycznie po wznowieniu prawidłowej pracy
+
+---
+
+## 18. Przykłady zastosowania
 
 ### Przykład 1: Malowanie linii przerywanej P-1a na nowej drodze
 
@@ -668,7 +710,7 @@ Odpowiedź: `[{"file":"20260216.csv","size":1234},...]` — sortowane malejąco 
 **Kroki:**
 
 1. **Przygotowanie:**
-   - Włącz urządzenie — pojawi się ekran powitalny "TrassarV3 v2.6.0", a po chwili ekran główny
+   - Włącz urządzenie — pojawi się ekran powitalny "TrassarV3 v2.7.0", a po chwili ekran główny
    - Sprawdź wyświetlany wzorzec w lewym górnym rogu
    - Jeśli wyświetlany wzorzec to nie P-1a, zmień go przez panel WWW: połącz się z WiFi "TrassarV3" (hasło: 12345678), otwórz http://192.168.4.1 i kliknij przycisk **P-1a**
    - Sprawdź status kalibracji w panelu WWW — powinno być "Skalibrowany"
@@ -814,7 +856,7 @@ START OD PRZERWY (GAP):  ░░░░██░░░░██░░░░██ 
 
 ---
 
-## 18. Rozwiązywanie problemów
+## 19. Rozwiązywanie problemów
 
 | Problem | Możliwa przyczyna | Rozwiązanie |
 |---------|-------------------|-------------|

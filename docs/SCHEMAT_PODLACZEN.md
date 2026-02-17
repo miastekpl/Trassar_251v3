@@ -1,4 +1,4 @@
-# TrassarV3 - Dokumentacja techniczna i schemat podłączeń v2.6.0
+# TrassarV3 - Dokumentacja techniczna i schemat podłączeń v2.7.0
 
 ## Spis treści
 

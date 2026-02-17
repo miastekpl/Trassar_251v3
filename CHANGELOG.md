@@ -7,6 +7,35 @@ Wersjonowanie zgodne z [Semantic Versioning](https://semver.org/lang/pl/).
 
 ---
 
+## [2.7.0] - 2026-02-16
+
+### Dodano - Menu serwisowe w panelu WWW
+
+#### 1) Sekcja "Menu serwisowe" z zakładkami
+- Nowa sekcja w panelu HTML z dwoma zakładkami: **Statystyki** i **Raporty SD**
+- Zakładka **Statystyki**: dystans calkowity, powierzchnia, czas malowania lifetime
+- Wyświetla status karty SD i liczbę raportów
+- Dystans per pistolet (sesja) — 6 kółek z wartościami w metrach
+- Auto-odświeżanie statystyk co 10 sekund (gdy zakładka aktywna)
+
+#### 2) Zakładka Raporty SD
+- Lista plików raportów CSV z karty SD (nazwa + rozmiar)
+- Tabela sortowana malejąco (najnowsze pierwsze)
+- Przycisk "Odśwież" do ręcznego odświeżenia listy
+- Dane pobierane z istniejącego endpointu `/api/reports`
+
+#### 3) Wskaźniki anomalii pistoletów w panelu WWW
+- Banner ostrzegawczy "ANOMALIA PISTOLETU" (pulsujący czerwony) gdy wykryto anomalię
+- Kółka pistoletów z anomalią migają czerwoną ramką (klasa CSS `.anom`)
+- Animacja `anomBlink` z box-shadow dla wyraźnej sygnalizacji
+
+### Zmieniono
+- Wersja firmware: 2.6.0 → **2.7.0**
+- Przebudowany auto-refresh: `setInterval` z wewnętrznym fetch (eliminuje podwójne wywołanie)
+- CSS: dodane style `.svc-tabs`, `.svc-tab`, `.rep-tbl`, `.anom-warn`, `.gun-circle.anom`
+
+---
+
 ## [2.6.0] - 2026-02-16
 
 ### Dodano - Rozszerzone API, detekcja anomalii, raporty SD

@@ -13,6 +13,7 @@ Obsługuje **6 pistoletów natryskowych**, **15 wzorców malowania** zgodnych z 
 - **Odwracanie wzorców P-3a/P-3b** (zamiana ciągła ↔ przerywana)
 - **Wyświetlacz TFT 2.8" ILI9341** (240x320, SPI) - 9 ekranów interfejsu
 - **Serwer WWW na Core 0** - panel sterowania przez WiFi AP (nie blokuje krytycznej pętli)
+- **Menu serwisowe WWW** - statystyki lifetime, lista raportów SD, wskaźniki anomalii pistoletów
 - **Zegar RTC DS1307** - czas rzeczywisty z podtrzymaniem bateryjnym
 - **Statystyki** - sesja + łączne (dystans, powierzchnia, czas pracy)
 - **Pamięć trwała NVS** - kalibracja, statystyki, ostatni wzorzec, próg prędkości
@@ -134,7 +135,7 @@ TrassarV3/
 
 ## Wersja
 
-Aktualna wersja firmware: **v2.6.0**
+Aktualna wersja firmware: **v2.7.0**
 
 ## Licencja
 
