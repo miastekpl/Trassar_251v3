@@ -9,7 +9,7 @@ Obsługuje **6 pistoletów natryskowych**, **15 wzorców malowania** zgodnych z 
 - **15 wzorców malowania** (P-1a...P-7d) - polskie normy oznakowania
 - **Kalibracja enkodera** - procedura 10m z zapisem do NVS
 - **Obliczanie powierzchni** - na podstawie dystansu i szerokości pistoletów
-- **Zmiana wzorca w trakcie malowania** (on-the-fly)
+- **Inteligentne przełączanie wzorców** (Smart Switch) - dokończ cykl przed zmianą
 - **Odwracanie wzorców P-3a/P-3b** (zamiana ciągła ↔ przerywana)
 - **Wyświetlacz TFT 2.8" ILI9341** (240x320, SPI) - 9 ekranów interfejsu
 - **Serwer WWW na Core 0** - panel sterowania przez WiFi AP (nie blokuje krytycznej pętli)
@@ -135,7 +135,7 @@ TrassarV3/
 
 ## Wersja
 
-Aktualna wersja firmware: **v2.7.0**
+Aktualna wersja firmware: **v2.8.0**
 
 ## Licencja
 

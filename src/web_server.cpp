@@ -221,6 +221,12 @@ String TrassarWebServer::getStateJson() {
         gunsArr.add(guns.getState(i));
     }
 
+    // Oczekujaca zmiana wzorca (smart switch)
+    doc["patternPending"] = paintEngine.isPatternChangePending();
+    if (paintEngine.isPatternChangePending()) {
+        doc["pendingPattern"] = PatternManager::patterns[paintEngine.getPendingPattern()].code;
+    }
+
     // Anomalia pistoletow
     doc["gunAnomalyDetected"] = gunAnomaly.detected;
     JsonArray anomArr = doc["gunAnomaly"].to<JsonArray>();
@@ -335,6 +341,8 @@ body{
 }
 .pbtn:active{transform:scale(.95);}
 .pbtn.act{background:#1a8a4a;border-color:#2ae67a;color:#fff;}
+.pbtn.pending{border-color:#ffa500;color:#ffa500;animation:pendBlink .8s infinite;}
+@keyframes pendBlink{0%,100%{opacity:1;}50%{opacity:.4;}}
 .pbtn-rev{
     padding:10px 8px;border:1px solid #1e2d42;border-radius:8px;
     background:#0d1520;color:#9eafc4;font-size:12px;font-weight:600;
@@ -726,12 +734,15 @@ function fetchStatus(){
         bg.disabled=(d.state==='painting'||d.state==='paused');
         bs.textContent=(d.state==='paused')?'WZNOW':'START';
 
-        /* Pattern buttons highlight */
+        /* Pattern buttons highlight + pending indicator */
         let curIdx=PAT_CODES.indexOf(d.pattern);
+        let pendIdx=d.patternPending?PAT_CODES.indexOf(d.pendingPattern):-1;
         document.querySelectorAll('.pbtn').forEach(function(el){
             let pid=parseInt(el.getAttribute('data-pid'));
             if(pid===curIdx) el.classList.add('act');
             else el.classList.remove('act');
+            if(pid===pendIdx) el.classList.add('pending');
+            else el.classList.remove('pending');
         });
 
         /* Reverse button */

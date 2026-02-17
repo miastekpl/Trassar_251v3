@@ -7,6 +7,30 @@ Wersjonowanie zgodne z [Semantic Versioning](https://semver.org/lang/pl/).
 
 ---
 
+## [2.8.0] - 2026-02-17
+
+### Dodano - Inteligentne przełączanie wzorców (Smart Pattern Switch)
+
+#### Logika przełączania podczas malowania
+- Zmiana wzorca podczas malowania **NIE przerywa** bieżącego cyklu linia+przerwa
+- Bieżąca linia jest domalowywana do pełnej długości
+- Przerwa po linii jest dokańczana
+- Nowy wzorzec zaczyna się dopiero po zakończeniu pełnego cyklu starego
+- Wzorce ciągłe (P-2a, P-2b, P-4, P-7b, P-7d) przełączają się natychmiast
+- PAUZA i STOP mogą przerwać w dowolnym momencie (jak dotychczas)
+
+#### Wizualne potwierdzenie w panelu WWW
+- Oczekujący wzorzec miga pomarańczowo (klasa CSS `.pbtn.pending`)
+- Po przełączeniu: krótki sygnał dźwiękowy 1500 Hz (80 ms)
+- Nowe pola API: `patternPending` (bool), `pendingPattern` (string)
+
+#### Zachowanie w stanach specjalnych
+- **STOP**: wymusza zastosowanie oczekującego wzorca (żeby po STOP był aktywny nowy)
+- **START**: resetuje kolejkowanie (nowa sesja = czysta karta)
+- **Anulowanie**: kliknięcie bieżącego aktywnego wzorca anuluje oczekującą zmianę
+
+---
+
 ## [2.7.0] - 2026-02-16
 
 ### Dodano - Menu serwisowe w panelu WWW

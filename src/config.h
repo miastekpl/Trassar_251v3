@@ -1,13 +1,13 @@
 #pragma once
 // ============================================================
-// TrassarV3 - Konfiguracja sprzętowa v2.7.0
+// TrassarV3 - Konfiguracja sprzętowa v2.8.0
 // Komputer pokładowy malowarki pasów drogowych
 // ============================================================
 
 #include <Arduino.h>
 
 // ============ WERSJA FIRMWARE ============
-#define FW_VERSION      "2.7.0"
+#define FW_VERSION      "2.8.0"
 #define FW_NAME         "TrassarV3"
 #define FW_DATE         __DATE__
 

@@ -1,4 +1,4 @@
-# TrassarV3 - API serwera WWW v2.7.0
+# TrassarV3 - API serwera WWW v2.8.0
 
 ## Informacje ogólne
 
@@ -66,6 +66,8 @@ Zwraca aktualny stan systemu w formacie JSON.
     "overspeed": false,
     "lowSpeed": false,
     "guns": [false, false, false, false, false, false],
+    "patternPending": false,
+    "pendingPattern": "P-1b",
     "gunAnomalyDetected": false,
     "gunAnomaly": [false, false, false, false, false, false]
 }
@@ -98,6 +100,8 @@ Zwraca aktualny stan systemu w formacie JSON.
 | `lowSpeed` | bool | Czy prędkość jest poniżej 3 km/h podczas malowania |
 | `guns` | array[6] | Stan pistoletów P1-P6 (true = ON) |
 | `gapStart` | bool | Czy aktywny jest tryb "start od przerwy" |
+| `patternPending` | bool | Czy oczekuje zmiana wzorca (smart switch) |
+| `pendingPattern` | string | Kod oczekującego wzorca (obecne tylko gdy `patternPending=true`) |
 | `gunAnomalyDetected` | bool | Czy wykryto anomalię pistoletów |
 | `gunAnomaly` | array[6] | Flagi anomalii per pistolet (true = brak aktywności mimo konfiguracji) |
 
@@ -182,7 +186,7 @@ Wysyła komendę sterującą do systemu.
 | `pause` | - | Zapauzuj malowanie |
 | `stop` | - | Zatrzymaj malowanie |
 | `start_from_gap` | - | **Rozpocznij malowanie od przerwy** (przesuwa punkt startowy o długość kreski) |
-| `set_pattern` | 0-14 | Ustaw wzorzec (indeks PatternID) |
+| `set_pattern` | 0-14 | Ustaw wzorzec (indeks PatternID). **Podczas malowania**: zmiana jest kolejkowana do końca bieżącego cyklu (linia+przerwa). Wzorce ciągłe przełączają się natychmiast. |
 | `toggle_reverse` | - | Odwróć wzorzec (P-3a/P-3b) |
 | `cal_start` | - | Rozpocznij kalibrację enkodera |
 | `cal_finish` | - | Zakończ kalibrację enkodera |

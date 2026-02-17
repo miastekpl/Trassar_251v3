@@ -32,10 +32,22 @@ public:
     bool isOverspeed() const { return overspeedActive; }
     bool isLowSpeed() const { return lowSpeedActive; }
 
+    // Inteligentne przelaczanie wzorcow
+    bool isPatternChangePending() const { return patternChangePending; }
+    PatternID getPendingPattern() const { return pendingPattern; }
+
 private:
     float lastEncoderDist = 0;
     float patternStartDist = 0;  // Dystans przy zmianie wzorca
     bool  gapStartActive = false; // Czy aktywny "start od przerwy"
+
+    // Inteligentne przelaczanie wzorcow - czekaj na koniec cyklu
+    PatternID pendingPattern = PAT_P1A;
+    bool  patternChangePending = false;
+    int   pendingCycleCount = 0;
+
+    float getPrimaryCycle() const;
+    void  applyPendingPattern();
 
     // Gun keepalive
     unsigned long lastGunUpdateMs = 0;

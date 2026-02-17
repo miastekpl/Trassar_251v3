@@ -60,6 +60,26 @@ void PaintingEngine::update() {
     float distFromPatternStart = currentDist - patternStartDist;
     if (distFromPatternStart < 0) distFromPatternStart = 0;
 
+    // --- Inteligentne przelaczanie: sprawdz granice cyklu ---
+    if (patternChangePending) {
+        float cycle = getPrimaryCycle();
+        if (cycle <= 0 || pendingCycleCount < 0) {
+            // Wzorzec ciagly - przelacz natychmiast
+            applyPendingPattern();
+            // Przelicz distFromPatternStart po zmianie
+            distFromPatternStart = currentDist - patternStartDist;
+            if (distFromPatternStart < 0) distFromPatternStart = 0;
+        } else {
+            int curCycle = (int)(distFromPatternStart / cycle);
+            if (curCycle > pendingCycleCount) {
+                // Cykl sie skonczyl - przelacz
+                applyPendingPattern();
+                distFromPatternStart = currentDist - patternStartDist;
+                if (distFromPatternStart < 0) distFromPatternStart = 0;
+            }
+        }
+    }
+
     float speedKmh = encoderDist.getSpeedKmh();
 
     // Bezpieczenstwo: pistolety tylko przy >= 3 km/h
@@ -113,6 +133,7 @@ void PaintingEngine::start() {
         lastEncoderDist = 0;
         patternStartDist = 0;
         gapStartActive = false;
+        patternChangePending = false;
         g_state.machineState = STATE_PAINTING;
         stats.startSessionTimer();
         g_state.currentScreen = SCREEN_PAINTING;
@@ -153,6 +174,7 @@ void PaintingEngine::startFromGap() {
     // shouldGunFire: pos = fmod(dist + lineLen, cycle) = lineLen → gap
     patternStartDist = -lineLen;
     gapStartActive = true;
+    patternChangePending = false;
     g_state.machineState = STATE_PAINTING;
     stats.startSessionTimer();
     g_state.currentScreen = SCREEN_PAINTING;
@@ -189,6 +211,14 @@ void PaintingEngine::resume() {
 void PaintingEngine::stop() {
     if (g_state.machineState == STATE_PAINTING ||
         g_state.machineState == STATE_PAUSED) {
+        // Zastosuj oczekujacy wzorzec (zeby po STOP byl aktywny)
+        if (patternChangePending) {
+            patternMgr.setPattern(pendingPattern);
+            storage.saveLastPattern(pendingPattern);
+            patternChangePending = false;
+            Serial.printf("[ENGINE] Stop: zastosowano oczekujacy wzorzec %s\n",
+                          patternMgr.getCurrent().code);
+        }
         g_state.machineState = STATE_STOPPED;
         guns.allOff();
         stats.pauseSessionTimer();
@@ -211,13 +241,63 @@ void PaintingEngine::stop() {
 }
 
 void PaintingEngine::setPattern(PatternID pat) {
+    // --- Inteligentne przelaczanie wzorcow ---
+    // Podczas malowania: kolejkuj zmiane do konca cyklu (linia+przerwa)
+    // Nie malujac: zmiana natychmiastowa
+    if (g_state.machineState == STATE_PAINTING) {
+        if (pat == g_state.currentPattern) {
+            // Kliknieto biezacy wzorzec → anuluj pending
+            if (patternChangePending) {
+                patternChangePending = false;
+                Serial.println("[ENGINE] Anulowano kolejkowana zmiane wzorca");
+                g_state.displayNeedsUpdate = true;
+            }
+            return;
+        }
+        pendingPattern = pat;
+        patternChangePending = true;
+        float cycle = getPrimaryCycle();
+        float dist = encoderDist.getDistanceMeters() - patternStartDist;
+        if (dist < 0) dist = 0;
+        pendingCycleCount = (cycle > 0 && dist > 0)
+                            ? (int)(dist / cycle) : -1;
+        Serial.printf("[ENGINE] Wzorzec %s kolejkowany (czeka na koniec cyklu)\n",
+                      PatternManager::patterns[pat].code);
+        g_state.displayNeedsUpdate = true;
+        return;
+    }
+
+    // Nie maluje → natychmiastowa zmiana
     patternMgr.setPattern(pat);
-    // Reset odległości wzorca przy zmianie
     patternStartDist = encoderDist.getDistanceMeters();
     storage.saveLastPattern(pat);
+    patternChangePending = false;
     g_state.displayNeedsUpdate = true;
     Serial.printf("[ENGINE] Zmiana wzorca -> %s\n",
                   patternMgr.getCurrent().code);
+}
+
+// Cykl (linia+przerwa) glownego pistoletu DASHED biezacego wzorca
+float PaintingEngine::getPrimaryCycle() const {
+    for (int i = 0; i < NUM_GUNS; i++) {
+        GunPatternCfg cfg = patternMgr.getGunConfig((GunID)i);
+        if (cfg.mode == GUN_DASHED && cfg.lineLen > 0) {
+            return cfg.lineLen + cfg.gapLen;
+        }
+    }
+    return 0;  // Wzorzec ciagly (brak cyklu)
+}
+
+// Zastosuj oczekujaca zmiane wzorca
+void PaintingEngine::applyPendingPattern() {
+    Serial.printf("[ENGINE] Inteligentne przelaczenie -> %s\n",
+                  PatternManager::patterns[pendingPattern].code);
+    patternMgr.setPattern(pendingPattern);
+    patternStartDist = encoderDist.getDistanceMeters();
+    storage.saveLastPattern(pendingPattern);
+    patternChangePending = false;
+    g_state.displayNeedsUpdate = true;
+    buzzer.beep(1500, 80);  // Krotki sygnal potwierdzenia
 }
 
 void PaintingEngine::toggleReverse() {

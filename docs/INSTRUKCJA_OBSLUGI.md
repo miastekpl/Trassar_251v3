@@ -1,4 +1,4 @@
-# TrassarV3 - Instrukcja obsługi v2.7.0
+# TrassarV3 - Instrukcja obsługi v2.8.0
 
 ## Spis treści
 
@@ -407,7 +407,27 @@ Panel sterowania w przeglądarce oferuje pełną kontrolę nad maszyną:
 
 ### 8.3 Zmiana wzorca przez panel WWW
 
-W panelu WWW dostępne jest **15 przycisków wzorców** — kliknięcie zmienia wzorzec natychmiast. Aktywny wzorzec jest podświetlony na zielono. Jest to **jedyny sposób zmiany wzorca** — na fizycznym panelu sterowania (ekran HOME i malowania) przycisk SELEKTOR służy wyłącznie do odwracania P-3a/P-3b.
+W panelu WWW dostępne jest **15 przycisków wzorców**. Aktywny wzorzec jest podświetlony na zielono. Jest to **jedyny sposób zmiany wzorca** — na fizycznym panelu sterowania (ekran HOME i malowania) przycisk SELEKTOR służy wyłącznie do odwracania P-3a/P-3b.
+
+### 8.4 Inteligentne przełączanie wzorców (Smart Switch)
+
+Zmiana wzorca **podczas aktywnego malowania** NIE przerywa bieżącego cyklu:
+
+1. Bieżąca linia jest domalowywana do pełnej długości
+2. Przerwa po linii jest dokańczana w całości
+3. Nowy wzorzec zaczyna się dopiero po zakończeniu pełnego cyklu starego
+
+**Wizualne potwierdzenie:**
+- Oczekujący wzorzec **miga pomarańczowo** w panelu WWW
+- Po faktycznym przełączeniu: krótki sygnał dźwiękowy (1500 Hz, 80 ms)
+- Aktywny wzorzec zmienia podświetlenie z zielonego na nowy
+
+**Wyjątki:**
+- **Wzorce ciągłe** (P-2a, P-2b, P-4, P-7b, P-7d) — przełączają się natychmiast (brak cyklu)
+- **PAUZA / STOP** — mogą przerwać malowanie w dowolnym momencie
+- **Anulowanie** — kliknięcie bieżącego aktywnego wzorca anuluje oczekującą zmianę
+
+**Przykład:** Malując P-1a (4 m linia + 8 m przerwa), klikasz P-1b. Maszyna domalowuje bieżącą linię 4 m, przejeżdża pełną przerwę 8 m, a potem zaczyna P-1b (2 m linia + 4 m przerwa).
 
 ---
 
@@ -562,7 +582,7 @@ System wyposażony jest w pasywny buzzer (GPIO 8) generujący sygnały dźwięko
 
 ## 13. Architektura wielordzeniowa
 
-TrassarV3 v2.7.0 wykorzystuje oba rdzenie procesora ESP32-S3:
+TrassarV3 v2.8.0 wykorzystuje oba rdzenie procesora ESP32-S3:
 
 | Rdzeń | Zadania |
 |-------|---------|
@@ -710,7 +730,7 @@ Gdy system wykryje anomalię pistoletów (skonfigurowany pistolet nie maluje po 
 **Kroki:**
 
 1. **Przygotowanie:**
-   - Włącz urządzenie — pojawi się ekran powitalny "TrassarV3 v2.7.0", a po chwili ekran główny
+   - Włącz urządzenie — pojawi się ekran powitalny "TrassarV3 v2.8.0", a po chwili ekran główny
    - Sprawdź wyświetlany wzorzec w lewym górnym rogu
    - Jeśli wyświetlany wzorzec to nie P-1a, zmień go przez panel WWW: połącz się z WiFi "TrassarV3" (hasło: 12345678), otwórz http://192.168.4.1 i kliknij przycisk **P-1a**
    - Sprawdź status kalibracji w panelu WWW — powinno być "Skalibrowany"
