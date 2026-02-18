@@ -107,8 +107,12 @@ void PaintingEngine::update() {
 
     } else if (g_state.machineMode == MODE_SEMI_AUTO) {
         // --- TRYB POLAUTOMATYCZNY ---
-        // Linia malowana automatycznie do lineLen, potem czeka na START
+        // Kazdy pistolet DASHED maluje do swojego lineLen niezaleznie,
+        // semiLineComplete dopiero gdy wszystkie pistolety DASHED skonczyly
         if (deltaDist > 0) semiLineDist += deltaDist;
+
+        bool anyDashed = false;
+        bool allDashedDone = true;
 
         for (int i = 0; i < NUM_GUNS; i++) {
             GunPatternCfg cfg = patternMgr.getGunConfig((GunID)i);
@@ -118,20 +122,25 @@ void PaintingEngine::update() {
                 // Ciagly - zawsze aktywny gdy predkosc OK
                 fire = speedOK;
             } else if (cfg.mode == GUN_DASHED) {
+                anyDashed = true;
                 if (!semiLineComplete) {
-                    // Faza linii - maluj do lineLen
-                    fire = speedOK && (semiLineDist < cfg.lineLen);
-                    // Sprawdz czy linia sie zakonczyla
-                    if (semiLineDist >= cfg.lineLen && !semiLineComplete) {
-                        semiLineComplete = true;
-                        buzzer.beep(1000, 50);  // Krotki sygnal: linia gotowa
+                    if (semiLineDist < cfg.lineLen) {
+                        // Ten pistolet jeszcze maluje swoja kreske
+                        fire = speedOK;
+                        allDashedDone = false;
                     }
+                    // else: ten pistolet skonczyl kreske, fire = false
                 }
-                // semiLineComplete = true -> gap phase, fire = false
             }
 
             guns.setGun((GunID)i, fire);
             gunStates[i] = fire;
+        }
+
+        // Ustaw semiLineComplete gdy wszystkie DASHED pistolety skonczyly
+        if (anyDashed && !semiLineComplete && allDashedDone) {
+            semiLineComplete = true;
+            buzzer.beep(1000, 50);  // Krotki sygnal: linia gotowa
         }
 
     } else {

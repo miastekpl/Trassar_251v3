@@ -176,7 +176,8 @@ Oprócz 15 predefiniowanych wzorców normowych, system umożliwia zdefiniowanie 
 **Konfiguracja wzorca własnego:**
 - Dostępna wyłącznie przez **panel WWW** (sekcja "Wzorzec własny")
 - Dla każdego pistoletu (P1–P6) można wybrać tryb: **Wyłączony**, **Ciągły** lub **Przerywany**
-- Długość kreski i przerwy: 0.1 – 50.0 m (wspólna dla wszystkich pistoletów przerywanych)
+- Każdy pistolet ustawiony jako **Przerywany** ma własne, niezależne parametry: długość kreski i przerwy (0.1 – 50.0 m)
+- Dzięki temu różne pistolety mogą malować z różnym wzorem (np. P2: 3m/2m, P5: 1m/1m)
 - Wzorzec jest zapisywany trwale w NVS — przetrwa restart urządzenia
 
 **Ograniczenia:**

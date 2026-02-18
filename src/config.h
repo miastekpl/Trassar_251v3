@@ -202,8 +202,8 @@ extern SystemState g_state;
 // ============ Konfiguracja wzorca wlasnego (NVS) ============
 struct CustomPatternCfg {
     uint8_t gunModes[NUM_GUNS];  // GunMode per gun (OFF/CONT/DASHED)
-    float lineLen;               // Dlugosc linii [m] (wspolna dla DASHED)
-    float gapLen;                // Dlugosc przerwy [m] (wspolna dla DASHED)
+    float lineLen[NUM_GUNS];     // Dlugosc linii [m] per gun (dla DASHED)
+    float gapLen[NUM_GUNS];      // Dlugosc przerwy [m] per gun (dla DASHED)
     bool valid;                  // Czy wzorzec jest zdefiniowany
 };
 

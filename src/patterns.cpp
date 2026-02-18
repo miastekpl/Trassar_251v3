@@ -158,7 +158,7 @@ void PatternManager::setCustomPattern(const CustomPatternCfg& cfg) {
     for (int i = 0; i < NUM_GUNS; i++) {
         GunMode gm = (GunMode)cfg.gunModes[i];
         if (gm == GUN_DASHED) {
-            customPatDef.guns[i] = {GUN_DASHED, cfg.lineLen, cfg.gapLen};
+            customPatDef.guns[i] = {GUN_DASHED, cfg.lineLen[i], cfg.gapLen[i]};
         } else if (gm == GUN_CONTINUOUS) {
             customPatDef.guns[i] = {GUN_CONTINUOUS, 0, 0};
         } else {
@@ -171,8 +171,10 @@ void PatternManager::setCustomPattern(const CustomPatternCfg& cfg) {
         }
     }
 
-    Serial.printf("[PAT] Wzorzec wlasny %s: linia=%.1fm przerwa=%.1fm\n",
-                  cfg.valid ? "zapisany" : "niewazny", cfg.lineLen, cfg.gapLen);
+    Serial.printf("[PAT] Wzorzec wlasny %s: %d pistoletow aktywnych\n",
+                  cfg.valid ? "zapisany" : "niewazny",
+                  (int)(cfg.gunModes[0]!=0)+(cfg.gunModes[1]!=0)+(cfg.gunModes[2]!=0)+
+                  (cfg.gunModes[3]!=0)+(cfg.gunModes[4]!=0)+(cfg.gunModes[5]!=0));
 }
 
 void PatternManager::loadCustomFromStorage() {

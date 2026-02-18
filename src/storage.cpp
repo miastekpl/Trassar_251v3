@@ -94,8 +94,7 @@ void StorageManager::saveCustomPattern(const CustomPatternCfg& cfg) {
     prefs.begin("trassar", false);
     prefs.putBytes("cust_pat", &cfg, sizeof(cfg));
     prefs.end();
-    Serial.printf("[NVS] Zapisano wzorzec wlasny: linia=%.1fm przerwa=%.1fm\n",
-                  cfg.lineLen, cfg.gapLen);
+    Serial.println("[NVS] Zapisano wzorzec wlasny (per-gun)");
 }
 
 CustomPatternCfg StorageManager::loadCustomPattern() {

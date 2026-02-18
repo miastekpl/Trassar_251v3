@@ -29,8 +29,9 @@ Wersjonowanie zgodne z [Semantic Versioning](https://semver.org/lang/pl/).
 - Ekran SCREEN_MODE_SELECT: 3 opcje z opisami, bieżący tryb oznaczony `*`
 
 #### 4) Wzorzec własny (PAT_CUSTOM)
-- Nowy 16. wzorzec: użytkownik definiuje konfigurację pistoletów, długość linii i przerwy
-- Edytor w panelu WWW: 6 rozwijanych list (Wyłączony/Ciągły/Przerywany) + pola linia/przerwa [m]
+- Nowy 16. wzorzec: użytkownik definiuje konfigurację pistoletów z indywidualnymi parametrami
+- Edytor w panelu WWW: 6 rozwijanych list (Wyłączony/Ciągły/Przerywany) + per-pistolet pola kreska/przerwa [m]
+- Każdy pistolet "Przerywany" ma własne, niezależne parametry długości kreski i przerwy
 - Przycisk "Zapisz wzorzec" zapisuje do NVS, "Użyj wzorca" aktywuje PAT_CUSTOM
 - Ograniczenia: linia/przerwa 0.1–50.0 m, walidacja po stronie serwera
 
@@ -72,13 +73,13 @@ Wersjonowanie zgodne z [Semantic Versioning](https://semver.org/lang/pl/).
 | `MachineMode` | enum 0-2 | MODE_AUTO, MODE_SEMI_AUTO, MODE_MANUAL |
 | `SCREEN_MODE_SELECT` | ScreenID | Nowy ekran wyboru trybu |
 | `PAT_CUSTOM` | PatternID 15 | Wzorzec własny użytkownika |
-| `CustomPatternCfg` | struct | gunModes[6], lineLen, gapLen, valid |
+| `CustomPatternCfg` | struct | gunModes[6], lineLen[6], gapLen[6], valid |
 
 #### Nowe akcje API
 | Akcja | Parametry | Opis |
 |-------|-----------|------|
 | `set_mode` | value=0-2 | Zmiana trybu pracy (0=AUTO, 1=SEMI, 2=MANUAL) |
-| `save_custom_pattern` | g0..g5, line, gap | Zapis wzorca własnego |
+| `save_custom_pattern` | g0..g5, ln0..ln5, gp0..gp5 | Zapis wzorca własnego (per-gun) |
 | `semi_next_line` | — | Wyzwolenie kolejnej linii w trybie SEMI |
 
 ---

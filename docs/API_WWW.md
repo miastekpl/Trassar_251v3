@@ -232,8 +232,10 @@ Wysyła komendę sterującą do systemu.
 | Parametr | Wymagany | Opis |
 |----------|----------|------|
 | `g0`–`g5` | Tak | Tryb pistoletu P1–P6: 0=wyłączony, 1=ciągły, 2=przerywany |
-| `line` | Tak | Długość kreski [m] (0.1–50.0) |
-| `gap` | Tak | Długość przerwy [m] (0.1–50.0) |
+| `ln0`–`ln5` | Tak | Długość kreski per pistolet [m] (0.1–50.0) |
+| `gp0`–`gp5` | Tak | Długość przerwy per pistolet [m] (0.1–50.0) |
+
+Każdy pistolet ustawiony jako "przerywany" (2) ma własne, niezależne parametry kreski i przerwy. Pistolety ciągłe i wyłączone ignorują te wartości.
 
 Po zapisie wzorzec jest automatycznie aplikowany i zaznaczany jako aktywny.
 
@@ -282,8 +284,8 @@ curl -X POST -d "action=set_mode&value=1" http://192.168.4.1/api/control
 # Wyzwól kolejną kreskę w trybie SEMI
 curl -X POST -d "action=semi_next_line" http://192.168.4.1/api/control
 
-# Zapisz wzorzec własny (P2 przerywany 3m/2m, reszta wyłączona)
-curl -X POST -d "action=save_custom_pattern&g0=0&g1=2&g2=0&g3=0&g4=0&g5=0&line=3.0&gap=2.0" http://192.168.4.1/api/control
+# Zapisz wzorzec własny (P2 przerywany 3m/2m, P5 przerywany 1m/1m, reszta wyłączona)
+curl -X POST -d "action=save_custom_pattern&g0=0&g1=2&g2=0&g3=0&g4=2&g5=0&ln0=4&gp0=8&ln1=3.0&gp1=2.0&ln2=4&gp2=8&ln3=4&gp3=8&ln4=1.0&gp4=1.0&ln5=4&gp5=8" http://192.168.4.1/api/control
 
 # Użyj wzorca własnego (indeks 15)
 curl -X POST -d "action=set_pattern&value=15" http://192.168.4.1/api/control

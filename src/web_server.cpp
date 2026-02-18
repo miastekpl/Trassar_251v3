@@ -166,27 +166,32 @@ void TrassarWebServer::handleControl() {
             result = "brak parametru value";
         }
     } else if (action == "save_custom_pattern") {
-        // Parametry: g0..g5 (gun mode: 0=OFF,1=CONT,2=DASHED), line, gap
+        // Parametry: g0..g5 (gun mode: 0=OFF,1=CONT,2=DASHED)
+        //            ln0..ln5 (line length per gun), gp0..gp5 (gap length per gun)
         CustomPatternCfg cfg = {};
         cfg.valid = true;
         for (int i = 0; i < NUM_GUNS; i++) {
-            String key = "g" + String(i);
-            if (server.hasArg(key)) {
-                int gm = server.arg(key).toInt();
+            String gKey = "g" + String(i);
+            String lKey = "ln" + String(i);
+            String pKey = "gp" + String(i);
+            if (server.hasArg(gKey)) {
+                int gm = server.arg(gKey).toInt();
                 if (gm < 0 || gm > 2) gm = 0;
                 cfg.gunModes[i] = (uint8_t)gm;
             }
+            float ln = 4.0f, gp = 8.0f;  // Domyslne
+            if (server.hasArg(lKey)) ln = server.arg(lKey).toFloat();
+            if (server.hasArg(pKey)) gp = server.arg(pKey).toFloat();
+            if (ln < 0.1f) ln = 0.1f;
+            if (ln > 50.0f) ln = 50.0f;
+            if (gp < 0.1f) gp = 0.1f;
+            if (gp > 50.0f) gp = 50.0f;
+            cfg.lineLen[i] = ln;
+            cfg.gapLen[i] = gp;
         }
-        if (server.hasArg("line")) cfg.lineLen = server.arg("line").toFloat();
-        if (server.hasArg("gap"))  cfg.gapLen  = server.arg("gap").toFloat();
-        if (cfg.lineLen < 0.1f) cfg.lineLen = 0.1f;
-        if (cfg.lineLen > 50.0f) cfg.lineLen = 50.0f;
-        if (cfg.gapLen < 0.1f) cfg.gapLen = 0.1f;
-        if (cfg.gapLen > 50.0f) cfg.gapLen = 50.0f;
         patternMgr.setCustomPattern(cfg);
         storage.saveCustomPattern(cfg);
-        Serial.printf("[WWW] Wzorzec wlasny zapisany: linia=%.1f przerwa=%.1f\n",
-                      cfg.lineLen, cfg.gapLen);
+        Serial.println("[WWW] Wzorzec wlasny zapisany (per-gun)");
     } else if (action == "semi_next_line") {
         paintEngine.semiNextLine();
     } else {
@@ -594,24 +599,7 @@ body{
     <!-- ========== CUSTOM PATTERN ========== -->
     <div class="card">
         <h3>Wzorzec wlasny</h3>
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:10px;">
-            <div style="text-align:center;font-size:10px;color:#6b7d9a;">Pistolet</div>
-            <div style="text-align:center;font-size:10px;color:#6b7d9a;">Tryb</div>
-            <div></div>
-        </div>
         <div id="cpGuns"></div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;">
-            <div>
-                <label style="font-size:11px;color:#6b7d9a;">Linia [m]</label>
-                <input type="number" id="cpLine" value="4.0" min="0.1" max="50" step="0.1"
-                    style="width:100%;padding:8px;background:#0d1520;border:1px solid #1e2d42;border-radius:6px;color:#e0e6f0;font-size:14px;">
-            </div>
-            <div>
-                <label style="font-size:11px;color:#6b7d9a;">Przerwa [m]</label>
-                <input type="number" id="cpGap" value="8.0" min="0.1" max="50" step="0.1"
-                    style="width:100%;padding:8px;background:#0d1520;border:1px solid #1e2d42;border-radius:6px;color:#e0e6f0;font-size:14px;">
-            </div>
-        </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;">
             <button class="cal-btn" onclick="saveCustomPat()">Zapisz wzorzec</button>
             <button class="cal-btn" onclick="setPat(15)" id="cpUseBtn" style="opacity:.4;">Uzyj wzorca</button>
@@ -771,16 +759,29 @@ function setMode(m){
     }).then(r=>r.json()).then(()=>fetchStatus());
 }
 /* ------- Custom pattern ------- */
+function cpGunChanged(i){
+    let sel=document.getElementById('cpG'+i);
+    let row=document.getElementById('cpRow'+i);
+    if(sel.value==='2'){row.style.display='grid';}
+    else{row.style.display='none';}
+}
 function initCustomGuns(){
     if(cpInited)return;cpInited=true;
     let el=document.getElementById('cpGuns');
     let h='';
+    let inS='style="width:100%;padding:6px;background:#0d1520;border:1px solid #1e2d42;border-radius:6px;color:#e0e6f0;font-size:13px;"';
     for(let i=0;i<6;i++){
-        h+='<div style="display:grid;grid-template-columns:1fr 2fr;gap:6px;align-items:center;margin-bottom:6px;">';
+        h+='<div style="display:grid;grid-template-columns:1fr 2fr;gap:6px;align-items:center;margin-bottom:4px;">';
         h+='<span style="font-size:12px;color:#9eafc4;">'+GUN_NAMES[i]+'</span>';
-        h+='<select id="cpG'+i+'" style="padding:6px;background:#0d1520;border:1px solid #1e2d42;border-radius:6px;color:#e0e6f0;font-size:12px;">';
+        h+='<select id="cpG'+i+'" onchange="cpGunChanged('+i+')" style="padding:6px;background:#0d1520;border:1px solid #1e2d42;border-radius:6px;color:#e0e6f0;font-size:12px;">';
         h+='<option value="0">Wylaczony</option><option value="1">Ciagly</option><option value="2">Przerywany</option>';
         h+='</select></div>';
+        h+='<div id="cpRow'+i+'" style="display:none;grid-template-columns:1fr 1fr;gap:6px;margin:0 0 8px 0;padding-left:8px;border-left:2px solid #1e2d42;">';
+        h+='<div><label style="font-size:10px;color:#6b7d9a;">Kreska [m]</label>';
+        h+='<input type="number" id="cpLn'+i+'" value="4.0" min="0.1" max="50" step="0.1" '+inS+'></div>';
+        h+='<div><label style="font-size:10px;color:#6b7d9a;">Przerwa [m]</label>';
+        h+='<input type="number" id="cpGp'+i+'" value="8.0" min="0.1" max="50" step="0.1" '+inS+'></div>';
+        h+='</div>';
     }
     el.innerHTML=h;
 }
@@ -788,9 +789,10 @@ function saveCustomPat(){
     let body='action=save_custom_pattern';
     for(let i=0;i<6;i++){
         body+='&g'+i+'='+document.getElementById('cpG'+i).value;
+        let ln=document.getElementById('cpLn'+i).value||'4.0';
+        let gp=document.getElementById('cpGp'+i).value||'8.0';
+        body+='&ln'+i+'='+ln+'&gp'+i+'='+gp;
     }
-    body+='&line='+document.getElementById('cpLine').value;
-    body+='&gap='+document.getElementById('cpGap').value;
     fetch('/api/control',{
         method:'POST',
         headers:{'Content-Type':'application/x-www-form-urlencoded'},
