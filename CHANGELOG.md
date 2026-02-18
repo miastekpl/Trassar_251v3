@@ -7,6 +7,82 @@ Wersjonowanie zgodne z [Semantic Versioning](https://semver.org/lang/pl/).
 
 ---
 
+## [2.9.0] - 2026-02-18
+
+### Dodano - Tryby pracy (Auto/Semi/Manual) + Wzorzec własny
+
+#### 1) Trzy tryby pracy maszyny
+- **Automatyczny (AUTO)** — pełna automatyka dystansowa (dotychczasowe zachowanie)
+- **Półautomatyczny (SEMI-AUTO)** — linia malowana automatycznie do długości ze wzorca, przerwa ręczna (operator naciska START aby rozpocząć kolejną linię)
+- **Ręczny (MANUAL)** — pistolety strzelają gdy operator trzyma przycisk START (jak czyszczenie dysz, ale z pełnymi statystykami i wzorcem)
+
+#### 2) Wybór trybu pracy na urządzeniu
+- Długie przytrzymanie START na ekranie HOME (idle) → ekran wyboru trybu
+- Krótkie kliknięcia START przełączają: AUTO → SEMI → MANUAL
+- Długie przytrzymanie START zatwierdza wybór + sygnał buzzer (2 kHz, 150 ms)
+- STOP anuluje i wraca do HOME bez zmiany
+- Tryb zapisywany trwale w NVS i wczytywany przy starcie
+
+#### 3) Wskaźnik trybu na wyświetlaczu
+- Ekran HOME: etykieta `[AUTO]`, `[SEMI]` lub `[RECZNY]` pod statusem "Gotowy"
+- Ekran PAINTING: etykieta trybu pod dystansem sesji
+- Ekran SCREEN_MODE_SELECT: 3 opcje z opisami, bieżący tryb oznaczony `*`
+
+#### 4) Wzorzec własny (PAT_CUSTOM)
+- Nowy 16. wzorzec: użytkownik definiuje konfigurację pistoletów, długość linii i przerwy
+- Edytor w panelu WWW: 6 rozwijanych list (Wyłączony/Ciągły/Przerywany) + pola linia/przerwa [m]
+- Przycisk "Zapisz wzorzec" zapisuje do NVS, "Użyj wzorca" aktywuje PAT_CUSTOM
+- Ograniczenia: linia/przerwa 0.1–50.0 m, walidacja po stronie serwera
+
+#### 5) Tryb pracy w panelu WWW
+- Nowa sekcja "Tryb pracy" z 3 przyciskami: AUTO / SEMI / RECZNY
+- Opis trybu wyświetlany pod przyciskami
+- Przycisk "NASTĘPNA LINIA" widoczny w trybie SEMI gdy linia zakończona
+- Nowe pola API: `mode`, `semiLineComplete`, `patternIdx`, `customValid`
+- Nowe akcje API: `set_mode`, `save_custom_pattern`, `semi_next_line`
+
+#### 6) Logika trybu półautomatycznego w silniku malowania
+- Śledzenie dystansu linii (`semiLineDist`) z akumulacją delta dystansu
+- Pistolety DASHED: automatyczne wyłączenie po osiągnięciu `lineLen`
+- Pistolety CONTINUOUS: zawsze aktywne (niezależne od fazy linii)
+- Sygnał buzzer (1 kHz, 50 ms) po zakończeniu linii
+- `semiNextLine()`: zeruje dystans linii i flagę zakończenia
+
+#### 7) Logika trybu ręcznego w silniku malowania
+- Pistolety strzelają gdy `buttons.isStartHeld()` && prędkość >= 3 km/h
+- Konfiguracja pistoletów pobierana z bieżącego wzorca (GUN_OFF = wyłączony)
+- Pełne statystyki sesji (dystans, powierzchnia, czas)
+- EVT_START_SHORT na ekranie malowania ignorowany (nie przełącza pauzy)
+
+### Zmieniono
+- Wersja firmware: 2.8.0 → **2.9.0**
+- `config.h`: enum `MachineMode`, `SCREEN_MODE_SELECT`, `PAT_CUSTOM`, `CustomPatternCfg`
+- `button_handler`: dodany `EVT_START_LONG` (priorytet nad EVT_START_SHORT)
+- `storage`: `saveMode()`/`loadMode()`, `saveCustomPattern()`/`loadCustomPattern()`
+- `patterns`: tablica 15 predefiniowanych + 1 mutowalny custom, bezpieczne `getPattern()`
+- `painting_engine`: 3-trybowy `update()`, `semiNextLine()`, `isSemiLineComplete()`
+- `menu`: `handleModeSelect()`, trybo-świadomy `handlePaintingScreen()`
+- `display_manager`: `drawModeSelect()`, `modeStr()`, wskaźnik trybu na HOME/PAINTING
+- `web_server`: sekcja trybu, edytor wzorca własnego, nowe akcje API
+- `main.cpp`: wczytywanie trybu z NVS przy starcie
+
+#### Nowe stałe/typy w config.h
+| Typ/Stała | Wartość | Opis |
+|-----------|---------|------|
+| `MachineMode` | enum 0-2 | MODE_AUTO, MODE_SEMI_AUTO, MODE_MANUAL |
+| `SCREEN_MODE_SELECT` | ScreenID | Nowy ekran wyboru trybu |
+| `PAT_CUSTOM` | PatternID 15 | Wzorzec własny użytkownika |
+| `CustomPatternCfg` | struct | gunModes[6], lineLen, gapLen, valid |
+
+#### Nowe akcje API
+| Akcja | Parametry | Opis |
+|-------|-----------|------|
+| `set_mode` | value=0-2 | Zmiana trybu pracy (0=AUTO, 1=SEMI, 2=MANUAL) |
+| `save_custom_pattern` | g0..g5, line, gap | Zapis wzorca własnego |
+| `semi_next_line` | — | Wyzwolenie kolejnej linii w trybie SEMI |
+
+---
+
 ## [2.8.0] - 2026-02-17
 
 ### Dodano - Inteligentne przełączanie wzorców (Smart Pattern Switch)

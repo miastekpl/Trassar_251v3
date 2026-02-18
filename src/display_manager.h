@@ -1,7 +1,7 @@
 #pragma once
 // ============================================================
 // TrassarV3 - Modul wyswietlacza ILI9341  320x240 landscape
-// Komputer pokladowy malowarki pasow drogowych  v2.8.0
+// Komputer pokladowy malowarki pasow drogowych  v2.9.0
 // ============================================================
 
 #include <TFT_eSPI.h>
@@ -35,6 +35,9 @@ public:
     void drawNozzleClean(const char* patCode, const char* patName,
                          const GunPatternCfg guns[6], const bool gunStates[6]);
 
+    // Wybor trybu pracy
+    void drawModeSelect(int selectedMode, MachineMode currentMode);
+
     // ---- Elementy pomocnicze ----
     void drawHeader(const char* title);
     void drawGunRects(int y, const GunPatternCfg gunsCfg[6],
@@ -47,6 +50,7 @@ private:
     TFT_eSPI tft;
     const char* stateStr(MachineState s);
     uint16_t stateColor(MachineState s);
+    const char* modeStr(MachineMode m);
     void fmtTime(unsigned long sec, char* buf, size_t len);
     void drawPatternVisualization(int vizX, int vizY, int vizW, int vizH,
                                   const GunPatternCfg gunsCfg[6],

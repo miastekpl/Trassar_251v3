@@ -1,7 +1,8 @@
 // ============================================================
 // TrassarV3 - Implementacja modulu wyswietlacza ILI9341
 // 320x240 landscape, podswietlenie LEDC PWM
-// v2.8.0 - Anti-flicker na WSZYSTKICH ekranach (setTextPadding)
+// v2.9.0 - Tryby pracy (AUTO/SEMI/MANUAL), wskaznik trybu
+//           Anti-flicker na WSZYSTKICH ekranach (setTextPadding)
 //           Pionowa wizualizacja wzorca (kolumny jak na drodze)
 //           Layout 3-kolumnowy: info | viz | predkosc
 //           Czas sesji na ekranie malowania
@@ -203,6 +204,13 @@ void DisplayManager::drawHomeScreen(const char* patCode, const char* patName,
     tft.setTextColor(COLOR_ACCENT, COLOR_BG);
     tft.setTextPadding(92);
     tft.drawString("Gotowy", 8, 72);
+    tft.setTextPadding(0);
+
+    // Tryb pracy
+    tft.setFreeFont(FM9);
+    tft.setTextColor(COLOR_MENU_TXT, COLOR_BG);
+    tft.setTextPadding(92);
+    tft.drawString(modeStr(g_state.machineMode), 8, 92);
     tft.setTextPadding(0);
 
     // ---- PRAWY GORNY: Predkosc (duza, FSB24) ----
@@ -431,6 +439,13 @@ void DisplayManager::drawPaintingScreen(MachineState state, const char* patCode,
     }
     tft.setTextPadding(92);
     tft.drawString(buf, 8, 112);
+    tft.setTextPadding(0);
+
+    // Tryb pracy
+    tft.setFreeFont(FM9);
+    tft.setTextColor(COLOR_MENU_TXT, COLOR_BG);
+    tft.setTextPadding(92);
+    tft.drawString(modeStr(g_state.machineMode), 8, 132);
     tft.setTextPadding(0);
 
     // ---- PRAWY GORNY: Predkosc (duza, FSB24) ----
@@ -870,6 +885,15 @@ uint16_t DisplayManager::stateColor(MachineState s) {
     }
 }
 
+const char* DisplayManager::modeStr(MachineMode m) {
+    switch (m) {
+        case MODE_AUTO:      return "[AUTO]";
+        case MODE_SEMI_AUTO: return "[SEMI]";
+        case MODE_MANUAL:    return "[RECZNY]";
+        default:             return "[?]";
+    }
+}
+
 void DisplayManager::fmtTime(unsigned long sec, char* buf, size_t len) {
     unsigned long h = sec / 3600;
     unsigned long m = (sec % 3600) / 60;
@@ -880,4 +904,76 @@ void DisplayManager::fmtTime(unsigned long sec, char* buf, size_t len) {
     } else {
         snprintf(buf, len, "%02lu:%02lu", m, s);
     }
+}
+
+// ============================================================
+//  EKRAN WYBORU TRYBU PRACY - landscape
+//  3 tryby: Automatyczny, Polautomatyczny, Reczny
+//  START(krotki) = zmiana opcji, START(dlugi) = zatwierdzenie
+// ============================================================
+void DisplayManager::drawModeSelect(int selectedMode, MachineMode currentMode) {
+    drawHeader("WYBOR TRYBU PRACY");
+
+    static const char* labels[3] = {
+        "Automatyczny",
+        "Polautomatyczny",
+        "Reczny"
+    };
+    static const char* descs[3] = {
+        "Pelna automatyka - dystans steruje pistoletami",
+        "Auto linia, reczna przerwa (START = nast. linia)",
+        "Trzymaj START = strzal (jak czyszczenie dysz)"
+    };
+
+    const int itemH  = 48;
+    const int startY = 36;
+
+    for (int i = 0; i < 3; i++) {
+        int iy = startY + i * itemH;
+        bool sel = (i == selectedMode);
+        bool cur = (i == (int)currentMode);
+        uint16_t bg = sel ? COLOR_MENU_SEL : COLOR_BG;
+        uint16_t fg = sel ? COLOR_TEXT      : COLOR_MENU_TXT;
+
+        tft.fillRect(0, iy, TFT_SCREEN_W, itemH, bg);
+
+        // Wskaznik zaznaczenia
+        tft.setFreeFont(FSB9);
+        tft.setTextColor(fg, bg);
+        tft.setTextDatum(ML_DATUM);
+        if (sel) {
+            tft.drawString(">", 8, iy + itemH / 2 - 6);
+        }
+
+        // Nazwa trybu
+        tft.setFreeFont(FSB9);
+        tft.setTextColor(fg, bg);
+        tft.drawString(labels[i], 24, iy + itemH / 2 - 6);
+
+        // Aktualny tryb - znacznik
+        if (cur) {
+            tft.setTextColor(COLOR_ACCENT, bg);
+            tft.drawString("*", TFT_SCREEN_W - 24, iy + itemH / 2 - 6);
+        }
+
+        // Opis
+        tft.setFreeFont(FM9);
+        tft.setTextColor(sel ? COLOR_MENU_TXT : COLOR_DIVIDER, bg);
+        tft.drawString(descs[i], 24, iy + itemH / 2 + 10);
+
+        tft.setTextDatum(TL_DATUM);
+        tft.drawFastHLine(0, iy + itemH - 1, TFT_SCREEN_W, COLOR_DIVIDER);
+    }
+
+    // Wyczysc reszte pod menu
+    int bottomY = startY + 3 * itemH;
+    tft.fillRect(0, bottomY, TFT_SCREEN_W, TFT_SCREEN_H - bottomY - 28, COLOR_BG);
+
+    // --- Podpowiedzi ---
+    int y = TFT_SCREEN_H - 22;
+    tft.setFreeFont(FM9);
+    tft.setTextColor(COLOR_MENU_TXT, COLOR_BG);
+    tft.setTextPadding(TFT_SCREEN_W - 12);
+    tft.drawString("START=zmien  START(1s)=zatwierdz  STOP=powrot", 6, y);
+    tft.setTextPadding(0);
 }

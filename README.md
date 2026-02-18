@@ -1,22 +1,26 @@
 # TrassarV3 - Komputer pokładowy malowarki pasów drogowych
 
 Firmware komputera pokładowego malowarki pasów drogowych oparty na platformie **ESP32-S3 N16R8**.
-Obsługuje **6 pistoletów natryskowych**, **15 wzorców malowania** zgodnych z polskimi normami oznakowania drogowego, kalibrację enkodera i obliczanie powierzchni malowanej.
+Obsługuje **6 pistoletów natryskowych**, **16 wzorców malowania** (15 normowych + własny) zgodnych z polskimi normami oznakowania drogowego, **3 tryby pracy** (automatyczny, półautomatyczny, ręczny), kalibrację enkodera i obliczanie powierzchni malowanej.
 
 ## Funkcje
 
 - **6 pistoletów natryskowych** (P1-P6) sterowanych przekaźnikami
-- **15 wzorców malowania** (P-1a...P-7d) - polskie normy oznakowania
+- **16 wzorców malowania** (P-1a...P-7d + własny) - polskie normy oznakowania
+- **3 tryby pracy** - automatyczny, półautomatyczny, ręczny
+- **Wzorzec własny** - definiowany przez operatora z panelu WWW, zapis do NVS
 - **Kalibracja enkodera** - procedura 10m z zapisem do NVS
 - **Obliczanie powierzchni** - na podstawie dystansu i szerokości pistoletów
 - **Inteligentne przełączanie wzorców** (Smart Switch) - dokończ cykl przed zmianą
 - **Odwracanie wzorców P-3a/P-3b** (zamiana ciągła ↔ przerywana)
-- **Wyświetlacz TFT 2.8" ILI9341** (240x320, SPI) - 9 ekranów interfejsu
+- **Wyświetlacz TFT 2.8" ILI9341** (240x320, SPI) - 10 ekranów interfejsu
 - **Serwer WWW na Core 0** - panel sterowania przez WiFi AP (nie blokuje krytycznej pętli)
 - **Menu serwisowe WWW** - statystyki lifetime, lista raportów SD, wskaźniki anomalii pistoletów
+- **Wybór trybu pracy z WWW i z urządzenia** - selektor trybu AUTO/SEMI/RĘCZNY
+- **Edytor wzorca własnego w WWW** - konfiguracja 6 pistoletów, kreska/przerwa, zapis do NVS
 - **Zegar RTC DS1307** - czas rzeczywisty z podtrzymaniem bateryjnym
 - **Statystyki** - sesja + łączne (dystans, powierzchnia, czas pracy)
-- **Pamięć trwała NVS** - kalibracja, statystyki, ostatni wzorzec, próg prędkości
+- **Pamięć trwała NVS** - kalibracja, statystyki, ostatni wzorzec, próg prędkości, tryb pracy
 - **Watchdog timer** (3 s) - auto-reset ESP32 przy zawieszeniu loop()
 - **Gun keepalive** (300 ms) - awaryjne wyłączenie pistoletów przy braku update
 - **Alarm przekroczenia prędkości** - migający wyświetlacz + buzzer, próg konfigurowalny z WWW
@@ -60,6 +64,15 @@ Obsługuje **6 pistoletów natryskowych**, **15 wzorców malowania** zgodnych z 
 | P-7b | Krawędziowa ciągła szer. | ciągła | P6 | 24cm |
 | P-7c | Krawędziowa przeryw. wąska | 1m / 2m | P5 | 12cm |
 | P-7d | Krawędziowa ciągła wąska | ciągła | P5 | 12cm |
+| WŁASNY | Wzorzec własny | definiowany | P1-P6 | — |
+
+## Tryby pracy
+
+| Tryb | Opis |
+|------|------|
+| **Automatyczny (AUTO)** | Pistolety sterowane automatycznie wg wzorca (kreska/przerwa na podstawie dystansu) |
+| **Półautomatyczny (SEMI)** | Linia malowana automatycznie do pełnej długości, przerwa kontrolowana przez operatora (START = kolejna linia) |
+| **Ręczny (MANUAL)** | Pistolety aktywne tylko gdy operator trzyma przycisk START |
 
 ## Komponenty sprzętowe
 
@@ -106,13 +119,13 @@ TrassarV3/
 ├── src/
 │   ├── main.cpp                # Główny plik programu (11 modułów)
 │   ├── config.h                # Definicje pinów, enumów, struktur
-│   ├── patterns.h/cpp          # 15 wzorców malowania
+│   ├── patterns.h/cpp          # 16 wzorców malowania (15 + własny)
 │   ├── guns.h/cpp              # Kontroler 6 przekaźników
 │   ├── encoder_distance.h/cpp  # Pomiar dystansu, prędkości, kalibracja
 │   ├── painting_engine.h/cpp   # Silnik malowania (maszyna stanów)
 │   ├── statistics.h/cpp        # Statystyki (sesja + lifetime)
 │   ├── storage.h/cpp           # Pamięć trwała NVS (Preferences)
-│   ├── display_manager.h/cpp   # Obsługa wyświetlacza (9 ekranów)
+│   ├── display_manager.h/cpp   # Obsługa wyświetlacza (10 ekranów)
 │   ├── button_handler.h/cpp    # Obsługa przycisków BS-33B
 │   ├── rtc_handler.h/cpp       # Obsługa zegara RTC DS1307
 │   ├── web_server.h/cpp        # Serwer WWW (WiFi AP + REST API)
@@ -135,7 +148,7 @@ TrassarV3/
 
 ## Wersja
 
-Aktualna wersja firmware: **v2.8.0**
+Aktualna wersja firmware: **v2.9.0**
 
 ## Licencja
 

@@ -30,6 +30,14 @@ public:
     // Prog predkosci maks.
     void saveMaxSpeed(float kmh);
     float loadMaxSpeed();
+
+    // Tryb pracy
+    void saveMode(MachineMode mode);
+    MachineMode loadMode();
+
+    // Wzorzec wlasny
+    void saveCustomPattern(const CustomPatternCfg& cfg);
+    CustomPatternCfg loadCustomPattern();
 };
 
 extern StorageManager storage;

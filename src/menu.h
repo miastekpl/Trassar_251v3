@@ -16,6 +16,7 @@ private:
     void handleDistanceMeter(ButtonEvent e);
     void handleReports(ButtonEvent e);
     void handleNozzleClean(ButtonEvent e);
+    void handleModeSelect(ButtonEvent e);
     void goToScreen(ScreenID screen);
 
     static const int SERVICE_MENU_ITEMS = 4;
@@ -27,5 +28,8 @@ private:
 
     // Czyszczenie dysz - wybrany wzorzec
     int nozzlePatternIdx = 0;
+
+    // Wybor trybu pracy
+    int modeSelectIdx = 0;  // 0=AUTO, 1=SEMI, 2=MANUAL
 };
 extern MenuSystem menu;

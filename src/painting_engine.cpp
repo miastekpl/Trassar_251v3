@@ -1,5 +1,6 @@
 // ============================================================
 // TrassarV3 - Silnik malowania
+// Tryby: AUTO / SEMI_AUTO / MANUAL
 // ============================================================
 
 #include "painting_engine.h"
@@ -10,6 +11,7 @@
 #include "storage.h"
 #include "report_logger.h"
 #include "buzzer.h"
+#include "button_handler.h"
 #include <math.h>
 
 PaintingEngine paintEngine;
@@ -23,6 +25,8 @@ void PaintingEngine::begin() {
     lowSpeedActive = false;
     lastLowSpeedBuzMs = 0;
     lastOverspeedBuzMs = 0;
+    semiLineDist = 0;
+    semiLineComplete = false;
 }
 
 bool PaintingEngine::shouldGunFire(GunID gun, float distFromPatternStart) const {
@@ -60,8 +64,8 @@ void PaintingEngine::update() {
     float distFromPatternStart = currentDist - patternStartDist;
     if (distFromPatternStart < 0) distFromPatternStart = 0;
 
-    // --- Inteligentne przelaczanie: sprawdz granice cyklu ---
-    if (patternChangePending) {
+    // --- Inteligentne przelaczanie: sprawdz granice cyklu (tylko AUTO) ---
+    if (patternChangePending && g_state.machineMode == MODE_AUTO) {
         float cycle = getPrimaryCycle();
         if (cycle <= 0 || pendingCycleCount < 0) {
             // Wzorzec ciagly - przelacz natychmiast
@@ -85,12 +89,58 @@ void PaintingEngine::update() {
     // Bezpieczenstwo: pistolety tylko przy >= 3 km/h
     bool speedOK = (speedKmh >= MIN_PAINT_SPEED_KMH);
 
-    // Aktualizuj stan każdego pistoletu
+    // ============================================================
+    // Sterowanie pistoletami zaleznie od trybu
+    // ============================================================
     bool gunStates[NUM_GUNS];
-    for (int i = 0; i < NUM_GUNS; i++) {
-        bool fire = speedOK && shouldGunFire((GunID)i, distFromPatternStart);
-        guns.setGun((GunID)i, fire);
-        gunStates[i] = fire;
+
+    if (g_state.machineMode == MODE_MANUAL) {
+        // --- TRYB RECZNY ---
+        // Pistolety strzelaja gdy operator trzyma START i predkosc OK
+        bool held = buttons.isStartHeld();
+        for (int i = 0; i < NUM_GUNS; i++) {
+            GunPatternCfg cfg = patternMgr.getGunConfig((GunID)i);
+            bool fire = speedOK && held && (cfg.mode != GUN_OFF);
+            guns.setGun((GunID)i, fire);
+            gunStates[i] = fire;
+        }
+
+    } else if (g_state.machineMode == MODE_SEMI_AUTO) {
+        // --- TRYB POLAUTOMATYCZNY ---
+        // Linia malowana automatycznie do lineLen, potem czeka na START
+        if (deltaDist > 0) semiLineDist += deltaDist;
+
+        for (int i = 0; i < NUM_GUNS; i++) {
+            GunPatternCfg cfg = patternMgr.getGunConfig((GunID)i);
+            bool fire = false;
+
+            if (cfg.mode == GUN_CONTINUOUS) {
+                // Ciagly - zawsze aktywny gdy predkosc OK
+                fire = speedOK;
+            } else if (cfg.mode == GUN_DASHED) {
+                if (!semiLineComplete) {
+                    // Faza linii - maluj do lineLen
+                    fire = speedOK && (semiLineDist < cfg.lineLen);
+                    // Sprawdz czy linia sie zakonczyla
+                    if (semiLineDist >= cfg.lineLen && !semiLineComplete) {
+                        semiLineComplete = true;
+                        buzzer.beep(1000, 50);  // Krotki sygnal: linia gotowa
+                    }
+                }
+                // semiLineComplete = true -> gap phase, fire = false
+            }
+
+            guns.setGun((GunID)i, fire);
+            gunStates[i] = fire;
+        }
+
+    } else {
+        // --- TRYB AUTOMATYCZNY (domyslny) ---
+        for (int i = 0; i < NUM_GUNS; i++) {
+            bool fire = speedOK && shouldGunFire((GunID)i, distFromPatternStart);
+            guns.setGun((GunID)i, fire);
+            gunStates[i] = fire;
+        }
     }
 
     // Aktualizuj statystyki
@@ -134,6 +184,8 @@ void PaintingEngine::start() {
         patternStartDist = 0;
         gapStartActive = false;
         patternChangePending = false;
+        semiLineDist = 0;
+        semiLineComplete = false;
         g_state.machineState = STATE_PAINTING;
         stats.startSessionTimer();
         g_state.currentScreen = SCREEN_PAINTING;
@@ -141,8 +193,12 @@ void PaintingEngine::start() {
         g_state.forceFullRedraw = true;
         lastGunUpdateMs = millis();
         buzzer.play(BUZ_PAINT_START);
-        Serial.printf("[ENGINE] Start malowania - wzorzec %s\n",
-                      patternMgr.getCurrent().code);
+
+        const char* modeStr = "AUTO";
+        if (g_state.machineMode == MODE_SEMI_AUTO) modeStr = "SEMI";
+        else if (g_state.machineMode == MODE_MANUAL) modeStr = "MANUAL";
+        Serial.printf("[ENGINE] Start malowania [%s] - wzorzec %s\n",
+                      modeStr, patternMgr.getCurrent().code);
     }
 }
 
@@ -150,7 +206,22 @@ void PaintingEngine::startFromGap() {
     if (g_state.machineState != STATE_IDLE && g_state.machineState != STATE_STOPPED)
         return;
 
-    // Znajdz pierwszy pistolet DASHED w biezacym wzorcu
+    // W trybie SEMI_AUTO: start od przerwy = semiLineComplete od razu
+    if (g_state.machineMode == MODE_SEMI_AUTO) {
+        start();
+        semiLineComplete = true;  // Zaczyna od przerwy - czeka na START
+        gapStartActive = true;
+        Serial.println("[ENGINE] Semi-auto: start od przerwy (czeka na START)");
+        return;
+    }
+
+    // W trybie MANUAL: brak przerw - normalny start
+    if (g_state.machineMode == MODE_MANUAL) {
+        start();
+        return;
+    }
+
+    // Tryb AUTO: oryginalna logika
     const PatternDef& pat = patternMgr.getCurrent();
     float lineLen = 0;
     for (int i = 0; i < NUM_GUNS; i++) {
@@ -175,6 +246,8 @@ void PaintingEngine::startFromGap() {
     patternStartDist = -lineLen;
     gapStartActive = true;
     patternChangePending = false;
+    semiLineDist = 0;
+    semiLineComplete = false;
     g_state.machineState = STATE_PAINTING;
     stats.startSessionTimer();
     g_state.currentScreen = SCREEN_PAINTING;
@@ -262,7 +335,7 @@ void PaintingEngine::setPattern(PatternID pat) {
         pendingCycleCount = (cycle > 0 && dist > 0)
                             ? (int)(dist / cycle) : -1;
         Serial.printf("[ENGINE] Wzorzec %s kolejkowany (czeka na koniec cyklu)\n",
-                      PatternManager::patterns[pat].code);
+                      patternMgr.getPattern(pat).code);
         g_state.displayNeedsUpdate = true;
         return;
     }
@@ -291,7 +364,7 @@ float PaintingEngine::getPrimaryCycle() const {
 // Zastosuj oczekujaca zmiane wzorca
 void PaintingEngine::applyPendingPattern() {
     Serial.printf("[ENGINE] Inteligentne przelaczenie -> %s\n",
-                  PatternManager::patterns[pendingPattern].code);
+                  patternMgr.getPattern(pendingPattern).code);
     patternMgr.setPattern(pendingPattern);
     patternStartDist = encoderDist.getDistanceMeters();
     storage.saveLastPattern(pendingPattern);
@@ -305,6 +378,19 @@ void PaintingEngine::toggleReverse() {
     g_state.displayNeedsUpdate = true;
     Serial.printf("[ENGINE] Odwrocenie: %s\n",
                   g_state.patternReversed ? "TAK" : "NIE");
+}
+
+// ============================================================
+// Semi-auto: wyzwolenie kolejnej linii przez operatora
+// Wywolywane z menu po wcisnieciu START na ekranie malowania
+// ============================================================
+void PaintingEngine::semiNextLine() {
+    if (g_state.machineMode != MODE_SEMI_AUTO) return;
+    if (!semiLineComplete) return;
+    semiLineDist = 0;
+    semiLineComplete = false;
+    buzzer.beep(1500, 80);  // Krotki sygnal potwierdzenia
+    Serial.println("[ENGINE] Semi-auto: rozpoczynam kolejna linie");
 }
 
 // ============================================================

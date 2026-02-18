@@ -60,6 +60,7 @@ void ButtonHandler::update() {
 }
 
 ButtonEvent ButtonHandler::getEvent() {
+    if (btnStart.pendingLong)   { btnStart.pendingLong = false;  return EVT_START_LONG; }
     if (btnStart.pendingShort)  { btnStart.pendingShort = false; return EVT_START_SHORT; }
     if (btnStop.pendingLong)    { btnStop.pendingLong = false;   return EVT_STOP_LONG; }
     if (btnStop.pendingShort)   { btnStop.pendingShort = false;  return EVT_STOP_SHORT; }

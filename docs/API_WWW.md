@@ -1,4 +1,4 @@
-# TrassarV3 - API serwera WWW v2.8.0
+# TrassarV3 - API serwera WWW v2.9.0
 
 ## Informacje ogólne
 
@@ -21,9 +21,12 @@ Panel zawiera:
 - Status maszyny z animowanym wskaźnikiem
 - Informacje: wzorzec, prędkość, dystans, powierzchnia, czas
 - Przyciski START / PAUZA / STOP / **START OD PRZERWY**
-- 15 przycisków wzorców pogrupowanych: P-1x, P-2x, P-3x, P-4/P-6, P-7x
+- **Selektor trybu pracy** — 3 przyciski: AUTO / SEMI / RĘCZNY
+- 16 przycisków wzorców pogrupowanych: P-1x, P-2x, P-3x, P-4/P-6, P-7x, WŁASNY
+- **Edytor wzorca własnego** — konfiguracja 6 pistoletów, kreska/przerwa, zapis do NVS
 - Przycisk odwracania (dla P-3a/P-3b)
 - Wskaźniki 6 pistoletów (P1-P6)
+- **Przycisk "Kolejna linia"** — widoczny w trybie SEMI gdy kreska zakończona
 - Sekcja kalibracji enkodera
 - Sekcja alarmu prędkości (suwak konfiguracji progu max.)
 - Informacje systemowe
@@ -69,7 +72,11 @@ Zwraca aktualny stan systemu w formacie JSON.
     "patternPending": false,
     "pendingPattern": "P-1b",
     "gunAnomalyDetected": false,
-    "gunAnomaly": [false, false, false, false, false, false]
+    "gunAnomaly": [false, false, false, false, false, false],
+    "mode": "auto",
+    "semiLineComplete": false,
+    "patternIdx": 0,
+    "customValid": false
 }
 ```
 
@@ -104,6 +111,10 @@ Zwraca aktualny stan systemu w formacie JSON.
 | `pendingPattern` | string | Kod oczekującego wzorca (obecne tylko gdy `patternPending=true`) |
 | `gunAnomalyDetected` | bool | Czy wykryto anomalię pistoletów |
 | `gunAnomaly` | array[6] | Flagi anomalii per pistolet (true = brak aktywności mimo konfiguracji) |
+| `mode` | string | Aktualny tryb pracy: `auto`, `semi`, `manual` |
+| `semiLineComplete` | bool | Czy kreska w trybie SEMI jest zakończona (czeka na START) |
+| `patternIdx` | int | Indeks aktualnego wzorca (0–15) |
+| `customValid` | bool | Czy wzorzec własny jest skonfigurowany i gotowy do użycia |
 
 ---
 
@@ -186,8 +197,11 @@ Wysyła komendę sterującą do systemu.
 | `pause` | - | Zapauzuj malowanie |
 | `stop` | - | Zatrzymaj malowanie |
 | `start_from_gap` | - | **Rozpocznij malowanie od przerwy** (przesuwa punkt startowy o długość kreski) |
-| `set_pattern` | 0-14 | Ustaw wzorzec (indeks PatternID). **Podczas malowania**: zmiana jest kolejkowana do końca bieżącego cyklu (linia+przerwa). Wzorce ciągłe przełączają się natychmiast. |
+| `set_pattern` | 0-15 | Ustaw wzorzec (indeks PatternID, 15 = WŁASNY). **Podczas malowania**: zmiana jest kolejkowana do końca bieżącego cyklu (linia+przerwa). Wzorce ciągłe przełączają się natychmiast. |
 | `toggle_reverse` | - | Odwróć wzorzec (P-3a/P-3b) |
+| `set_mode` | 0-2 | Ustaw tryb pracy: 0=AUTO, 1=SEMI, 2=RĘCZNY (zapis do NVS) |
+| `semi_next_line` | - | Wyzwól kolejną kreskę w trybie SEMI (działa tylko gdy `semiLineComplete=true`) |
+| `save_custom_pattern` | *patrz niżej* | Zapisz wzorzec własny do NVS |
 | `cal_start` | - | Rozpocznij kalibrację enkodera |
 | `cal_finish` | - | Zakończ kalibrację enkodera |
 | `set_max_speed` | 5.0–30.0 | Ustaw próg alarmu prędkości [km/h] (zapis do NVS) |
@@ -203,7 +217,7 @@ Wysyła komendę sterującą do systemu.
 | 4 | P-1e | 12 | P-7b |
 | 5 | P-2a | 13 | P-7c |
 | 6 | P-2b | 14 | P-7d |
-| 7 | P-3a | | |
+| 7 | P-3a | 15 | WŁASNY |
 
 **Odpowiedź:** `application/json`
 
@@ -212,6 +226,16 @@ Wysyła komendę sterującą do systemu.
     "result": "ok"
 }
 ```
+
+**Parametry akcji `save_custom_pattern`:**
+
+| Parametr | Wymagany | Opis |
+|----------|----------|------|
+| `g0`–`g5` | Tak | Tryb pistoletu P1–P6: 0=wyłączony, 1=ciągły, 2=przerywany |
+| `line` | Tak | Długość kreski [m] (0.1–50.0) |
+| `gap` | Tak | Długość przerwy [m] (0.1–50.0) |
+
+Po zapisie wzorzec jest automatycznie aplikowany i zaznaczany jako aktywny.
 
 **Przykłady użycia (curl):**
 
@@ -251,6 +275,18 @@ curl -X POST -d "action=cal_finish" http://192.168.4.1/api/control
 
 # Ustaw próg alarmu prędkości na 12 km/h
 curl -X POST -d "action=set_max_speed&value=12" http://192.168.4.1/api/control
+
+# Ustaw tryb pracy na SEMI (1)
+curl -X POST -d "action=set_mode&value=1" http://192.168.4.1/api/control
+
+# Wyzwól kolejną kreskę w trybie SEMI
+curl -X POST -d "action=semi_next_line" http://192.168.4.1/api/control
+
+# Zapisz wzorzec własny (P2 przerywany 3m/2m, reszta wyłączona)
+curl -X POST -d "action=save_custom_pattern&g0=0&g1=2&g2=0&g3=0&g4=0&g5=0&line=3.0&gap=2.0" http://192.168.4.1/api/control
+
+# Użyj wzorca własnego (indeks 15)
+curl -X POST -d "action=set_pattern&value=15" http://192.168.4.1/api/control
 ```
 
 ## Kody odpowiedzi HTTP

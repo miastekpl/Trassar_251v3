@@ -1,4 +1,4 @@
-# TrassarV3 - Instrukcja obsługi v2.8.0
+# TrassarV3 - Instrukcja obsługi v2.9.0
 
 ## Spis treści
 
@@ -7,29 +7,32 @@
 3. [Panel sterowania](#3-panel-sterowania)
 4. [Pistolety natryskowe](#4-pistolety-natryskowe)
 5. [Wzorce malowania](#5-wzorce-malowania)
-6. [Ekrany interfejsu](#6-ekrany-interfejsu)
-7. [Funkcja "Start od przerwy"](#7-funkcja-start-od-przerwy)
-8. [Panel WWW (zdalny dostęp)](#8-panel-www-zdalny-dostęp)
-9. [Kalibracja enkodera](#9-kalibracja-enkodera)
-10. [Raporty na karcie SD](#10-raporty-na-karcie-sd)
-11. [Zabezpieczenia](#11-zabezpieczenia)
-12. [Sygnalizacja dźwiękowa (buzzer)](#12-sygnalizacja-dźwiękowa-buzzer)
-13. [Architektura wielordzeniowa](#13-architektura-wielordzeniowa)
-14. [Diagnostyka systemowa](#14-diagnostyka-systemowa)
-15. [Detekcja anomalii pistoletów](#15-detekcja-anomalii-pistoletów)
-16. [API statystyk i raportów SD](#16-api-statystyk-i-raportów-sd)
-17. [Menu serwisowe w panelu WWW](#17-menu-serwisowe-w-panelu-www)
-18. [Przykłady zastosowania](#18-przykłady-zastosowania)
-19. [Rozwiązywanie problemów](#19-rozwiązywanie-problemów)
+6. [Tryby pracy](#6-tryby-pracy)
+7. [Ekrany interfejsu](#7-ekrany-interfejsu)
+8. [Funkcja "Start od przerwy"](#8-funkcja-start-od-przerwy)
+9. [Panel WWW (zdalny dostęp)](#9-panel-www-zdalny-dostęp)
+10. [Kalibracja enkodera](#10-kalibracja-enkodera)
+11. [Raporty na karcie SD](#11-raporty-na-karcie-sd)
+12. [Zabezpieczenia](#12-zabezpieczenia)
+13. [Sygnalizacja dźwiękowa (buzzer)](#13-sygnalizacja-dźwiękowa-buzzer)
+14. [Architektura wielordzeniowa](#14-architektura-wielordzeniowa)
+15. [Diagnostyka systemowa](#15-diagnostyka-systemowa)
+16. [Detekcja anomalii pistoletów](#16-detekcja-anomalii-pistoletów)
+17. [API statystyk i raportów SD](#17-api-statystyk-i-raportów-sd)
+18. [Menu serwisowe w panelu WWW](#18-menu-serwisowe-w-panelu-www)
+19. [Przykłady zastosowania](#19-przykłady-zastosowania)
+20. [Rozwiązywanie problemów](#20-rozwiązywanie-problemów)
 
 ---
 
 ## 1. Opis ogólny
 
-**TrassarV3** to komputer pokładowy malowarki pasów drogowych oparty na mikrokontrolerze ESP32-S3 N16R8 (16 MB Flash, 8 MB PSRAM). System steruje **6 pistoletami natryskowymi** (P1–P6) poprzez moduły przekaźnikowe, obsługuje **15 wzorców malowania** zgodnych z polskimi normami oznakowania poziomego dróg i mierzy dystans oraz prędkość za pomocą enkodera obrotowego montowanego na kole pomiarowym.
+**TrassarV3** to komputer pokładowy malowarki pasów drogowych oparty na mikrokontrolerze ESP32-S3 N16R8 (16 MB Flash, 8 MB PSRAM). System steruje **6 pistoletami natryskowymi** (P1–P6) poprzez moduły przekaźnikowe, obsługuje **16 wzorców malowania** (15 normowych + własny) zgodnych z polskimi normami oznakowania poziomego dróg, oferuje **3 tryby pracy** (automatyczny, półautomatyczny, ręczny) i mierzy dystans oraz prędkość za pomocą enkodera obrotowego montowanego na kole pomiarowym.
 
 System zapewnia:
+- Trzy tryby pracy: automatyczny, półautomatyczny i ręczny — wybierane z urządzenia lub panelu WWW
 - Automatyczne sterowanie pistoletami w czasie malowania (ciągłe, przerywane, mieszane)
+- Wzorzec własny — definiowany przez operatora z panelu WWW, z dowolną konfiguracją pistoletów
 - Odwracanie wzorców przekraczalnych P-3a i P-3b jednym naciśnięciem przycisku
 - Start od przerwy — kontynuację istniejącego oznakowania od punktu, w którym powinna być przerwa
 - Zabezpieczenie prędkości minimalnej 3 km/h (pistolety nie włączą się na postoju)
@@ -43,7 +46,7 @@ System zapewnia:
 | Parametr | Wartość |
 |----------|---------|
 | Mikrokontroler | ESP32-S3 N16R8 (16 MB Flash, 8 MB PSRAM) |
-| Firmware | v2.6.0 |
+| Firmware | v2.9.0 |
 | Wyświetlacz | ILI9341 2.8" TFT, 320×240 px, tryb landscape |
 | Interfejs SPI | HSPI (SPI3), 27 MHz |
 | Zegar RTC | DS1307 z baterią CR2032 |
@@ -71,7 +74,7 @@ System posiada **4 przyciski fizyczne**. Każdy przycisk obsługuje krótkie nac
 
 | Przycisk | GPIO | Krótkie naciśnięcie | Długie naciśnięcie (1 s) |
 |----------|------|---------------------|--------------------------|
-| **START** | 38 | Start malowania / Pauza / Wznowienie | — |
+| **START** | 38 | Start malowania / Pauza / Wznowienie | Wybór trybu pracy (na ekranie HOME w bezruchu) |
 | **STOP** | 39 | Zatrzymanie malowania / Cofnij w menu | Wejście w menu serwisowe / Powrót |
 | **SELEKTOR** | 40 | *Zależy od ekranu (patrz niżej)* | Wejdź w opcję menu |
 | **GAP (od przerwy)** | 7 | Start od przerwy (na ekranie HOME) | — |
@@ -145,7 +148,7 @@ Na dole ekranu wyświetlane jest 6 prostokątów reprezentujących pistolety P1�
 
 ### 5.1 Tabela wzorców
 
-System obsługuje 15 wzorców zgodnych z polskimi normami oznakowania poziomego:
+System obsługuje 16 wzorców (15 normowych + wzorzec własny) zgodnych z polskimi normami oznakowania poziomego:
 
 | Kod | Nazwa | Pistolet | Typ | Kreska [m] | Przerwa [m] | Szer. |
 |-----|-------|----------|-----|------------|-------------|-------|
@@ -164,8 +167,23 @@ System obsługuje 15 wzorców zgodnych z polskimi normami oznakowania poziomego:
 | **P-7b** | Krawędziowa ciągła szer. | P6 | CONTINUOUS | — | — | 24 cm |
 | **P-7c** | Krawędziowa przeryw. wąska | P5 | DASHED | 1.0 | 1.0 | 12 cm |
 | **P-7d** | Krawędziowa ciągła wąska | P5 | CONTINUOUS | — | — | 12 cm |
+| **WŁASNY** | Wzorzec własny | P1–P6 | Definiowany | Definiowany | Definiowany | — |
 
-### 5.2 Odwracanie wzorców (P-3a, P-3b)
+### 5.2 Wzorzec własny (WŁASNY)
+
+Oprócz 15 predefiniowanych wzorców normowych, system umożliwia zdefiniowanie **wzorca własnego** z dowolną konfiguracją pistoletów, długością kreski i przerwy.
+
+**Konfiguracja wzorca własnego:**
+- Dostępna wyłącznie przez **panel WWW** (sekcja "Wzorzec własny")
+- Dla każdego pistoletu (P1–P6) można wybrać tryb: **Wyłączony**, **Ciągły** lub **Przerywany**
+- Długość kreski i przerwy: 0.1 – 50.0 m (wspólna dla wszystkich pistoletów przerywanych)
+- Wzorzec jest zapisywany trwale w NVS — przetrwa restart urządzenia
+
+**Ograniczenia:**
+- Wzorzec własny nie jest dostępny przez przycisk SELEKTOR na urządzeniu — tylko przez panel WWW
+- Wzorzec własny nie pojawia się w rotacji wzorców na urządzeniu
+
+### 5.3 Odwracanie wzorców (P-3a, P-3b)
 
 Wzorce przekraczalne P-3a i P-3b składają się z dwóch linii:
 - **P1** — linia ciągła (domyślnie po lewej stronie maszyny)
@@ -188,9 +206,58 @@ Na wyświetlaczu pojawia się znacznik **[ODW]** informujący o aktywnym odwróc
 
 ---
 
-## 6. Ekrany interfejsu
+## 6. Tryby pracy
 
-### 6.1 Ekran główny (HOME)
+System oferuje 3 tryby pracy, które określają sposób sterowania pistoletami podczas malowania.
+
+### 6.1 Tryb automatyczny (AUTO)
+
+Tryb domyślny. Pistolety sterowane są automatycznie na podstawie dystansu i konfiguracji wzorca:
+- **Ciągły:** pistolet maluje nieprzerwanie (gdy prędkość ≥ 3 km/h)
+- **Przerywany:** cykl kreska/przerwa obliczany automatycznie z dystansu (fmod)
+- **Inteligentne przełączanie wzorców** — zmiana wzorca czeka na koniec bieżącego cyklu
+
+### 6.2 Tryb półautomatyczny (SEMI)
+
+Linia malowana automatycznie do pełnej długości kreski, ale **przerwa kontrolowana przez operatora**:
+- Po namalowaniu pełnej kreski pistolety wyłączają się automatycznie + krótki sygnał buzzera
+- Operator decyduje kiedy rozpocząć kolejną kreskę naciskając **START**
+- Pistolety z trybem ciągłym (CONTINUOUS) działają normalnie (bez przerw)
+- Idealne do malowania w trudnych warunkach (skrzyżowania, przejścia dla pieszych)
+
+**Sygnalizacja:**
+- Krótki beep (1000 Hz, 50 ms) — kreska zakończona, czekam na START
+- Krótki beep (1500 Hz, 80 ms) — potwierdzenie rozpoczęcia kolejnej kreski
+
+### 6.3 Tryb ręczny (MANUAL)
+
+Operator ma pełną kontrolę nad pistoletami:
+- Pistolety aktywne **tylko gdy operator trzyma przycisk START** i prędkość ≥ 3 km/h
+- Puszczenie START natychmiast wyłącza pistolety
+- Statystyki (dystans, powierzchnia) naliczane normalnie
+- Pistolety wyłączone we wzorcu (GUN_OFF) pozostają wyłączone
+
+### 6.4 Wybór trybu pracy
+
+**Na urządzeniu:**
+1. Na ekranie HOME (maszyna w bezruchu) przytrzymaj **START (1 s)**
+2. Pojawi się ekran wyboru trybu z 3 opcjami: AUTO / SEMI / RĘCZNY
+3. Klikaj **START (krótko)** aby przełączać między trybami
+4. Przytrzymaj **START (1 s)** aby zatwierdzić wybór — buzzer potwierdzi
+5. Naciśnij **STOP** aby anulować i wrócić do HOME
+
+**W panelu WWW:**
+- Sekcja "Tryb pracy" — 3 przyciski: AUTO / SEMI / RĘCZNY
+- Aktywny tryb podświetlony na zielono
+- Zmiana natychmiastowa z zapisem do NVS
+
+Wybrany tryb jest zapisywany trwale w NVS — przetrwa restart urządzenia.
+
+---
+
+## 7. Ekrany interfejsu
+
+### 7.1 Ekran główny (HOME)
 
 Wyświetla się po uruchomieniu systemu. Ekran w trybie landscape (320×240 px):
 
@@ -219,12 +286,15 @@ Wyświetla się po uruchomieniu systemu. Ekran w trybie landscape (320×240 px):
 
 | Przycisk | Akcja |
 |----------|-------|
-| **START** | Rozpocznij malowanie od początku wzorca |
+| **START (krótko)** | Rozpocznij malowanie od początku wzorca |
+| **START (1 s)** | Wybór trybu pracy (ekran wyboru trybu) |
 | **GAP** (GPIO 7) | Start od przerwy — rozpocznij od przerwy we wzorcu |
 | **SELEKTOR** | Odwróć wzorzec (tylko P-3a / P-3b) |
 | **STOP (1 s)** | Wejdź do menu serwisowego |
 
-### 6.2 Ekran malowania (PAINTING)
+Na ekranie wyświetlany jest aktualny tryb pracy: **[AUTO]**, **[SEMI]** lub **[RECZNY]**.
+
+### 7.2 Ekran malowania (PAINTING)
 
 Wyświetla się automatycznie po rozpoczęciu malowania. Układ identyczny jak HOME, ale z dynamicznymi informacjami:
 
@@ -253,17 +323,46 @@ Wyświetla się automatycznie po rozpoczęciu malowania. Układ identyczny jak H
 - **Status:** "Malowanie" (zielony) lub "Pauza" (żółty) — duża czcionka 18 pt w środku ekranu
 - **Prostokąty pistoletów:** Zielone gdy malują, żółte migające na pauzie, szare gdy nieużywane
 
-**Sterowanie na ekranie malowania:**
+Na ekranie wyświetlany jest aktualny tryb pracy: **[AUTO]**, **[SEMI]** lub **[RECZNY]**.
 
-| Przycisk | Akcja |
-|----------|-------|
-| **START** | Pauza (gdy maluje) / Wznowienie (gdy pauza) |
-| **STOP** | Zatrzymanie malowania, zapis raportu, powrót do HOME |
-| **SELEKTOR** | Odwróć wzorzec (tylko P-3a / P-3b) |
+**Sterowanie na ekranie malowania (zależy od trybu):**
+
+| Przycisk | Tryb AUTO | Tryb SEMI | Tryb RĘCZNY |
+|----------|-----------|-----------|-------------|
+| **START** | Pauza / Wznowienie | Kolejna linia (po zakończeniu kreski) / Wznów z pauzy | Pistolety ON (trzymaj) |
+| **STOP** | Zatrzymanie, zapis raportu | Zatrzymanie, zapis raportu | Zatrzymanie, zapis raportu |
+| **SELEKTOR** | Odwróć (P-3a/P-3b) | Odwróć (P-3a/P-3b) | Odwróć (P-3a/P-3b) |
 
 > **Zabezpieczenie:** Pistolety włączają się automatycznie dopiero po osiągnięciu prędkości **3 km/h**. Poniżej tej prędkości pistolety pozostają wyłączone nawet w stanie "Malowanie".
 
-### 6.3 Menu serwisowe
+### 7.3 Ekran wyboru trybu pracy (MODE SELECT)
+
+Ekran dostępny po przytrzymaniu **START (1 s)** na ekranie HOME (maszyna w bezruchu):
+
+```
+┌──────────────────────────────────────────┐
+│         WYBOR TRYBU PRACY                │
+│                                          │
+│  ► AUTO     - pelna automatyka           │
+│    SEMI     - linia auto, przerwa START  │
+│    RECZNY   - pistolety na START         │
+│                                          │
+│  START=dalej  START(1s)=wybierz          │
+│  STOP=powrot                             │
+└──────────────────────────────────────────┘
+```
+
+**Sterowanie:**
+
+| Przycisk | Akcja |
+|----------|-------|
+| **START (krótko)** | Przełącz na następny tryb (AUTO → SEMI → RĘCZNY → AUTO) |
+| **START (1 s)** | Zatwierdź wybrany tryb (buzzer + zapis do NVS) |
+| **STOP** | Anuluj i wróć do ekranu HOME |
+
+Aktualnie wybrany tryb oznaczony jest kursorem **►**. Bieżący aktywny tryb oznaczony jest gwiazdką **\***.
+
+### 7.4 Menu serwisowe
 
 Dostęp: **STOP (1 s)** na ekranie głównym.
 
@@ -285,9 +384,9 @@ Ekran wyświetla 4 pozycje z nagłówkiem "SERWIS":
 | **SELEKTOR (1 s)** | Wejdź w wybraną opcję |
 | **STOP (1 s)** | Powrót do ekranu głównego |
 
-### 6.4 Kalibracja enkodera
+### 7.5 Kalibracja enkodera
 
-Ekran procedury kalibracyjnej (szczegóły → [sekcja 9](#9-kalibracja-enkodera)):
+Ekran procedury kalibracyjnej (szczegóły → [sekcja 10](#10-kalibracja-enkodera)):
 
 - **Status:** POMIAR... (żółty, duża czcionka) lub GOTOWY
 - **Licznik impulsów** (widoczny podczas pomiaru)
@@ -295,7 +394,7 @@ Ekran procedury kalibracyjnej (szczegóły → [sekcja 9](#9-kalibracja-enkodera
 - **Status kalibracji:** OK / Domyślny
 - **Podpowiedzi:** START=rozpocznij/zakończ pomiar, STOP(1s)=powrót
 
-### 6.5 Pomiar dystansu
+### 7.6 Pomiar dystansu
 
 Ręczny pomiar odległości (niezależny od malowania):
 
@@ -309,7 +408,7 @@ Ręczny pomiar odległości (niezależny od malowania):
 | **STOP (krótko)** | Resetuj licznik do 0 |
 | **STOP (1 s)** | Powrót do menu serwisowego |
 
-### 6.6 Raporty
+### 7.7 Raporty
 
 Wyświetla informacje o raportach zapisanych na karcie SD:
 
@@ -319,7 +418,7 @@ Wyświetla informacje o raportach zapisanych na karcie SD:
 
 Powrót: **STOP (1 s)**
 
-### 6.7 Czyszczenie dysz
+### 7.8 Czyszczenie dysz
 
 Tryb ręcznego testowania i czyszczenia pistoletów:
 
@@ -335,13 +434,13 @@ Powrót: **STOP (1 s)**
 
 ---
 
-## 7. Funkcja "Start od przerwy"
+## 8. Funkcja "Start od przerwy"
 
-### 7.1 Opis
+### 8.1 Opis
 
 Funkcja "Start od przerwy" pozwala rozpocząć malowanie nie od kreski, ale od przerwy we wzorcu. Jest to niezbędne przy kontynuacji istniejącego oznakowania drogowego — maszyna może dojechać do miejsca, gdzie linia przerywana powinna mieć przerwę, i rozpocząć pracę z właściwą fazą wzorca.
 
-### 7.2 Jak działa
+### 8.2 Jak działa
 
 **Normalny start** (przycisk START) — cykl zaczyna się od kreski:
 ```
@@ -357,7 +456,9 @@ przerwa  kreska  przerwa  kreska  przerwa  kreska
 
 Technicznie system przesuwa punkt startowy wzorca o długość kreski, dzięki czemu funkcja `fmod()` obliczająca pozycję w cyklu trafia od razu w fazę przerwy.
 
-### 7.3 Aktywacja
+### 8.3 Aktywacja
+
+> **Uwaga:** W trybie **SEMI-AUTO** start od przerwy oznacza rozpoczęcie od fazy oczekiwania na START (operator musi nacisnąć START aby rozpocząć pierwszą kreskę). W trybie **MANUAL** start od przerwy działa identycznie jak normalny start.
 
 | Sposób | Jak |
 |--------|-----|
@@ -366,7 +467,7 @@ Technicznie system przesuwa punkt startowy wzorca o długość kreski, dzięki c
 
 Na ekranie malowania pojawi się znacznik **[GAP]** informujący o aktywnym trybie.
 
-### 7.4 Kiedy używać
+### 8.4 Kiedy używać
 
 - Kontynuacja istniejącej linii przerywanej (np. po przerwie w pracy)
 - Malowanie od punktu, gdzie powinna być przerwa a nie kreska
@@ -377,9 +478,9 @@ Na ekranie malowania pojawi się znacznik **[GAP]** informujący o aktywnym tryb
 
 ---
 
-## 8. Panel WWW (zdalny dostęp)
+## 9. Panel WWW (zdalny dostęp)
 
-### 8.1 Połączenie
+### 9.1 Połączenie
 
 1. Na telefonie lub komputerze wyszukaj sieć WiFi **TrassarV3**
 2. Połącz się hasłem: **12345678**
@@ -387,7 +488,7 @@ Na ekranie malowania pojawi się znacznik **[GAP]** informujący o aktywnym tryb
 
 Panel automatycznie odświeża dane co 1 sekundę bez przeładowania strony.
 
-### 8.2 Funkcje panelu WWW
+### 9.2 Funkcje panelu WWW
 
 Panel sterowania w przeglądarce oferuje pełną kontrolę nad maszyną:
 
@@ -396,20 +497,25 @@ Panel sterowania w przeglądarce oferuje pełną kontrolę nad maszyną:
 | **Status** | Stan maszyny z kolorowym pulsującym wskaźnikiem (Gotowy / Malowanie / Pauza / Zatrzymany) |
 | **Informacje** | Wzorzec, nazwa, prędkość, dystans, powierzchnia, czas sesji, odwrócenie, kalibracja |
 | **Sterowanie** | Przyciski START / PAUZA / STOP / START OD PRZERWY |
-| **Wybór wzorca** | 15 przycisków pogrupowanych: P-1x, P-2x, P-3x, P-4/P-6, P-7x |
+| **Tryb pracy** | 3 przyciski: AUTO / SEMI / RĘCZNY — aktywny podświetlony na zielono |
+| **Wybór wzorca** | 16 przycisków pogrupowanych: P-1x, P-2x, P-3x, P-4/P-6, P-7x, WŁASNY |
+| **Wzorzec własny** | Edytor: 6 pistoletów (wył/ciągły/przerywany), kreska/przerwa, zapis do NVS |
 | **Odwracanie** | Przycisk "Odwróć" — aktywny tylko dla P-3a / P-3b |
 | **Pistolety** | 6 kółek P1–P6 (zielone = ON, szare = OFF, **czerwone migające** = anomalia) |
+| **Semi: kolejna linia** | Przycisk widoczny w trybie SEMI gdy kreska zakończona |
 | **Anomalia pistoletów** | Pulsujący banner ostrzegawczy gdy wykryto anomalię — widoczny automatycznie |
 | **Kalibracja** | Przycisk rozpoczęcia/zakończenia, licznik impulsów, impulsy/metr |
 | **Alarm prędkości** | Bieżący próg maks., suwak konfiguracji (5–30 km/h), przycisk zapisu do NVS |
 | **System** | Wersja firmware, wolna RAM, uptime, liczba klientów WiFi |
 | **Menu serwisowe** | Dwie zakładki: **Statystyki** (lifetime + sesja) i **Raporty SD** (lista plików CSV) |
 
-### 8.3 Zmiana wzorca przez panel WWW
+### 9.3 Zmiana wzorca przez panel WWW
 
-W panelu WWW dostępne jest **15 przycisków wzorców**. Aktywny wzorzec jest podświetlony na zielono. Jest to **jedyny sposób zmiany wzorca** — na fizycznym panelu sterowania (ekran HOME i malowania) przycisk SELEKTOR służy wyłącznie do odwracania P-3a/P-3b.
+W panelu WWW dostępne jest **16 przycisków wzorców** (15 normowych + WŁASNY). Aktywny wzorzec jest podświetlony na zielono. Jest to **jedyny sposób zmiany wzorca** — na fizycznym panelu sterowania (ekran HOME i malowania) przycisk SELEKTOR służy wyłącznie do odwracania P-3a/P-3b.
 
-### 8.4 Inteligentne przełączanie wzorców (Smart Switch)
+> **Uwaga:** Przycisk WŁASNY jest aktywny dopiero po skonfigurowaniu i zapisaniu wzorca własnego w edytorze.
+
+### 9.4 Inteligentne przełączanie wzorców (Smart Switch)
 
 Zmiana wzorca **podczas aktywnego malowania** NIE przerywa bieżącego cyklu:
 
@@ -431,13 +537,13 @@ Zmiana wzorca **podczas aktywnego malowania** NIE przerywa bieżącego cyklu:
 
 ---
 
-## 9. Kalibracja enkodera
+## 10. Kalibracja enkodera
 
-### 9.1 Dlaczego kalibracja jest ważna
+### 10.1 Dlaczego kalibracja jest ważna
 
 Enkoder obrotowy mierzy obroty koła pomiarowego, ale fabryczna wartość impulsów/metr (100.0) może nie odpowiadać rzeczywistemu obwodowi koła. Prawidłowa kalibracja zapewnia dokładne pomiary dystansu, prędkości i precyzyjne odwzorowanie długości kresek i przerw we wzorcach.
 
-### 9.2 Procedura kalibracji
+### 10.2 Procedura kalibracji
 
 1. Wejdź w **Menu serwisowe** → **Kalibracja enkodera**
 2. Odmierz na podłożu dokładnie **10 metrów** (np. taśmą mierniczą)
@@ -449,15 +555,15 @@ Enkoder obrotowy mierzy obroty koła pomiarowego, ale fabryczna wartość impuls
 
 Wynik kalibracji jest zapisywany trwale w pamięci NVS (Non-Volatile Storage) i przetrwa restart urządzenia.
 
-### 9.3 Anulowanie kalibracji
+### 10.3 Anulowanie kalibracji
 
 Naciśnij **STOP (1 s)** w trakcie pomiaru — kalibracja zostanie anulowana, poprzednia wartość pozostanie bez zmian.
 
 ---
 
-## 10. Raporty na karcie SD
+## 11. Raporty na karcie SD
 
-### 10.1 Format raportów
+### 11.1 Format raportów
 
 Raporty zapisywane są automatycznie po każdym zatrzymaniu malowania (STOP) na kartę SD w formacie CSV:
 
@@ -473,12 +579,12 @@ data,godzina,wzorzec,dystans_m,powierzchnia_m2
 2025-06-12,14:10:08,P-2b,430.0,103.20
 ```
 
-### 10.2 Przeglądanie raportów
+### 11.2 Przeglądanie raportów
 
 - **Na urządzeniu:** Menu serwisowe → Raporty — status SD, liczba plików, ostatni wpis
 - **Na komputerze:** Wyjmij kartę SD i otwórz pliki CSV w dowolnym arkuszu kalkulacyjnym
 
-### 10.3 Wymagania karty SD
+### 11.3 Wymagania karty SD
 
 - Format: **FAT32**
 - Slot: Zintegrowany w module wyświetlacza ILI9341
@@ -486,9 +592,9 @@ data,godzina,wzorzec,dystans_m,powierzchnia_m2
 
 ---
 
-## 11. Zabezpieczenia
+## 12. Zabezpieczenia
 
-### 11.1 Minimalna prędkość malowania
+### 12.1 Minimalna prędkość malowania
 
 System wymaga prędkości minimum **3 km/h** do włączenia pistoletów. Poniżej tej prędkości:
 - Pistolety pozostają wyłączone (nawet w stanie "Malowanie")
@@ -498,7 +604,7 @@ System wymaga prędkości minimum **3 km/h** do włączenia pistoletów. Poniże
 
 **Wyjątek:** Tryb czyszczenia dysz omija zabezpieczenie prędkości — pistolety działają na postoju.
 
-### 11.2 Automatyczne wyłączanie pistoletów
+### 12.2 Automatyczne wyłączanie pistoletów
 
 Pistolety wyłączają się natychmiast przy:
 - Zatrzymaniu malowania (STOP)
@@ -508,7 +614,7 @@ Pistolety wyłączają się natychmiast przy:
 - Puszczeniu przycisku START w trybie czyszczenia dysz
 - Zadziałaniu mechanizmu gun keepalive (brak aktualizacji silnika malowania >300 ms)
 
-### 11.3 Watchdog timer
+### 12.3 Watchdog timer
 
 System posiada sprzętowy watchdog timer ESP32 z timeoutem **3 sekund**. Jeśli pętla główna (`loop()`) zawiesi się z dowolnej przyczyny:
 - Watchdog zrestartuje mikrokontroler po 3 sekundach
@@ -517,13 +623,13 @@ System posiada sprzętowy watchdog timer ESP32 z timeoutem **3 sekund**. Jeśli 
 
 > **Uwaga:** Reset watchdoga jest widoczny w monitorze szeregowym jako komunikat restartu.
 
-### 11.4 Gun keepalive (300 ms)
+### 12.4 Gun keepalive (300 ms)
 
 Niezależna od watchdoga warstwa bezpieczeństwa. Chroni przed scenariuszem, w którym pętla `loop()` działa (watchdog jest karmiony), ale silnik malowania z jakiegoś powodu nie steruje pistoletami:
 - Jeśli silnik malowania nie zaktualizuje stanu pistoletów przez **300 ms**, system wykonuje awaryjne wyłączenie wszystkich pistoletów (`guns.allOff()`)
 - Informacja o zadziałaniu keepalive jest logowana na port szeregowy
 
-### 11.5 Alarm przekroczenia prędkości
+### 12.5 Alarm przekroczenia prędkości
 
 Przy zbyt dużej prędkości jakość malowania spada (farba się rozpryskuje, linie nie są równe). System alarmuje operatora:
 
@@ -540,17 +646,17 @@ Przy zbyt dużej prędkości jakość malowania spada (farba się rozpryskuje, l
 - **Wyświetlacz:** Prędkość wyświetlana na żółto
 - **Buzzer:** Podwójny puls 1.5 kHz, powtarzany co 3 sekundy
 
-### 11.6 Odszumianie enkodera
+### 12.6 Odszumianie enkodera
 
 Podczas inicjalizacji systemu enkoder może rejestrować drobne drgania. Po zakończeniu inicjalizacji system automatycznie zeruje licznik dystansu (`resetDistance()`), eliminując szum nazbierany podczas startu.
 
 ---
 
-## 12. Sygnalizacja dźwiękowa (buzzer)
+## 13. Sygnalizacja dźwiękowa (buzzer)
 
 System wyposażony jest w pasywny buzzer (GPIO 8) generujący sygnały dźwiękowe informujące operatora o zdarzeniach. Sygnały są szczególnie przydatne w hałaśliwym środowisku pracy (maszyna drogowa, ruch uliczny).
 
-### 12.1 Tabela sygnałów dźwiękowych
+### 13.1 Tabela sygnałów dźwiękowych
 
 | Zdarzenie | Sygnał | Częstotliwość | Opis |
 |-----------|--------|---------------|------|
@@ -562,8 +668,11 @@ System wyposażony jest w pasywny buzzer (GPIO 8) generujący sygnały dźwięko
 | **Przekroczenie prędkości** | 3× alarm | 3 kHz, 60 ms × 3 | Prędkość > próg maks. (co 2 s) |
 | **Anomalia pistoletu** | Niski-wysoki-niski | 800→1200→800 Hz | Pistolet nie strzela mimo konfiguracji (po 50 m) |
 | **Błąd (RTC/SD)** | Opadający ton | 1000→800→600 Hz | Brak karty SD lub RTC niedostępny przy starcie |
+| **Semi: kreska gotowa** | 1× krótki beep | 1 kHz, 50 ms | Kreska zakończona, czekam na START (tryb SEMI) |
+| **Semi: kolejna linia** | 1× krótki beep | 1.5 kHz, 80 ms | Potwierdzenie rozpoczęcia nowej kreski (tryb SEMI) |
+| **Potwierdzenie trybu** | 1× krótki beep | 1.5 kHz, 80 ms | Zatwierdzenie wyboru trybu pracy |
 
-### 12.2 Specyfikacja techniczna buzzera
+### 13.2 Specyfikacja techniczna buzzera
 
 | Parametr | Wartość |
 |----------|---------|
@@ -572,7 +681,7 @@ System wyposażony jest w pasywny buzzer (GPIO 8) generujący sygnały dźwięko
 | Sterowanie | LEDC PWM, kanał 1, duty cycle 50% |
 | Tryb pracy | Non-blocking (sekwencje zarządzane w pętli głównej) |
 
-### 12.3 Uwagi
+### 13.3 Uwagi
 
 - Buzzer nie blokuje pracy systemu — sekwencje tonów są przetwarzane w tle
 - Alarmy prędkości powtarzają się cyklicznie dopóki warunek jest spełniony
@@ -580,9 +689,9 @@ System wyposażony jest w pasywny buzzer (GPIO 8) generujący sygnały dźwięko
 
 ---
 
-## 13. Architektura wielordzeniowa
+## 14. Architektura wielordzeniowa
 
-TrassarV3 v2.8.0 wykorzystuje oba rdzenie procesora ESP32-S3:
+TrassarV3 v2.9.0 wykorzystuje oba rdzenie procesora ESP32-S3:
 
 | Rdzeń | Zadania |
 |-------|---------|
@@ -600,7 +709,7 @@ TrassarV3 v2.8.0 wykorzystuje oba rdzenie procesora ESP32-S3:
 
 ---
 
-## 14. Diagnostyka systemowa
+## 15. Diagnostyka systemowa
 
 ### Logi diagnostyczne (Serial, co 30 s)
 ```
@@ -627,11 +736,11 @@ Na ekranie malowania wyświetlane są dodatkowe informacje w lewej kolumnie:
 
 ---
 
-## 15. Detekcja anomalii pistoletów
+## 16. Detekcja anomalii pistoletów
 
 System automatycznie wykrywa sytuacje, gdy pistolet jest skonfigurowany we wzorcu (tryb CONTINUOUS lub DASHED), ale w praktyce nie maluje (dystans strzału < 1 m po 50 m jazdy).
 
-### 15.1 Jak działa
+### 16.1 Jak działa
 
 - **Aktywacja:** Po przejechaniu 50 m w sesji malowania
 - **Sprawdzanie:** Co 10 sekund podczas malowania
@@ -639,7 +748,7 @@ System automatycznie wykrywa sytuacje, gdy pistolet jest skonfigurowany we wzorc
 - **Sygnalizacja:** Buzzer (niski-wysoki-niski: 800→1200→800 Hz) + log na porcie szeregowym
 - **Reset:** Automatyczny po zatrzymaniu malowania (STOP)
 
-### 15.2 Możliwe przyczyny anomalii
+### 16.2 Możliwe przyczyny anomalii
 
 | Przyczyna | Rozwiązanie |
 |-----------|-------------|
@@ -648,7 +757,7 @@ System automatycznie wykrywa sytuacje, gdy pistolet jest skonfigurowany we wzorc
 | Zatkana dysza | Wyczyść dysze w trybie Czyszczenie dysz |
 | Pusty zbiornik farby | Uzupełnij farbę |
 
-### 15.3 Informacje w API
+### 16.3 Informacje w API
 
 Pola w `GET /api/status`:
 - `gunAnomalyDetected` — `true` jeśli wykryto anomalię
@@ -656,9 +765,9 @@ Pola w `GET /api/status`:
 
 ---
 
-## 16. API statystyk i raportów SD
+## 17. API statystyk i raportów SD
 
-### 16.1 Statystyki (`GET /api/stats`)
+### 17.1 Statystyki (`GET /api/stats`)
 
 Endpoint zwraca łączne (lifetime) i bieżące (sesja) statystyki malowania:
 
@@ -668,7 +777,7 @@ curl http://192.168.4.1/api/stats
 
 Zawiera: łączny dystans i powierzchnię, czas malowania, dystans per pistolet, status karty SD.
 
-### 16.2 Raporty SD (`GET /api/reports`)
+### 17.2 Raporty SD (`GET /api/reports`)
 
 Endpoint zwraca listę plików raportów CSV z karty SD:
 
@@ -682,11 +791,11 @@ Odpowiedź: `[{"file":"20260216.csv","size":1234},...]` — sortowane malejąco 
 
 ---
 
-## 17. Menu serwisowe w panelu WWW
+## 18. Menu serwisowe w panelu WWW
 
 Panel WWW posiada sekcję **Menu serwisowe** na dole strony, z dwoma zakładkami:
 
-### 17.1 Zakładka "Statystyki"
+### 18.1 Zakładka "Statystyki"
 
 Wyświetla dane zebrane przez cały czas pracy urządzenia (lifetime) oraz bieżącą sesję:
 
@@ -700,7 +809,7 @@ Wyświetla dane zebrane przez cały czas pracy urządzenia (lifetime) oraz bież
 
 Dane odświeżają się automatycznie co 10 sekund.
 
-### 17.2 Zakładka "Raporty SD"
+### 18.2 Zakładka "Raporty SD"
 
 Wyświetla tabelę plików raportów CSV z karty SD:
 
@@ -711,7 +820,7 @@ Wyświetla tabelę plików raportów CSV z karty SD:
 
 Lista jest sortowana malejąco — najnowsze raporty na górze. Przycisk **Odśwież** ładuje ponownie listę z cache.
 
-### 17.3 Wskaźniki anomalii pistoletów
+### 18.3 Wskaźniki anomalii pistoletów
 
 Gdy system wykryje anomalię pistoletów (skonfigurowany pistolet nie maluje po 50 m jazdy):
 
@@ -721,7 +830,7 @@ Gdy system wykryje anomalię pistoletów (skonfigurowany pistolet nie maluje po 
 
 ---
 
-## 18. Przykłady zastosowania
+## 19. Przykłady zastosowania
 
 ### Przykład 1: Malowanie linii przerywanej P-1a na nowej drodze
 
@@ -730,7 +839,7 @@ Gdy system wykryje anomalię pistoletów (skonfigurowany pistolet nie maluje po 
 **Kroki:**
 
 1. **Przygotowanie:**
-   - Włącz urządzenie — pojawi się ekran powitalny "TrassarV3 v2.8.0", a po chwili ekran główny
+   - Włącz urządzenie — pojawi się ekran powitalny "TrassarV3 v2.9.0", a po chwili ekran główny
    - Sprawdź wyświetlany wzorzec w lewym górnym rogu
    - Jeśli wyświetlany wzorzec to nie P-1a, zmień go przez panel WWW: połącz się z WiFi "TrassarV3" (hasło: 12345678), otwórz http://192.168.4.1 i kliknij przycisk **P-1a**
    - Sprawdź status kalibracji w panelu WWW — powinno być "Skalibrowany"
@@ -876,7 +985,50 @@ START OD PRZERWY (GAP):  ░░░░██░░░░██░░░░██ 
 
 ---
 
-## 19. Rozwiązywanie problemów
+### Przykład 6: Malowanie w trybie półautomatycznym
+
+**Scenariusz:** Malowanie przejścia dla pieszych — operator chce kontrolować moment rozpoczęcia każdej nowej kreski, aby precyzyjnie pozycjonować linie.
+
+**Kroki:**
+
+1. **Ustawienie trybu SEMI:**
+   - Na ekranie HOME przytrzymaj **START (1 s)** → ekran wyboru trybu
+   - Klikaj **START** aż kursor wskaże **SEMI**
+   - Przytrzymaj **START (1 s)** aby zatwierdzić — krótki beep potwierdzający
+   - Lub w panelu WWW: kliknij przycisk **SEMI**
+
+2. **Malowanie:**
+   - Ustaw wzorzec (np. **P-1d** — prowadząca 1m/1m) przez panel WWW
+   - Naciśnij **START** na ekranie HOME → rozpocznij malowanie
+   - Ruszaj maszyną — pistolet maluje kreskę 1m automatycznie
+   - Po 1m słyszysz krótki beep — kreska zakończona, pistolet się wyłącza
+   - Przejedź do miejsca gdzie ma zacząć się kolejna kreska
+   - Naciśnij **START** → pistolet zaczyna kolejną kreskę
+
+3. **Zakończenie:**
+   - Naciśnij **STOP** aby zakończyć malowanie
+
+### Przykład 7: Malowanie w trybie ręcznym
+
+**Scenariusz:** Malowanie specjalnych oznaczeń (np. strzałki, symbole) — operator sam decyduje kiedy pistolet strzela.
+
+**Kroki:**
+
+1. **Ustawienie trybu RĘCZNY:**
+   - Na ekranie HOME przytrzymaj **START (1 s)** → ekran wyboru trybu
+   - Klikaj **START** aż kursor wskaże **RĘCZNY**
+   - Przytrzymaj **START (1 s)** aby zatwierdzić
+
+2. **Malowanie:**
+   - Naciśnij krótko **START** na HOME aby rozpocząć sesję malowania
+   - Ruszaj maszyną powyżej 3 km/h
+   - **Trzymaj START** → pistolety malują
+   - **Puść START** → pistolety natychmiast się wyłączają
+   - Statystyki (dystans, powierzchnia) naliczane są normalnie
+
+---
+
+## 20. Rozwiązywanie problemów
 
 | Problem | Możliwa przyczyna | Rozwiązanie |
 |---------|-------------------|-------------|
@@ -908,4 +1060,4 @@ START OD PRZERWY (GAP):  ░░░░██░░░░██░░░░██ 
 ---
 
 *TrassarV3 — Komputer pokładowy malowarki pasów drogowych*
-*Firmware v2.6.0 | ESP32-S3 N16R8 | 6 pistoletów, 15 wzorców, buzzer, watchdog, anomaly detect*
+*Firmware v2.9.0 | ESP32-S3 N16R8 | 6 pistoletów, 16 wzorców, 3 tryby pracy, buzzer, watchdog, anomaly detect*

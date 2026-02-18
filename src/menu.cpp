@@ -1,5 +1,5 @@
 // ============================================================
-// TrassarV3 - System menu v2.3  (menu serwisowe)
+// TrassarV3 - System menu v2.9  (tryby pracy + menu serwisowe)
 // ============================================================
 
 #include "menu.h"
@@ -12,6 +12,8 @@
 #include "guns.h"
 #include "button_handler.h"
 #include "report_logger.h"
+#include "storage.h"
+#include "buzzer.h"
 
 MenuSystem menu;
 
@@ -50,6 +52,7 @@ void MenuSystem::handleEvent(ButtonEvent event) {
         case SCREEN_DISTANCE_METER: handleDistanceMeter(event);   break;
         case SCREEN_REPORTS:        handleReports(event);         break;
         case SCREEN_NOZZLE_CLEAN:   handleNozzleClean(event);     break;
+        case SCREEN_MODE_SELECT:    handleModeSelect(event);      break;
     }
 }
 
@@ -60,6 +63,14 @@ void MenuSystem::handleHomeScreen(ButtonEvent e) {
         case EVT_START_SHORT:
             paintEngine.start();
             goToScreen(SCREEN_PAINTING);
+            break;
+
+        case EVT_START_LONG:
+            // Dlugie przytrzymanie START na HOME = wybor trybu pracy
+            if (g_state.machineState == STATE_IDLE || g_state.machineState == STATE_STOPPED) {
+                modeSelectIdx = (int)g_state.machineMode;
+                goToScreen(SCREEN_MODE_SELECT);
+            }
             break;
 
         case EVT_GAP_START:
@@ -90,10 +101,25 @@ void MenuSystem::handleHomeScreen(ButtonEvent e) {
 void MenuSystem::handlePaintingScreen(ButtonEvent e) {
     switch (e) {
         case EVT_START_SHORT:
-            if (g_state.machineState == STATE_PAINTING) {
-                paintEngine.pause();
-            } else if (g_state.machineState == STATE_PAUSED) {
-                paintEngine.resume();
+            if (g_state.machineMode == MODE_SEMI_AUTO &&
+                g_state.machineState == STATE_PAINTING &&
+                paintEngine.isSemiLineComplete()) {
+                // Semi-auto: START wyzwala kolejna linie
+                paintEngine.semiNextLine();
+                g_state.displayNeedsUpdate = true;
+            } else if (g_state.machineMode == MODE_MANUAL) {
+                // Manual: ignoruj krotkie START (trzymanie = strzal w update)
+                // Ale jesli na pauzie, wznow
+                if (g_state.machineState == STATE_PAUSED) {
+                    paintEngine.resume();
+                }
+            } else {
+                // Auto / Semi (nie czeka na linie): pauza/wznowienie
+                if (g_state.machineState == STATE_PAINTING) {
+                    paintEngine.pause();
+                } else if (g_state.machineState == STATE_PAUSED) {
+                    paintEngine.resume();
+                }
             }
             g_state.displayNeedsUpdate = true;
             break;
@@ -109,6 +135,45 @@ void MenuSystem::handlePaintingScreen(ButtonEvent e) {
                 paintEngine.toggleReverse();
                 g_state.displayNeedsUpdate = true;
             }
+            break;
+
+        default:
+            break;
+    }
+}
+
+// ============ SCREEN_MODE_SELECT ============
+// START(krotki) = przejdz do nastepnego trybu
+// START(dlugi)  = zatwierdz wybrany tryb
+// STOP(krotki)  = powrot bez zmiany
+// STOP(dlugi)   = powrot bez zmiany
+
+void MenuSystem::handleModeSelect(ButtonEvent e) {
+    switch (e) {
+        case EVT_START_SHORT:
+            modeSelectIdx++;
+            if (modeSelectIdx > 2) modeSelectIdx = 0;
+            g_state.displayNeedsUpdate = true;
+            break;
+
+        case EVT_START_LONG: {
+            // Zatwierdz wybrany tryb
+            MachineMode newMode = (MachineMode)modeSelectIdx;
+            g_state.machineMode = newMode;
+            storage.saveMode(newMode);
+            buzzer.beep(2000, 150);  // Sygnal potwierdzenia
+
+            const char* modeNames[] = {"AUTO", "SEMI-AUTO", "RECZNY"};
+            Serial.printf("[MENU] Tryb pracy: %s\n", modeNames[modeSelectIdx]);
+
+            goToScreen(SCREEN_HOME);
+            break;
+        }
+
+        case EVT_STOP_SHORT:
+        case EVT_STOP_LONG:
+            // Powrot bez zmiany
+            goToScreen(SCREEN_HOME);
             break;
 
         default:
@@ -139,6 +204,9 @@ void MenuSystem::handleServiceMenu(ButtonEvent e) {
                 case 2: goToScreen(SCREEN_REPORTS);         break;
                 case 3:
                     nozzlePatternIdx = (int)g_state.currentPattern;
+                    // Ogranicz do predefiniowanych wzorcow
+                    if (nozzlePatternIdx >= PatternManager::PREDEFINED_PAT_COUNT)
+                        nozzlePatternIdx = 0;
                     goToScreen(SCREEN_NOZZLE_CLEAN);
                     break;
             }
@@ -234,13 +302,15 @@ void MenuSystem::handleNozzleClean(ButtonEvent e) {
     switch (e) {
         case EVT_SELECT_SHORT:
             nozzlePatternIdx++;
-            if (nozzlePatternIdx >= PAT_COUNT) nozzlePatternIdx = 0;
+            if (nozzlePatternIdx >= PatternManager::PREDEFINED_PAT_COUNT)
+                nozzlePatternIdx = 0;
             g_state.displayNeedsUpdate = true;
             break;
 
         case EVT_SELECT_LONG:
             nozzlePatternIdx--;
-            if (nozzlePatternIdx < 0) nozzlePatternIdx = PAT_COUNT - 1;
+            if (nozzlePatternIdx < 0)
+                nozzlePatternIdx = PatternManager::PREDEFINED_PAT_COUNT - 1;
             g_state.displayNeedsUpdate = true;
             break;
 
@@ -268,7 +338,7 @@ void MenuSystem::update() {
     // --- Logika ciagla: czyszczenie dysz ---
     if (g_state.currentScreen == SCREEN_NOZZLE_CLEAN) {
         bool held = buttons.isStartHeld();
-        const PatternDef& pat = PatternManager::patterns[nozzlePatternIdx];
+        const PatternDef& pat = patternMgr.getPattern((PatternID)nozzlePatternIdx);
         for (int i = 0; i < NUM_GUNS; i++) {
             bool active = (pat.guns[i].mode != GUN_OFF);
             guns.setGun((GunID)i, held && active);
@@ -364,7 +434,7 @@ void MenuSystem::update() {
 
         // ---- Czyszczenie dysz ----
         case SCREEN_NOZZLE_CLEAN: {
-            const PatternDef& pat = PatternManager::patterns[nozzlePatternIdx];
+            const PatternDef& pat = patternMgr.getPattern((PatternID)nozzlePatternIdx);
             bool gunStates[6];
             for (int i = 0; i < NUM_GUNS; i++) {
                 gunStates[i] = guns.getState(i);
@@ -372,5 +442,10 @@ void MenuSystem::update() {
             display.drawNozzleClean(pat.code, pat.name, pat.guns, gunStates);
             break;
         }
+
+        // ---- Wybor trybu pracy ----
+        case SCREEN_MODE_SELECT:
+            display.drawModeSelect(modeSelectIdx, g_state.machineMode);
+            break;
     }
 }

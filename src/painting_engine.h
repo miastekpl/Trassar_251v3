@@ -36,6 +36,10 @@ public:
     bool isPatternChangePending() const { return patternChangePending; }
     PatternID getPendingPattern() const { return pendingPattern; }
 
+    // Tryb polautomatyczny - wyzwolenie kolejnej linii
+    void semiNextLine();
+    bool isSemiLineComplete() const { return semiLineComplete; }
+
 private:
     float lastEncoderDist = 0;
     float patternStartDist = 0;  // Dystans przy zmianie wzorca
@@ -48,6 +52,10 @@ private:
 
     float getPrimaryCycle() const;
     void  applyPendingPattern();
+
+    // Tryb polautomatyczny (SEMI_AUTO)
+    float semiLineDist = 0;        // Dystans w biezacej linii
+    bool  semiLineComplete = false; // Linia zakonczona, czeka na START
 
     // Gun keepalive
     unsigned long lastGunUpdateMs = 0;

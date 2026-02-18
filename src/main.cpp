@@ -1,6 +1,6 @@
 // ============================================================
 // TrassarV3 - Komputer pokładowy malowarki pasów drogowych
-// Firmware v2.8.0
+// Firmware v2.9.0
 //
 // Platforma:    ESP32-S3 N16R8 (dual-core)
 // Wyświetlacz:  ILI9341 2.8" 240x320 SPI
@@ -54,7 +54,7 @@ void setup() {
     Serial.println("==============================================");
     Serial.println("  TrassarV3 - Malowarka pasow drogowych");
     Serial.printf("  Firmware v%s  [%s]\n", FW_VERSION, FW_DATE);
-    Serial.println("  6 pistoletow, 15 wzorcow, kalibracja");
+    Serial.println("  6 pistoletow, 16 wzorcow, 3 tryby pracy");
     Serial.println("==============================================");
     Serial.println();
 
@@ -140,14 +140,19 @@ void setup() {
     float maxSpd = storage.loadMaxSpeed();
     paintEngine.setMaxSpeed(maxSpd);
 
+    // Wczytaj tryb pracy z NVS
+    g_state.machineMode = storage.loadMode();
+
     // Watchdog timer - 3s timeout, auto-reset przy zawieszeniu
     Serial.println("[INIT] Watchdog timer...");
     esp_task_wdt_init(WDT_TIMEOUT_SEC, true);
     esp_task_wdt_add(NULL);
 
+    const char* modeNames[] = {"AUTO", "SEMI-AUTO", "RECZNY"};
     Serial.println();
     Serial.println("[INIT] System gotowy!");
     Serial.printf("[INIT] Wzorzec: %s\n", patternMgr.getCurrent().code);
+    Serial.printf("[INIT] Tryb: %s\n", modeNames[(int)g_state.machineMode]);
     Serial.printf("[INIT] Max predkosc: %.1f km/h\n", maxSpd);
     Serial.printf("[INIT] WiFi: %s  http://%s\n",
                   WIFI_AP_SSID, webServer.getIPAddress().c_str());

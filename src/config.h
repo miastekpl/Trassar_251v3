@@ -1,13 +1,13 @@
 #pragma once
 // ============================================================
-// TrassarV3 - Konfiguracja sprzętowa v2.8.0
+// TrassarV3 - Konfiguracja sprzętowa v2.9.0
 // Komputer pokładowy malowarki pasów drogowych
 // ============================================================
 
 #include <Arduino.h>
 
 // ============ WERSJA FIRMWARE ============
-#define FW_VERSION      "2.8.0"
+#define FW_VERSION      "2.9.0"
 #define FW_NAME         "TrassarV3"
 #define FW_DATE         __DATE__
 
@@ -111,6 +111,13 @@ enum MachineState : uint8_t {
     STATE_STOPPED
 };
 
+// ============ Tryby pracy malowania ============
+enum MachineMode : uint8_t {
+    MODE_AUTO = 0,       // Pelna automatyka (dystans steruje pistoletami)
+    MODE_SEMI_AUTO,      // Automatyczna linia, reczna przerwa
+    MODE_MANUAL          // Reczne sterowanie (START = strzelaj)
+};
+
 // ============ Ekrany ============
 enum ScreenID : uint8_t {
     SCREEN_HOME = 0,
@@ -119,7 +126,8 @@ enum ScreenID : uint8_t {
     SCREEN_CALIBRATION,
     SCREEN_DISTANCE_METER,
     SCREEN_REPORTS,
-    SCREEN_NOZZLE_CLEAN
+    SCREEN_NOZZLE_CLEAN,
+    SCREEN_MODE_SELECT
 };
 
 // ============ Identyfikatory wzorców ============
@@ -139,6 +147,7 @@ enum PatternID : uint8_t {
     PAT_P7B,        // P-7b Krawędziowa ciągła szer.
     PAT_P7C,        // P-7c Krawędziowa przeryw. wąska
     PAT_P7D,        // P-7d Krawędziowa ciągła wąska
+    PAT_CUSTOM,     // Wzorzec wlasny uzytkownika
     PAT_COUNT
 };
 
@@ -178,6 +187,7 @@ struct PatternDef {
 // ============ Globalny stan systemu ============
 struct SystemState {
     MachineState machineState = STATE_IDLE;
+    MachineMode machineMode = MODE_AUTO;
     ScreenID currentScreen = SCREEN_HOME;
     PatternID currentPattern = PAT_P1A;
     bool patternReversed = false;
@@ -188,6 +198,14 @@ struct SystemState {
 };
 
 extern SystemState g_state;
+
+// ============ Konfiguracja wzorca wlasnego (NVS) ============
+struct CustomPatternCfg {
+    uint8_t gunModes[NUM_GUNS];  // GunMode per gun (OFF/CONT/DASHED)
+    float lineLen;               // Dlugosc linii [m] (wspolna dla DASHED)
+    float gapLen;                // Dlugosc przerwy [m] (wspolna dla DASHED)
+    bool valid;                  // Czy wzorzec jest zdefiniowany
+};
 
 // ============ Stan detekcji anomalii pistoletów ============
 struct GunAnomalyState {

@@ -151,6 +151,44 @@ void TrassarWebServer::handleControl() {
         } else {
             result = "brak parametru value";
         }
+    } else if (action == "set_mode") {
+        if (server.hasArg("value")) {
+            int val = server.arg("value").toInt();
+            if (val >= 0 && val <= 2) {
+                MachineMode newMode = (MachineMode)val;
+                g_state.machineMode = newMode;
+                storage.saveMode(newMode);
+                Serial.printf("[WWW] Tryb pracy: %d\n", val);
+            } else {
+                result = "nieprawidlowy tryb (0-2)";
+            }
+        } else {
+            result = "brak parametru value";
+        }
+    } else if (action == "save_custom_pattern") {
+        // Parametry: g0..g5 (gun mode: 0=OFF,1=CONT,2=DASHED), line, gap
+        CustomPatternCfg cfg = {};
+        cfg.valid = true;
+        for (int i = 0; i < NUM_GUNS; i++) {
+            String key = "g" + String(i);
+            if (server.hasArg(key)) {
+                int gm = server.arg(key).toInt();
+                if (gm < 0 || gm > 2) gm = 0;
+                cfg.gunModes[i] = (uint8_t)gm;
+            }
+        }
+        if (server.hasArg("line")) cfg.lineLen = server.arg("line").toFloat();
+        if (server.hasArg("gap"))  cfg.gapLen  = server.arg("gap").toFloat();
+        if (cfg.lineLen < 0.1f) cfg.lineLen = 0.1f;
+        if (cfg.lineLen > 50.0f) cfg.lineLen = 50.0f;
+        if (cfg.gapLen < 0.1f) cfg.gapLen = 0.1f;
+        if (cfg.gapLen > 50.0f) cfg.gapLen = 50.0f;
+        patternMgr.setCustomPattern(cfg);
+        storage.saveCustomPattern(cfg);
+        Serial.printf("[WWW] Wzorzec wlasny zapisany: linia=%.1f przerwa=%.1f\n",
+                      cfg.lineLen, cfg.gapLen);
+    } else if (action == "semi_next_line") {
+        paintEngine.semiNextLine();
     } else {
         result = "nieznana akcja";
     }
@@ -183,12 +221,25 @@ String TrassarWebServer::getStateJson() {
     }
     doc["state"] = stateStr;
 
+    // Tryb pracy
+    const char* modeStr;
+    switch (g_state.machineMode) {
+        case MODE_AUTO:      modeStr = "auto";      break;
+        case MODE_SEMI_AUTO: modeStr = "semi";       break;
+        case MODE_MANUAL:    modeStr = "manual";     break;
+        default:             modeStr = "auto";        break;
+    }
+    doc["mode"] = modeStr;
+    doc["semiLineComplete"] = paintEngine.isSemiLineComplete();
+
     // Wzorzec
     const PatternDef& pat = patternMgr.getCurrent();
     doc["pattern"] = pat.code;
     doc["patternName"] = pat.name;
+    doc["patternIdx"] = (int)g_state.currentPattern;
     doc["reversed"] = g_state.patternReversed;
     doc["gapStart"] = paintEngine.isGapStart();
+    doc["customValid"] = patternMgr.isCustomValid();
 
     // Predkosc i dystans
     doc["speed"] = serialized(String(encoderDist.getSpeedKmh(), 1));
@@ -224,7 +275,7 @@ String TrassarWebServer::getStateJson() {
     // Oczekujaca zmiana wzorca (smart switch)
     doc["patternPending"] = paintEngine.isPatternChangePending();
     if (paintEngine.isPatternChangePending()) {
-        doc["pendingPattern"] = PatternManager::patterns[paintEngine.getPendingPattern()].code;
+        doc["pendingPattern"] = patternMgr.getPattern(paintEngine.getPendingPattern()).code;
     }
 
     // Anomalia pistoletow
@@ -526,6 +577,47 @@ body{
         </div>
     </div>
 
+    <!-- ========== MODE SELECT ========== -->
+    <div class="card">
+        <h3>Tryb pracy</h3>
+        <div class="pat-grid" style="grid-template-columns:1fr 1fr 1fr;">
+            <div class="pbtn" id="mAuto" onclick="setMode(0)">AUTO</div>
+            <div class="pbtn" id="mSemi" onclick="setMode(1)">SEMI</div>
+            <div class="pbtn" id="mManual" onclick="setMode(2)">RECZNY</div>
+        </div>
+        <div id="modeDesc" style="font-size:11px;color:#6b7d9a;margin-top:8px;text-align:center;">Automatyczny - dystans steruje pistoletami</div>
+        <div id="semiBtn" style="display:none;margin-top:8px;">
+            <button class="btn btn-start" style="width:100%;" onclick="cmd('semi_next_line')">NASTEPNA LINIA</button>
+        </div>
+    </div>
+
+    <!-- ========== CUSTOM PATTERN ========== -->
+    <div class="card">
+        <h3>Wzorzec wlasny</h3>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:10px;">
+            <div style="text-align:center;font-size:10px;color:#6b7d9a;">Pistolet</div>
+            <div style="text-align:center;font-size:10px;color:#6b7d9a;">Tryb</div>
+            <div></div>
+        </div>
+        <div id="cpGuns"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;">
+            <div>
+                <label style="font-size:11px;color:#6b7d9a;">Linia [m]</label>
+                <input type="number" id="cpLine" value="4.0" min="0.1" max="50" step="0.1"
+                    style="width:100%;padding:8px;background:#0d1520;border:1px solid #1e2d42;border-radius:6px;color:#e0e6f0;font-size:14px;">
+            </div>
+            <div>
+                <label style="font-size:11px;color:#6b7d9a;">Przerwa [m]</label>
+                <input type="number" id="cpGap" value="8.0" min="0.1" max="50" step="0.1"
+                    style="width:100%;padding:8px;background:#0d1520;border:1px solid #1e2d42;border-radius:6px;color:#e0e6f0;font-size:14px;">
+            </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;">
+            <button class="cal-btn" onclick="saveCustomPat()">Zapisz wzorzec</button>
+            <button class="cal-btn" onclick="setPat(15)" id="cpUseBtn" style="opacity:.4;">Uzyj wzorca</button>
+        </div>
+    </div>
+
     <!-- ========== GUN STATUS ========== -->
     <div class="card">
         <h3>Pistolety</h3>
@@ -628,13 +720,17 @@ const PAT_CODES=[
     "P-2a","P-2b",
     "P-3a","P-3b",
     "P-4","P-6",
-    "P-7a","P-7b","P-7c","P-7d"
+    "P-7a","P-7b","P-7c","P-7d",
+    "WLASNY"
 ];
 /* P-3a=7, P-3b=8 are reversible */
 const REV_PATS=[7,8];
+const GUN_NAMES=["P1 Os L 12","P2 Os C 12","P3 Os R 12","P4 Os 24","P5 Kraw 12","P6 Kraw 24"];
+const MODE_DESC=["Automatyczny - dystans steruje pistoletami","Polautomatyczny - auto linia, reczna przerwa","Reczny - trzymaj START aby strzelac"];
 
 let calibrating=false;
 let spdSliderLoaded=false;
+let cpInited=false;
 
 /* ------- Commands ------- */
 function cmd(action){
@@ -666,12 +762,48 @@ function setMaxSpeed(){
         body:'action=set_max_speed&value='+val
     }).then(r=>r.json()).then(()=>fetchStatus());
 }
+/* ------- Mode select ------- */
+function setMode(m){
+    fetch('/api/control',{
+        method:'POST',
+        headers:{'Content-Type':'application/x-www-form-urlencoded'},
+        body:'action=set_mode&value='+m
+    }).then(r=>r.json()).then(()=>fetchStatus());
+}
+/* ------- Custom pattern ------- */
+function initCustomGuns(){
+    if(cpInited)return;cpInited=true;
+    let el=document.getElementById('cpGuns');
+    let h='';
+    for(let i=0;i<6;i++){
+        h+='<div style="display:grid;grid-template-columns:1fr 2fr;gap:6px;align-items:center;margin-bottom:6px;">';
+        h+='<span style="font-size:12px;color:#9eafc4;">'+GUN_NAMES[i]+'</span>';
+        h+='<select id="cpG'+i+'" style="padding:6px;background:#0d1520;border:1px solid #1e2d42;border-radius:6px;color:#e0e6f0;font-size:12px;">';
+        h+='<option value="0">Wylaczony</option><option value="1">Ciagly</option><option value="2">Przerywany</option>';
+        h+='</select></div>';
+    }
+    el.innerHTML=h;
+}
+function saveCustomPat(){
+    let body='action=save_custom_pattern';
+    for(let i=0;i<6;i++){
+        body+='&g'+i+'='+document.getElementById('cpG'+i).value;
+    }
+    body+='&line='+document.getElementById('cpLine').value;
+    body+='&gap='+document.getElementById('cpGap').value;
+    fetch('/api/control',{
+        method:'POST',
+        headers:{'Content-Type':'application/x-www-form-urlencoded'},
+        body:body
+    }).then(r=>r.json()).then(()=>fetchStatus());
+}
 /* Speed slider live update */
 document.addEventListener('DOMContentLoaded',function(){
     let sl=document.getElementById('spdSlider');
     if(sl) sl.addEventListener('input',function(){
         document.getElementById('spdSliderVal').textContent=parseFloat(this.value).toFixed(1)+' km/h';
     });
+    initCustomGuns();
 });
 
 /* ------- Time format ------- */
@@ -794,6 +926,26 @@ function fetchStatus(){
         let spdWarnEl=document.getElementById('spdWarn');
         if(d.overspeed){spdWarnEl.style.display='inline';}
         else{spdWarnEl.style.display='none';}
+
+        /* Mode selector */
+        let modes=['mAuto','mSemi','mManual'];
+        let mIdx={auto:0,semi:1,manual:2};
+        let mi=mIdx[d.mode]||0;
+        modes.forEach(function(id,i){
+            let el=document.getElementById(id);
+            if(i===mi)el.classList.add('act');
+            else el.classList.remove('act');
+        });
+        document.getElementById('modeDesc').textContent=MODE_DESC[mi];
+        /* Semi-auto next line button */
+        let semiEl=document.getElementById('semiBtn');
+        if(d.mode==='semi'&&d.state==='painting'&&d.semiLineComplete){
+            semiEl.style.display='block';
+        }else{semiEl.style.display='none';}
+        /* Custom pattern use button */
+        let cpBtn=document.getElementById('cpUseBtn');
+        if(d.customValid){cpBtn.style.opacity='1';cpBtn.disabled=false;}
+        else{cpBtn.style.opacity='.4';cpBtn.disabled=true;}
 
         /* System info */
         document.getElementById('sFw').textContent='v'+d.firmware;

@@ -74,3 +74,37 @@ float StorageManager::loadMaxSpeed() {
     prefs.end();
     return val;
 }
+
+void StorageManager::saveMode(MachineMode mode) {
+    prefs.begin("trassar", false);
+    prefs.putUChar("mode", (uint8_t)mode);
+    prefs.end();
+    Serial.printf("[NVS] Zapisano tryb: %d\n", mode);
+}
+
+MachineMode StorageManager::loadMode() {
+    prefs.begin("trassar", true);
+    uint8_t val = prefs.getUChar("mode", 0);
+    prefs.end();
+    if (val > MODE_MANUAL) val = 0;
+    return (MachineMode)val;
+}
+
+void StorageManager::saveCustomPattern(const CustomPatternCfg& cfg) {
+    prefs.begin("trassar", false);
+    prefs.putBytes("cust_pat", &cfg, sizeof(cfg));
+    prefs.end();
+    Serial.printf("[NVS] Zapisano wzorzec wlasny: linia=%.1fm przerwa=%.1fm\n",
+                  cfg.lineLen, cfg.gapLen);
+}
+
+CustomPatternCfg StorageManager::loadCustomPattern() {
+    CustomPatternCfg cfg = {};
+    prefs.begin("trassar", true);
+    size_t len = prefs.getBytes("cust_pat", &cfg, sizeof(cfg));
+    prefs.end();
+    if (len != sizeof(cfg)) {
+        cfg.valid = false;
+    }
+    return cfg;
+}

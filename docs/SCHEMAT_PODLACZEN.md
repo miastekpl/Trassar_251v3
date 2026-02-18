@@ -1,4 +1,4 @@
-# TrassarV3 - Dokumentacja techniczna i schemat podłączeń v2.8.0
+# TrassarV3 - Dokumentacja techniczna i schemat podłączeń v2.9.0
 
 ## Spis treści
 
@@ -45,7 +45,7 @@
 
 | Parametr | Wartość |
 |----------|---------|
-| Wersja | 2.5.0 |
+| Wersja | 2.9.0 |
 | Platforma | ESP32-S3 (PlatformIO) |
 | Biblioteki | TFT_eSPI, ArduinoJson v7, SD, Wire, WiFi, esp_task_wdt |
 | Orientacja ekranu | Landscape (setRotation 1) |
@@ -114,7 +114,7 @@
 
 | Przycisk | Pin ESP32-S3 | GPIO | Kierunek | Funkcja |
 |----------|-------------|------|----------|---------|
-| START | GPIO 38 | 38 | INPUT_PULLUP | Start / Pauza / Wznów |
+| START | GPIO 38 | 38 | INPUT_PULLUP | Start / Pauza / Wznów / Wybór trybu (1 s, HOME) |
 | STOP | GPIO 39 | 39 | INPUT_PULLUP | Stop / Menu (1 s) / Cofnij |
 | SELEKTOR | GPIO 40 | 40 | INPUT_PULLUP | Odwróć P-3a/P-3b (HOME/PAINTING), nawigacja + wejście w opcję (menu serwis.) |
 | GAP (od przerwy) | GPIO 7 | 7 | INPUT_PULLUP | Start od przerwy (HOME) |
@@ -177,8 +177,13 @@
 | Funkcja | Element | GPIO | Ekran | Uwagi |
 |---------|---------|------|-------|-------|
 | Start malowania | START | 38 | HOME | Krótkie naciśnięcie |
+| Wybór trybu pracy | START | 38 | HOME | Długie naciśnięcie (1 s) |
 | Start od przerwy | GAP | **7** | HOME | Krótkie naciśnięcie |
-| Pauza / Wznowienie | START | 38 | PAINTING | Krótkie naciśnięcie |
+| Pauza / Wznowienie | START | 38 | PAINTING | Krótkie naciśnięcie (AUTO) |
+| Kolejna linia (SEMI) | START | 38 | PAINTING | Krótkie naciśnięcie (SEMI, po kreski) |
+| Pistolety ON (RĘCZNY) | START | 38 | PAINTING | Trzymanie (tryb RĘCZNY) |
+| Przełącz tryb | START | 38 | MODE SELECT | Krótkie naciśnięcie |
+| Zatwierdź tryb | START | 38 | MODE SELECT | Długie naciśnięcie (1 s) |
 | Zatrzymanie | STOP | 39 | PAINTING | Krótkie naciśnięcie |
 | Odwrócenie wzorca | SELEKTOR | 40 | HOME / PAINTING | Krótkie naciśnięcie, **tylko P-3a/P-3b** |
 | Menu serwisowe | STOP | 39 | HOME | Długie naciśnięcie (1 s) |
@@ -196,8 +201,8 @@
 ### 4.2 Zmiana wzorca malowania
 
 Zmiana wzorca jest możliwa **wyłącznie** przez:
-- **Panel WWW** — 15 przycisków wzorców (http://192.168.4.1)
-- **API REST** — `POST /api/control` z `action=set_pattern&value=0..14`
+- **Panel WWW** — 16 przycisków wzorców (http://192.168.4.1), w tym WŁASNY
+- **API REST** — `POST /api/control` z `action=set_pattern&value=0..15` (15 = WŁASNY)
 
 Na fizycznym panelu sterowania (ekran HOME i PAINTING) przycisk SELEKTOR **nie zmienia** wzorca.
 
@@ -439,13 +444,13 @@ Na fizycznym panelu sterowania (ekran HOME i PAINTING) przycisk SELEKTOR **nie z
 | **config** | config.h | Konfiguracja pinów, stałe, struktury danych |
 | **display_manager** | display_manager.cpp/h | Sterowanie wyświetlaczem ILI9341 |
 | **menu** | menu.cpp/h | System menu, obsługa zdarzeń przycisków |
-| **patterns** | patterns.cpp/h | Definicje 15 wzorców malowania |
-| **painting_engine** | painting_engine.cpp/h | Silnik malowania — sterowanie pistoletami |
+| **patterns** | patterns.cpp/h | Definicje 16 wzorców malowania (15 + własny) |
+| **painting_engine** | painting_engine.cpp/h | Silnik malowania — 3 tryby sterowania pistoletami |
 | **button_handler** | button_handler.cpp/h | Obsługa przycisków z debounce i long-press |
 | **encoder_distance** | encoder_distance.cpp/h | Pomiar dystansu i prędkości z enkodera |
 | **guns** | guns.cpp/h | Sterowanie 6 przekaźnikami pistoletów |
 | **statistics** | statistics.cpp/h | Statystyki sesji (dystans, powierzchnia, czas) |
-| **storage** | storage.cpp/h | Pamięć NVS (kalibracja, ostatni wzorzec) |
+| **storage** | storage.cpp/h | Pamięć NVS (kalibracja, wzorzec, tryb, wzorzec własny) |
 | **rtc_handler** | rtc_handler.cpp/h | Obsługa zegara RTC DS1307 |
 | **report_logger** | report_logger.cpp/h | Zapis raportów CSV na kartę SD |
 | **buzzer** | buzzer.cpp/h | Sygnalizacja dźwiękowa (LEDC PWM, non-blocking) |
@@ -505,8 +510,10 @@ Na fizycznym panelu sterowania (ekran HOME i PAINTING) przycisk SELEKTOR **nie z
        │          ┌─────────┐           │
        │    ┌─────│PAINTING │──────┐    │
        │    │     └─────────┘      │    │
+       │    │    (3 tryby pracy:   │    │
+       │    │  AUTO/SEMI/MANUAL)   │    │
        │    │                      │    │
-       │    │ START (pauza)        │ STOP
+       │    │ START (pauza/AUTO)   │ STOP
        │    ▼                      │    │
        │ ┌──────┐                  │    │
        │ │PAUSED│──────────────────┘    │
@@ -515,25 +522,43 @@ Na fizycznym panelu sterowania (ekran HOME i PAINTING) przycisk SELEKTOR **nie z
        │    │ START (wznów)             │
        │    └──────► PAINTING ──────────┘
        │
-       │    STOP (1s na HOME)
-       ▼
-  ┌──────────┐
-  │ SERVICE  │ → Kalibracja / Pomiar / Raporty / Czyszczenie
-  │  MENU    │
-  └──────────┘
+       │    STOP (1s na HOME)       START (1s na HOME)
+       ▼                              ▼
+  ┌──────────┐                ┌──────────────┐
+  │ SERVICE  │                │ MODE SELECT  │
+  │  MENU    │                │ AUTO/SEMI/   │
+  └──────────┘                │ RĘCZNY       │
+   → Kalibracja/Pomiar/       └──────────────┘
+     Raporty/Czyszczenie        → Zapisuje do NVS
 ```
 
-### 8.5 Logika sterowania pistoletami
+### 8.5 Logika sterowania pistoletami (3 tryby)
 
 ```
 paintEngine.update():
     1. Oblicz dystans od startu wzorca
     2. Sprawdź prędkość >= 3 km/h (MIN_PAINT_SPEED_KMH)
-    3. Dla każdego pistoletu (P1–P6):
-       a. Pobierz konfigurację z wzorca (z uwzgl. odwrócenia)
-       b. GUN_OFF → wyłączony
-       c. GUN_CONTINUOUS → włączony (jeśli speedOK)
-       d. GUN_DASHED → fmod(dist, kreska+przerwa) < kreska ? ON : OFF
+    3. Zależnie od trybu (g_state.machineMode):
+
+       TRYB AUTO:
+         Dla każdego pistoletu (P1–P6):
+           a. Pobierz konfigurację z wzorca (z uwzgl. odwrócenia)
+           b. GUN_OFF → wyłączony
+           c. GUN_CONTINUOUS → włączony (jeśli speedOK)
+           d. GUN_DASHED → fmod(dist, kreska+przerwa) < kreska ? ON : OFF
+         Inteligentne przełączanie wzorców (Smart Switch)
+
+       TRYB SEMI:
+         semiLineDist += deltaDist
+         GUN_CONTINUOUS → włączony (jeśli speedOK)
+         GUN_DASHED → ON jeśli semiLineDist < lineLen && speedOK
+                       Po osiągnięciu lineLen → semiLineComplete=true, buzzer
+                       Operator naciska START → semiNextLine() → reset
+
+       TRYB RĘCZNY:
+         fire = speedOK && buttons.isStartHeld() && (mode != GUN_OFF)
+         Pistolety ON tylko gdy operator trzyma przycisk START
+
     4. Zaktualizuj statystyki (dystans, powierzchnia)
 ```
 
@@ -545,7 +570,7 @@ paintEngine.update():
 | `/api/status` | GET | JSON ze stanem systemu (+ anomalia pistoletów) |
 | `/api/stats` | GET | Statystyki lifetime + sesja + per-gun |
 | `/api/reports` | GET | Lista plików raportów CSV z karty SD |
-| `/api/control` | POST | Sterowanie maszyną (action=start\|pause\|stop\|start_from_gap\|set_pattern\|toggle_reverse\|cal_start\|cal_finish\|set_max_speed) |
+| `/api/control` | POST | Sterowanie maszyną (action=start\|pause\|stop\|start_from_gap\|set_pattern\|toggle_reverse\|set_mode\|semi_next_line\|save_custom_pattern\|cal_start\|cal_finish\|set_max_speed) |
 
 Szczegółowa dokumentacja API → [API_WWW.md](API_WWW.md)
 
@@ -557,7 +582,7 @@ Szczegółowa dokumentacja API → [API_WWW.md](API_WWW.md)
 
 | Parametr | Wartość | Opis |
 |----------|---------|------|
-| FW_VERSION | "2.6.0" | Wersja firmware |
+| FW_VERSION | "2.9.0" | Wersja firmware |
 | FW_NAME | "TrassarV3" | Nazwa systemu |
 | WIFI_AP_SSID | "TrassarV3" | Nazwa sieci WiFi |
 | WIFI_AP_PASS | "12345678" | Hasło WiFi |
@@ -644,5 +669,5 @@ Szczegółowa dokumentacja API → [API_WWW.md](API_WWW.md)
 
 ---
 
-*TrassarV3 — Dokumentacja techniczna v2.6.0*
-*ESP32-S3 N16R8 | ILI9341 320×240 | 6 pistoletów | 15 wzorców | WiFi AP*
+*TrassarV3 — Dokumentacja techniczna v2.9.0*
+*ESP32-S3 N16R8 | ILI9341 320×240 | 6 pistoletów | 16 wzorców | 3 tryby pracy | WiFi AP*

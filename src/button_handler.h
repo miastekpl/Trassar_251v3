@@ -8,6 +8,7 @@
 enum ButtonEvent : uint8_t {
     EVT_NONE = 0,
     EVT_START_SHORT,
+    EVT_START_LONG,        // Dlugie przytrzymanie START (wybor trybu)
     EVT_STOP_SHORT,
     EVT_STOP_LONG,
     EVT_SELECT_SHORT,
