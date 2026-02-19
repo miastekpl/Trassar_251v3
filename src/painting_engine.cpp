@@ -323,9 +323,7 @@ void PaintingEngine::stop() {
 }
 
 void PaintingEngine::setPattern(PatternID pat) {
-    // --- Inteligentne przelaczanie wzorcow ---
-    // Podczas malowania: kolejkuj zmiane do konca cyklu (linia+przerwa)
-    // Nie malujac: zmiana natychmiastowa
+    // --- Przelaczanie wzorcow (smart lub instant) ---
     if (g_state.machineState == STATE_PAINTING) {
         if (pat == g_state.currentPattern) {
             // Kliknieto biezacy wzorzec → anuluj pending
@@ -336,16 +334,33 @@ void PaintingEngine::setPattern(PatternID pat) {
             }
             return;
         }
-        pendingPattern = pat;
-        patternChangePending = true;
-        float cycle = getPrimaryCycle();
-        float dist = encoderDist.getDistanceMeters() - patternStartDist;
-        if (dist < 0) dist = 0;
-        pendingCycleCount = (cycle > 0 && dist > 0)
-                            ? (int)(dist / cycle) : -1;
-        Serial.printf("[ENGINE] Wzorzec %s kolejkowany (czeka na koniec cyklu)\n",
-                      patternMgr.getPattern(pat).code);
-        g_state.displayNeedsUpdate = true;
+
+        if (smartSwitch) {
+            // SMART: kolejkuj zmiane do konca cyklu (linia+przerwa)
+            pendingPattern = pat;
+            patternChangePending = true;
+            float cycle = getPrimaryCycle();
+            float dist = encoderDist.getDistanceMeters() - patternStartDist;
+            if (dist < 0) dist = 0;
+            pendingCycleCount = (cycle > 0 && dist > 0)
+                                ? (int)(dist / cycle) : -1;
+            Serial.printf("[ENGINE] Wzorzec %s kolejkowany (czeka na koniec cyklu)\n",
+                          patternMgr.getPattern(pat).code);
+            g_state.displayNeedsUpdate = true;
+        } else {
+            // INSTANT: natychmiastowa zmiana (utnij biezacy wzorzec)
+            patternMgr.setPattern(pat);
+            patternStartDist = encoderDist.getDistanceMeters();
+            storage.saveLastPattern(pat);
+            patternChangePending = false;
+            // Reset semi-auto state
+            semiLineDist = 0;
+            semiLineComplete = false;
+            g_state.displayNeedsUpdate = true;
+            buzzer.beep(1500, 80);
+            Serial.printf("[ENGINE] Natychmiastowa zmiana wzorca -> %s\n",
+                          patternMgr.getCurrent().code);
+        }
         return;
     }
 

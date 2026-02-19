@@ -210,6 +210,14 @@ void TrassarWebServer::handleControl() {
         }
     } else if (action == "semi_next_line") {
         paintEngine.semiNextLine();
+    } else if (action == "set_switch_mode") {
+        if (server.hasArg("value")) {
+            int val = server.arg("value").toInt();
+            bool smart = (val == 0);  // 0=smart, 1=instant
+            paintEngine.setSmartSwitch(smart);
+            storage.saveSwitchMode(smart);
+            Serial.printf("[WWW] Tryb przelaczania: %s\n", smart ? "SMART" : "INSTANT");
+        }
     } else {
         result = "nieznana akcja";
     }
@@ -306,7 +314,8 @@ String TrassarWebServer::getStateJson() {
         gunsArr.add(guns.getState(i));
     }
 
-    // Oczekujaca zmiana wzorca (smart switch)
+    // Przelaczanie wzorcow
+    doc["smartSwitch"] = paintEngine.isSmartSwitch();
     doc["patternPending"] = paintEngine.isPatternChangePending();
     if (paintEngine.isPatternChangePending()) {
         doc["pendingPattern"] = patternMgr.getPattern(paintEngine.getPendingPattern()).code;
@@ -614,6 +623,13 @@ body{
             <div style="font-size:10px;color:#6b7d9a;margin-bottom:4px;">PODGLAD WZORCA</div>
             <canvas id="patCvs" width="480" height="70" style="width:100%;height:70px;background:#0d1520;border-radius:6px;border:1px solid #1e2d42;"></canvas>
         </div>
+        <!-- Switch mode toggle -->
+        <div style="margin-top:10px;display:flex;align-items:center;gap:8px;">
+            <span style="font-size:10px;color:#6b7d9a;">ZMIANA WZORCA:</span>
+            <button class="pbtn" id="swSmart" onclick="setSwitchMode(0)" style="font-size:10px;padding:4px 10px;">Smart</button>
+            <button class="pbtn" id="swInst" onclick="setSwitchMode(1)" style="font-size:10px;padding:4px 10px;">Instant</button>
+            <span id="swDesc" style="font-size:9px;color:#4a5d78;flex:1;">dokonczy cykl</span>
+        </div>
     </div>
 
     <!-- ========== MODE SELECT ========== -->
@@ -761,15 +777,25 @@ let calibrating=false;
 let spdSliderLoaded=false;
 let cpInited=false;
 let curSlot=0;
-/* Pattern definitions for preview (line,gap per P index - primary gun only) */
+/* Pattern definitions: array of [gunName, widthCm, lineLen, gapLen] per gun */
+/* lineLen=0 => continuous */
 const PAT_DEFS=[
-    [4,8],[2,4],[2,2],[1,1],[1,1],  /* P-1a..P-1e */
-    [0,0],[0,0],                     /* P-2a,P-2b (continuous) */
-    [4,2],[1,1],                     /* P-3a,P-3b (mixed) */
-    [0,0],                           /* P-4 (continuous) */
-    [4,2],                           /* P-6 */
-    [1,1],[0,0],[1,1],[0,0],         /* P-7a..P-7d */
-    [0,0]                            /* custom - filled dynamically */
+    [['P2',12,4,8]],                         /* P-1a */
+    [['P2',12,2,4]],                         /* P-1b */
+    [['P2',12,2,2]],                         /* P-1c */
+    [['P2',12,1,1]],                         /* P-1d */
+    [['P4',24,1,1]],                         /* P-1e */
+    [['P2',12,0,0]],                         /* P-2a */
+    [['P4',24,0,0]],                         /* P-2b */
+    [['P1',12,0,0],['P3',12,4,2]],          /* P-3a */
+    [['P1',12,0,0],['P3',12,1,1]],          /* P-3b */
+    [['P1',12,0,0],['P3',12,0,0]],          /* P-4  */
+    [['P5',12,4,2]],                         /* P-6  */
+    [['P6',24,1,1]],                         /* P-7a */
+    [['P6',24,0,0]],                         /* P-7b */
+    [['P5',12,1,1]],                         /* P-7c */
+    [['P5',12,0,0]],                         /* P-7d */
+    []                                        /* custom */
 ];
 
 /* ------- Commands ------- */
@@ -808,6 +834,14 @@ function setMode(m){
         method:'POST',
         headers:{'Content-Type':'application/x-www-form-urlencoded'},
         body:'action=set_mode&value='+m
+    }).then(r=>r.json()).then(()=>fetchStatus());
+}
+/* ------- Switch mode ------- */
+function setSwitchMode(m){
+    fetch('/api/control',{
+        method:'POST',
+        headers:{'Content-Type':'application/x-www-form-urlencoded'},
+        body:'action=set_switch_mode&value='+m
     }).then(r=>r.json()).then(()=>fetchStatus());
 }
 /* ------- Custom pattern ------- */
@@ -860,39 +894,67 @@ function selSlot(s){
     fetch('/api/control',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},
         body:'action=activate_slot&value='+s}).then(r=>r.json()).then(()=>fetchStatus());
 }
-/* ------- Pattern preview canvas ------- */
+/* ------- Pattern preview canvas (multi-gun) ------- */
 function drawPatPreview(patIdx){
     let cvs=document.getElementById('patCvs');if(!cvs)return;
     let ctx=cvs.getContext('2d');
-    let W=cvs.width,H=cvs.height;
-    ctx.clearRect(0,0,W,H);
-    let d=PAT_DEFS[patIdx];if(!d)return;
-    let ln=d[0],gp=d[1];
-    if(ln<=0&&gp<=0){
-        /* continuous pattern */
-        ctx.fillStyle='#2ae67a';ctx.fillRect(10,15,W-20,H-30);
-        ctx.fillStyle='#6b7d9a';ctx.font='11px sans-serif';ctx.textAlign='center';
-        ctx.fillText('Ciagly',W/2,H-4);
-        return;
+    let guns=PAT_DEFS[patIdx];
+    if(!guns||guns.length===0){
+        cvs.height=50;cvs.style.height='50px';
+        ctx.clearRect(0,0,cvs.width,cvs.height);
+        ctx.fillStyle='#6b7d9a';ctx.font='12px sans-serif';ctx.textAlign='center';
+        ctx.fillText('Wzorzec wlasny',cvs.width/2,28);return;
     }
-    let cycle=ln+gp;if(cycle<=0)return;
-    let scale=(W-20)/Math.max(cycle*3,cycle);
-    if(scale>40)scale=40;if(scale<2)scale=2;
-    let x=10;
-    ctx.fillStyle='#6b7d9a';ctx.font='10px sans-serif';ctx.textAlign='center';
-    let y0=10,h=H-25;
-    for(let rep=0;rep<20&&x<W-5;rep++){
-        /* line */
-        let lw=ln*scale;
-        ctx.fillStyle='#2ae67a';ctx.fillRect(x,y0,Math.max(lw,1),h);
-        x+=lw;
-        /* gap */
-        let gw=gp*scale;
-        ctx.fillStyle='#1e2d42';ctx.fillRect(x,y0,Math.max(gw,1),h);
-        x+=gw;
+    let nG=guns.length;
+    let rowH=32,pad=4,lblW=72,topM=4;
+    let totalH=nG*rowH+nG*pad+topM+14;
+    cvs.height=totalH;cvs.style.height=totalH+'px';
+    let W=cvs.width;
+    ctx.clearRect(0,0,W,totalH);
+    let drawW=W-lblW-10;
+    /* find max cycle for consistent scale */
+    let maxCyc=0;
+    for(let g=0;g<nG;g++){let c=guns[g][2]+guns[g][3];if(c>maxCyc)maxCyc=c;}
+    for(let g=0;g<nG;g++){
+        let gn=guns[g][0],wCm=guns[g][1],ln=guns[g][2],gp=guns[g][3];
+        let y=topM+g*(rowH+pad);
+        /* label: gun name + width badge */
+        ctx.fillStyle='#9eafc4';ctx.font='bold 11px sans-serif';ctx.textAlign='left';
+        ctx.fillText(gn,4,y+14);
+        let badge=wCm+'cm';
+        ctx.fillStyle=wCm>=24?'#e6a02a':'#2a9de6';
+        ctx.font='9px sans-serif';
+        ctx.fillText(badge,4,y+26);
+        let wTag=wCm>=24?'szer.':'wask.';
+        ctx.fillStyle='#4a5d78';ctx.fillText(wTag,32,y+26);
+        /* draw pattern bar */
+        let x0=lblW;
+        if(ln<=0&&gp<=0){
+            /* continuous */
+            ctx.fillStyle='#2ae67a';ctx.fillRect(x0,y+2,drawW,rowH-4);
+            ctx.fillStyle='#0a0e17';ctx.font='11px sans-serif';ctx.textAlign='center';
+            ctx.fillText('Ciagly',x0+drawW/2,y+rowH/2+4);
+            ctx.textAlign='left';
+        } else {
+            let cycle=ln+gp;if(cycle<=0)continue;
+            let scale=drawW/Math.max(cycle*3,cycle);
+            if(scale>50)scale=50;if(scale<2)scale=2;
+            let x=x0;
+            for(let rep=0;rep<30&&x<x0+drawW;rep++){
+                let lw=Math.min(ln*scale,x0+drawW-x);
+                ctx.fillStyle='#2ae67a';ctx.fillRect(x,y+2,Math.max(lw,1),rowH-4);
+                x+=ln*scale;
+                if(x>=x0+drawW)break;
+                let gw=Math.min(gp*scale,x0+drawW-x);
+                ctx.fillStyle='#1e2d42';ctx.fillRect(x,y+2,Math.max(gw,1),rowH-4);
+                x+=gp*scale;
+            }
+            /* dimensions label */
+            ctx.fillStyle='#9eafc4';ctx.font='10px sans-serif';ctx.textAlign='center';
+            ctx.fillText(ln+'m / '+gp+'m',x0+drawW/2,y+rowH-2);
+            ctx.textAlign='left';
+        }
     }
-    ctx.fillStyle='#6b7d9a';
-    ctx.fillText(ln+'m / '+gp+'m',W/2,H-3);
 }
 /* Speed slider live update */
 document.addEventListener('DOMContentLoaded',function(){
@@ -1061,6 +1123,15 @@ function fetchStatus(){
             let st=document.getElementById('slotTab'+i);
             if(i===curSlot)st.classList.add('act');else st.classList.remove('act');
             if(d.slotsValid&&d.slotsValid[i])st.style.opacity='1';else st.style.opacity='.5';
+        }
+
+        /* Switch mode sync */
+        let isSmart=d.smartSwitch!==false;
+        let swS=document.getElementById('swSmart'),swI=document.getElementById('swInst');
+        if(swS&&swI){
+            swS.style.background=isSmart?'#2ae67a':'';swS.style.color=isSmart?'#0a0e17':'';
+            swI.style.background=!isSmart?'#e6a02a':'';swI.style.color=!isSmart?'#0a0e17':'';
+            document.getElementById('swDesc').textContent=isSmart?'dokonczy cykl przed zmiana':'natychmiastowa zmiana wzorca';
         }
 
     }).catch(e=>console.error('Status error:',e));

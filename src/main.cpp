@@ -144,6 +144,9 @@ void setup() {
     // Wczytaj tryb pracy z NVS
     g_state.machineMode = storage.loadMode();
 
+    // Wczytaj tryb przelaczania wzorcow z NVS
+    paintEngine.setSmartSwitch(storage.loadSwitchMode());
+
     // Watchdog timer - 3s timeout, auto-reset przy zawieszeniu
     Serial.println("[INIT] Watchdog timer...");
     esp_task_wdt_init(WDT_TIMEOUT_SEC, true);

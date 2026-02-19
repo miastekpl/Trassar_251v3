@@ -43,6 +43,10 @@ public:
     void saveGunShotCounts(const uint32_t counts[NUM_GUNS]);
     void loadGunShotCounts(uint32_t counts[NUM_GUNS]);
 
+    // Tryb przelaczania wzorcow (smart/instant)
+    void saveSwitchMode(bool smart);
+    bool loadSwitchMode();
+
 private:
     void checkNvsVersion();
 };

@@ -1,4 +1,4 @@
-# TrassarV3 - Instrukcja obsługi v2.10.0
+# TrassarV3 - Instrukcja obsługi v2.11.0
 
 ## Spis treści
 
@@ -46,7 +46,7 @@ System zapewnia:
 | Parametr | Wartość |
 |----------|---------|
 | Mikrokontroler | ESP32-S3 N16R8 (16 MB Flash, 8 MB PSRAM) |
-| Firmware | v2.10.0 |
+| Firmware | v2.11.0 |
 | Wyświetlacz | ILI9341 2.8" TFT, 320×240 px, tryb landscape |
 | Interfejs SPI | HSPI (SPI3), 27 MHz |
 | Zegar RTC | DS1307 z baterią CR2032 |
@@ -502,7 +502,8 @@ Panel sterowania w przeglądarce oferuje pełną kontrolę nad maszyną:
 | **Sterowanie** | Przyciski START / PAUZA / STOP / START OD PRZERWY |
 | **Tryb pracy** | 3 przyciski: AUTO / SEMI / RĘCZNY — aktywny podświetlony na zielono |
 | **Wybór wzorca** | 16 przycisków pogrupowanych: P-1x, P-2x, P-3x, P-4/P-6, P-7x, WŁASNY |
-| **Podgląd wzorca** | Canvas wizualizacja kreska/przerwa w skali z wymiarami |
+| **Podgląd wzorca** | Canvas wizualizacja kreska/przerwa w skali — osobny rząd per pistolet, szerokość (12/24cm) |
+| **Tryb przełączania** | Smart (dokończ cykl) / Instant (natychmiast) — wybór z panelu, zapis do NVS |
 | **Wzorzec własny** | Edytor: 6 pistoletów, kreska/przerwa, 3 sloty pamięci, zapis do NVS |
 | **Odwracanie** | Przycisk "Odwróć" — aktywny tylko dla P-3a / P-3b |
 | **Pistolety** | 6 kółek P1–P6 (zielone = ON, szare = OFF, **czerwone migające** = anomalia) |
@@ -519,9 +520,11 @@ W panelu WWW dostępne jest **16 przycisków wzorców** (15 normowych + WŁASNY)
 
 > **Uwaga:** Przycisk WŁASNY jest aktywny dopiero po skonfigurowaniu i zapisaniu wzorca własnego w edytorze.
 
-### 9.4 Inteligentne przełączanie wzorców (Smart Switch)
+### 9.4 Przełączanie wzorców (Smart / Instant)
 
-Zmiana wzorca **podczas aktywnego malowania** NIE przerywa bieżącego cyklu:
+System oferuje dwa tryby przełączania wzorców **podczas malowania**, wybierane z panelu WWW:
+
+**Tryb Smart (domyślny)** — zmiana wzorca NIE przerywa bieżącego cyklu:
 
 1. Bieżąca linia jest domalowywana do pełnej długości
 2. Przerwa po linii jest dokańczana w całości
@@ -537,7 +540,22 @@ Zmiana wzorca **podczas aktywnego malowania** NIE przerywa bieżącego cyklu:
 - **PAUZA / STOP** — mogą przerwać malowanie w dowolnym momencie
 - **Anulowanie** — kliknięcie bieżącego aktywnego wzorca anuluje oczekującą zmianę
 
-**Przykład:** Malując P-1a (4 m linia + 8 m przerwa), klikasz P-1b. Maszyna domalowuje bieżącą linię 4 m, przejeżdża pełną przerwę 8 m, a potem zaczyna P-1b (2 m linia + 4 m przerwa).
+**Przykład (Smart):** Malując P-1a (4 m linia + 8 m przerwa), klikasz P-1b. Maszyna domalowuje bieżącą linię 4 m, przejeżdża pełną przerwę 8 m, a potem zaczyna P-1b (2 m linia + 4 m przerwa).
+
+**Tryb Instant** — natychmiastowa zmiana wzorca:
+
+Zmiana wzorca **podczas malowania** następuje natychmiast:
+
+1. Bieżąca kreska jest ucinana w miejscu zmiany
+2. Nowy wzorzec zaczyna się od razu
+3. Nie ma oczekiwania na koniec cyklu
+
+**Przykład (Instant):** Malując P-3a (ciągła + przerywana), klikasz P-2a. Maszyna natychmiast przełącza się — nawet w połowie kreski.
+
+**Wybór trybu przełączania:**
+- W panelu WWW pod podglądem wzorca — dwa przyciski: **Smart** / **Instant**
+- Aktywny tryb jest podświetlony
+- Wybór jest zapisywany trwale w NVS — przetrwa restart urządzenia
 
 ---
 
@@ -695,7 +713,7 @@ System wyposażony jest w pasywny buzzer (GPIO 8) generujący sygnały dźwięko
 
 ## 14. Architektura wielordzeniowa
 
-TrassarV3 v2.10.0 wykorzystuje oba rdzenie procesora ESP32-S3:
+TrassarV3 v2.11.0 wykorzystuje oba rdzenie procesora ESP32-S3:
 
 | Rdzeń | Zadania |
 |-------|---------|
@@ -846,7 +864,7 @@ Gdy system wykryje anomalię pistoletów (skonfigurowany pistolet nie maluje po 
 **Kroki:**
 
 1. **Przygotowanie:**
-   - Włącz urządzenie — pojawi się ekran powitalny "TrassarV3 v2.10.0", a po chwili ekran główny
+   - Włącz urządzenie — pojawi się ekran powitalny "TrassarV3 v2.11.0", a po chwili ekran główny
    - Sprawdź wyświetlany wzorzec w lewym górnym rogu
    - Jeśli wyświetlany wzorzec to nie P-1a, zmień go przez panel WWW: połącz się z WiFi "TrassarV3" (hasło: 12345678), otwórz http://192.168.4.1 i kliknij przycisk **P-1a**
    - Sprawdź status kalibracji w panelu WWW — powinno być "Skalibrowany"
@@ -1067,4 +1085,4 @@ START OD PRZERWY (GAP):  ░░░░██░░░░██░░░░██ 
 ---
 
 *TrassarV3 — Komputer pokładowy malowarki pasów drogowych*
-*Firmware v2.10.0 | ESP32-S3 N16R8 | 6 pistoletów, 16 wzorców, 3 tryby pracy, buzzer, watchdog, anomaly detect*
+*Firmware v2.11.0 | ESP32-S3 N16R8 | 6 pistoletów, 16 wzorców, 3 tryby pracy, buzzer, watchdog, anomaly detect*

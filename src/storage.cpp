@@ -151,3 +151,17 @@ void StorageManager::loadGunShotCounts(uint32_t counts[NUM_GUNS]) {
         for (int i = 0; i < NUM_GUNS; i++) counts[i] = 0;
     }
 }
+
+void StorageManager::saveSwitchMode(bool smart) {
+    prefs.begin("trassar", false);
+    prefs.putBool("sw_smart", smart);
+    prefs.end();
+    Serial.printf("[NVS] Tryb przelaczania: %s\n", smart ? "SMART" : "INSTANT");
+}
+
+bool StorageManager::loadSwitchMode() {
+    prefs.begin("trassar", true);
+    bool val = prefs.getBool("sw_smart", true);  // Domyslnie smart
+    prefs.end();
+    return val;
+}

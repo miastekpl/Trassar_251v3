@@ -1,4 +1,4 @@
-# TrassarV3 - API serwera WWW v2.10.0
+# TrassarV3 - API serwera WWW v2.11.0
 
 ## Informacje ogólne
 
@@ -79,7 +79,8 @@ Zwraca aktualny stan systemu w formacie JSON.
     "patternIdx": 0,
     "customValid": false,
     "activeSlot": 0,
-    "slotsValid": [true, false, false]
+    "slotsValid": [true, false, false],
+    "smartSwitch": true
 }
 ```
 
@@ -120,6 +121,7 @@ Zwraca aktualny stan systemu w formacie JSON.
 | `customValid` | bool | Czy wzorzec własny jest skonfigurowany i gotowy do użycia |
 | `activeSlot` | int | Aktywny slot wzorca własnego (0-2) |
 | `slotsValid` | array[3] | Flagi zapisanych slotów (true = slot zawiera wzorzec) |
+| `smartSwitch` | bool | Tryb przełączania wzorców: true=Smart (czekaj na cykl), false=Instant (natychmiast) |
 
 ---
 
@@ -235,12 +237,13 @@ Wysyła komendę sterującą do systemu.
 | `pause` | - | Zapauzuj malowanie |
 | `stop` | - | Zatrzymaj malowanie |
 | `start_from_gap` | - | **Rozpocznij malowanie od przerwy** (przesuwa punkt startowy o długość kreski) |
-| `set_pattern` | 0-15 | Ustaw wzorzec (indeks PatternID, 15 = WŁASNY). **Podczas malowania**: zmiana jest kolejkowana do końca bieżącego cyklu (linia+przerwa). Wzorce ciągłe przełączają się natychmiast. |
+| `set_pattern` | 0-15 | Ustaw wzorzec (indeks PatternID, 15 = WŁASNY). **Podczas malowania** zależy od trybu: **Smart** — zmiana kolejkowana do końca cyklu; **Instant** — natychmiastowa zmiana (ucięcie bieżącego wzorca). |
 | `toggle_reverse` | - | Odwróć wzorzec (P-3a/P-3b) |
 | `set_mode` | 0-2 | Ustaw tryb pracy: 0=AUTO, 1=SEMI, 2=RĘCZNY (zapis do NVS) |
 | `semi_next_line` | - | Wyzwól kolejną kreskę w trybie SEMI (działa tylko gdy `semiLineComplete=true`) |
 | `save_custom_pattern` | *patrz niżej* | Zapisz wzorzec własny do wybranego slotu NVS |
 | `activate_slot` | 0-2 | Przełącz aktywny slot wzorca własnego (slot musi być zapisany) |
+| `set_switch_mode` | 0-1 | Tryb przełączania wzorców: 0=Smart (dokończ cykl), 1=Instant (natychmiast). Zapis do NVS |
 | `cal_start` | - | Rozpocznij kalibrację enkodera |
 | `cal_finish` | - | Zakończ kalibrację enkodera |
 | `set_max_speed` | 5.0–30.0 | Ustaw próg alarmu prędkości [km/h] (zapis do NVS) |
@@ -335,6 +338,12 @@ curl -X POST -d "action=activate_slot&value=1" http://192.168.4.1/api/control
 
 # Zapisz wzorzec własny do slotu 3
 curl -X POST -d "action=save_custom_pattern&slot=2&g0=0&g1=1&g2=0&g3=0&g4=0&g5=0&ln0=4&gp0=8&ln1=4&gp1=8&ln2=4&gp2=8&ln3=4&gp3=8&ln4=4&gp4=8&ln5=4&gp5=8" http://192.168.4.1/api/control
+
+# Ustaw tryb przelaczania wzorcow na Instant (natychmiastowy)
+curl -X POST -d "action=set_switch_mode&value=1" http://192.168.4.1/api/control
+
+# Ustaw tryb przelaczania wzorcow na Smart (dokoncz cykl)
+curl -X POST -d "action=set_switch_mode&value=0" http://192.168.4.1/api/control
 
 # Pobierz raport CSV
 curl -O http://192.168.4.1/api/reports/download?file=20260219.csv

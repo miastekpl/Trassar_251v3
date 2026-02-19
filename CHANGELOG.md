@@ -7,6 +7,39 @@ Wersjonowanie zgodne z [Semantic Versioning](https://semver.org/lang/pl/).
 
 ---
 
+## [2.11.0] - 2026-02-19
+
+### Dodano - Podgląd multi-gun, tryb przełączania Smart/Instant
+
+#### 1) Podgląd wzorca Canvas — multi-gun + szerokość
+- Wzorce wielopistoletowe (P-3a, P-3b, P-4) wyświetlają osobny rząd per pistolet
+- Każdy rząd: nazwa pistoletu, badge szerokości (12cm/24cm wąska/szeroka), wizualizacja kreska/przerwa
+- Kolory badge: niebieski = 12cm (wąska), pomarańczowy = 24cm (szeroka)
+- Wzorce ciągłe: wypełniony prostokąt z etykietą "Ciagly"
+- Dynamiczna wysokość canvasu w zależności od liczby pistoletów
+- Spójna skala kreska/przerwa dla wszystkich pistoletów w tym samym wzorcu
+
+#### 2) Tryb przełączania wzorców — Smart vs Instant
+- **Smart (domyślny):** zmiana wzorca podczas malowania czeka na koniec bieżącego cyklu (kreska+przerwa)
+- **Instant:** natychmiastowa zmiana wzorca — ucina bieżący wzorzec w dowolnym momencie
+- Wybór z panelu WWW: dwa przyciski Smart/Instant pod podglądem wzorca
+- Smart podświetlony na zielono, Instant na pomarańczowo
+- Opis kontekstowy: "dokonczy cykl przed zmiana" / "natychmiastowa zmiana wzorca"
+- Ustawienie zapisywane trwale w NVS — przetrwa restart urządzenia
+- Nowa akcja API: `set_switch_mode` (value=0 Smart, value=1 Instant)
+- Nowe pole API status: `smartSwitch` (bool)
+
+### Zmieniono
+- Wersja firmware: 2.10.0 → **2.11.0**
+- `PAT_DEFS` JS: z `[line,gap]` na `[[gun,width,line,gap],...]` — multi-gun
+- `drawPatPreview()`: pełna przeróbka — osobny rząd per pistolet z labelami i szerokością
+- `painting_engine`: `setPattern()` obsługuje tryb Smart i Instant
+- `painting_engine.h`: dodano `smartSwitch`, `setSmartSwitch()`, `isSmartSwitch()`
+- `storage`: dodano `saveSwitchMode()`/`loadSwitchMode()`
+- `main.cpp`: ładowanie trybu przełączania z NVS przy starcie
+
+---
+
 ## [2.10.0] - 2026-02-19
 
 ### Dodano - Bezpieczeństwo wielordzeniowe, sloty wzorców, eksport CSV, podgląd wzorca

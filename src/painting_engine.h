@@ -32,9 +32,11 @@ public:
     bool isOverspeed() const { return overspeedActive; }
     bool isLowSpeed() const { return lowSpeedActive; }
 
-    // Inteligentne przelaczanie wzorcow
+    // Przelaczanie wzorcow (smart/instant)
     bool isPatternChangePending() const { return patternChangePending; }
     PatternID getPendingPattern() const { return pendingPattern; }
+    void setSmartSwitch(bool smart) { smartSwitch = smart; }
+    bool isSmartSwitch() const { return smartSwitch; }
 
     // Tryb polautomatyczny - wyzwolenie kolejnej linii
     void semiNextLine();
@@ -64,6 +66,7 @@ private:
     float maxSpeedKmh = DEFAULT_MAX_PAINT_SPEED_KMH;
     bool overspeedActive = false;
     bool lowSpeedActive = false;
+    bool smartSwitch = true;  // true=inteligentne, false=natychmiastowe
     unsigned long lastLowSpeedBuzMs = 0;   // Throttle buzzera niskiej predkosci
     unsigned long lastOverspeedBuzMs = 0;  // Throttle buzzera przekroczenia
 };

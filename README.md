@@ -11,7 +11,7 @@ Obsługuje **6 pistoletów natryskowych**, **16 wzorców malowania** (15 normowy
 - **Wzorzec własny** - definiowany przez operatora z panelu WWW, 3 sloty pamięci, zapis do NVS
 - **Kalibracja enkodera** - procedura 10m z zapisem do NVS
 - **Obliczanie powierzchni** - na podstawie dystansu i szerokości pistoletów
-- **Inteligentne przełączanie wzorców** (Smart Switch) - dokończ cykl przed zmianą
+- **Przełączanie wzorców Smart/Instant** - wybór: dokończ cykl (Smart) lub zmień natychmiast (Instant)
 - **Odwracanie wzorców P-3a/P-3b** (zamiana ciągła ↔ przerywana)
 - **Wyświetlacz TFT 2.8" ILI9341** (240x320, SPI) - 10 ekranów interfejsu
 - **Serwer WWW na Core 0** - panel sterowania przez WiFi AP (nie blokuje krytycznej pętli)
@@ -38,7 +38,7 @@ Obsługuje **6 pistoletów natryskowych**, **16 wzorców malowania** (15 normowy
 - **3 sloty wzorców własnych** - 3 niezależne presety zamiast jednego
 - **Eksport raportów CSV** - pobieranie plików CSV bezpośrednio z panelu WWW
 - **Licznik strzałów pistoletów** - lifetime count per pistolet (planowanie serwisu dysz)
-- **Podgląd wzorca Canvas** - wizualizacja kreska/przerwa na panelu WWW
+- **Podgląd wzorca Canvas** - multi-gun wizualizacja kreska/przerwa z szerokościami na panelu WWW
 
 ## Pistolety i ich zastosowanie
 
@@ -154,7 +154,7 @@ TrassarV3/
 
 ## Wersja
 
-Aktualna wersja firmware: **v2.10.0**
+Aktualna wersja firmware: **v2.11.0**
 
 ## Licencja
 
