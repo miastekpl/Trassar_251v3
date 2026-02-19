@@ -12,13 +12,13 @@ public:
     void begin();
     void update();  // Wywolywana w loop()
 
-    bool hasFix() const { return gps.location.isValid() && gps.location.age() < 3000; }
-    double getLat() const { return gps.location.lat(); }
-    double getLng() const { return gps.location.lng(); }
-    int getSatellites() const { return gps.satellites.isValid() ? (int)gps.satellites.value() : 0; }
-    float getGpsSpeed() const { return gps.speed.isValid() ? (float)gps.speed.kmph() : 0; }
-    double getHdop() const { return gps.hdop.isValid() ? gps.hdop.hdop() : 99.9; }
-    uint32_t getCharsProcessed() const { return gps.charsProcessed(); }
+    bool hasFix()       { return gps.location.isValid() && gps.location.age() < 3000; }
+    double getLat()     { return gps.location.lat(); }
+    double getLng()     { return gps.location.lng(); }
+    int getSatellites() { return gps.satellites.isValid() ? (int)gps.satellites.value() : 0; }
+    float getGpsSpeed() { return gps.speed.isValid() ? (float)gps.speed.kmph() : 0; }
+    double getHdop()    { return gps.hdop.isValid() ? gps.hdop.hdop() : 99.9; }
+    uint32_t getCharsProcessed() { return gps.charsProcessed(); }
 
 private:
     TinyGPSPlus gps;
