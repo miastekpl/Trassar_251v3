@@ -27,7 +27,7 @@ bool ReportLogger::begin() {
     return sdReady;
 }
 
-void ReportLogger::logSession(const char* patCode, float distanceM, float areaM2) {
+void ReportLogger::logSession(const char* patCode, float distanceM, float areaM2, double lat, double lng) {
     if (!sdReady) return;
 
     DateTime now = rtcModule.now();
@@ -40,14 +40,14 @@ void ReportLogger::logSession(const char* patCode, float distanceM, float areaM2
     if (!f) return;
 
     if (newFile) {
-        f.println("data,godzina,wzorzec,dystans_m,powierzchnia_m2");
+        f.println("data,godzina,wzorzec,dystans_m,powierzchnia_m2,lat,lon");
     }
 
-    char line[128];
-    snprintf(line, sizeof(line), "%04d-%02d-%02d,%02d:%02d:%02d,%s,%.1f,%.2f",
+    char line[160];
+    snprintf(line, sizeof(line), "%04d-%02d-%02d,%02d:%02d:%02d,%s,%.1f,%.2f,%.6f,%.6f",
              now.year(), now.month(), now.day(),
              now.hour(), now.minute(), now.second(),
-             patCode, distanceM, areaM2);
+             patCode, distanceM, areaM2, lat, lng);
     f.println(line);
     f.close();
 

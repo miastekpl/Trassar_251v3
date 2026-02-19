@@ -1,4 +1,4 @@
-# TrassarV3 - Dokumentacja techniczna i schemat podłączeń v2.11.0
+# TrassarV3 - Dokumentacja techniczna i schemat podłączeń v2.12.0
 
 ## Spis treści
 
@@ -40,12 +40,13 @@
 | Przyciski | BS-33B monostabilne × 3 + 1 | Digital (pull-up) | START, STOP, SELEKTOR, GAP |
 | Przekaźniki | Moduł 6-kanałowy 5V | Digital | Sterowanie pistoletami P1–P6 |
 | Buzzer | Pasywny | LEDC PWM (kanał 1) | Sygnalizacja dźwiękowa, GPIO 8 |
+| GPS | GY-NEO6MV2 (NEO-6M) | UART2 (9600 baud) | Pozycja, prędkość, satelity |
 
 ### 1.3 Firmware
 
 | Parametr | Wartość |
 |----------|---------|
-| Wersja | 2.9.0 |
+| Wersja | 2.12.0 |
 | Platforma | ESP32-S3 (PlatformIO) |
 | Biblioteki | TFT_eSPI, ArduinoJson v7, SD, Wire, WiFi, esp_task_wdt |
 | Orientacja ekranu | Landscape (setRotation 1) |
@@ -167,6 +168,8 @@
 | **40** | Przycisk SELECT | INPUT_PULLUP | Odwróć (P-3a/P-3b) / Menu nawigacja |
 | **41** | Przekaźnik P1 | OUTPUT | Pistolet oś L, 12 cm |
 | **42** | Przekaźnik P2 | OUTPUT | Pistolet oś C, 12 cm |
+| **47** | GPS RX (UART2) | INPUT | ESP32 RX ← GPS TX |
+| **48** | GPS TX (UART2) | OUTPUT | ESP32 TX → GPS RX |
 
 ---
 
@@ -186,6 +189,7 @@
 | Zatwierdź tryb | START | 38 | MODE SELECT | Długie naciśnięcie (1 s) |
 | Zatrzymanie | STOP | 39 | PAINTING | Krótkie naciśnięcie |
 | Odwrócenie wzorca | SELEKTOR | 40 | HOME / PAINTING | Krótkie naciśnięcie, **tylko P-3a/P-3b** |
+| Smart/Instant toggle | SELEKTOR | 40 | HOME | Długie naciśnięcie (1 s) |
 | Menu serwisowe | STOP | 39 | HOME | Długie naciśnięcie (1 s) |
 | Nawigacja → dalej | SELEKTOR | 40 | MENU SERWIS. | Krótkie naciśnięcie |
 | Nawigacja → cofnij | STOP | 39 | MENU SERWIS. | Krótkie naciśnięcie |
@@ -266,6 +270,12 @@ Na fizycznym panelu sterowania (ekran HOME i PAINTING) przycisk SELEKTOR **nie z
     │ P4(24cm)◄─│─────────│── GPIO  2                         │
     │ P5(12cm)◄─│─────────│── GPIO  3                         │
     │ P6(24cm)◄─│─────────│── GPIO  4                         │
+    └───────────┘         │                                   │
+                          │                                   │
+    ┌───────────┐  UART2  │  GPIO 47 → RX (← GPS TX)          │
+    │  GPS      │─────────│  GPIO 48 ← TX (→ GPS RX)          │
+    │ NEO-6M    │         │  9600 baud                         │
+    │ + antena  │         │                                   │
     └───────────┘         │                                   │
                           │  WiFi AP: TrassarV3 (12345678)    │
                           │  HTTP: http://192.168.4.1:80      │
@@ -351,7 +361,28 @@ Na fizycznym panelu sterowania (ekran HOME i PAINTING) przycisk SELEKTOR **nie z
     Logika: HIGH na GPIO = przekaźnik włączony = pistolet maluje
 ```
 
-### 6.5 Podłączenie wyświetlacza i karty SD (wspólna magistrala SPI)
+### 6.5 Podłączenie modułu GPS GY-NEO6MV2
+
+```
+    ESP32-S3               Moduł GPS GY-NEO6MV2
+    ┌──────────┐           ┌──────────────────┐
+    │          │           │                  │
+    │ GPIO 47  ├───────────┤ TX  (dane NMEA)  │
+    │ (UART2 RX)           │                  │
+    │          │           │                  │
+    │ GPIO 48  ├───────────┤ RX               │
+    │ (UART2 TX)           │                  │
+    │          │           │                  │
+    │    3V3   ├───────────┤ VCC              │
+    │    GND   ├───────────┤ GND              │
+    └──────────┘           │   [Antena GPS]   │
+                           └──────────────────┘
+```
+
+> **Uwaga:** Moduł NEO-6M komunikuje się na 9600 baud (domyślnie). Antena ceramiczna musi mieć widoczność nieba. Pin TX modułu GPS podłączamy do GPIO 47 (UART2 RX), pin RX do GPIO 48 (UART2 TX).
+
+### 6.6 Podłączenie wyświetlacza i karty SD (wspólna magistrala SPI)
+
 
 ```
     ESP32-S3               Moduł ILI9341 2.8" (TFT + SD + Touch)
@@ -380,7 +411,7 @@ Na fizycznym panelu sterowania (ekran HOME i PAINTING) przycisk SELEKTOR **nie z
       GPIO 15 = LOW → komunikacja z Touch
 ```
 
-### 6.6 Podłączenie zegara RTC DS1307
+### 6.7 Podłączenie zegara RTC DS1307
 
 ```
     ESP32-S3               Moduł DS1307
@@ -454,6 +485,7 @@ Na fizycznym panelu sterowania (ekran HOME i PAINTING) przycisk SELEKTOR **nie z
 | **rtc_handler** | rtc_handler.cpp/h | Obsługa zegara RTC DS1307 |
 | **report_logger** | report_logger.cpp/h | Zapis raportów CSV na kartę SD |
 | **buzzer** | buzzer.cpp/h | Sygnalizacja dźwiękowa (LEDC PWM, non-blocking) |
+| **gps_handler** | gps_handler.cpp/h | Obsługa GPS NEO-6M (UART2, TinyGPS++) |
 | **web_server** | web_server.cpp/h | WiFi AP + serwer HTTP + API REST |
 
 ### 8.2 Architektura dual-core (v2.6.0)
@@ -582,7 +614,7 @@ Szczegółowa dokumentacja API → [API_WWW.md](API_WWW.md)
 
 | Parametr | Wartość | Opis |
 |----------|---------|------|
-| FW_VERSION | "2.9.0" | Wersja firmware |
+| FW_VERSION | "2.12.0" | Wersja firmware |
 | FW_NAME | "TrassarV3" | Nazwa systemu |
 | WIFI_AP_SSID | "TrassarV3" | Nazwa sieci WiFi |
 | WIFI_AP_PASS | "12345678" | Hasło WiFi |
@@ -608,6 +640,9 @@ Szczegółowa dokumentacja API → [API_WWW.md](API_WWW.md)
 | GUN_KEEPALIVE_TIMEOUT_MS | 300 | Timeout keepalive pistoletów [ms] |
 | GUN_ANOMALY_DISTANCE_M | 50.0 | Min dystans sesji do detekcji anomalii [m] |
 | GUN_ANOMALY_CHECK_MS | 10000 | Interwał sprawdzania anomalii [ms] |
+| PIN_GPS_RX | 47 | ESP32 RX ← GPS TX (UART2) |
+| PIN_GPS_TX | 48 | ESP32 TX → GPS RX (UART2) |
+| GPS_BAUD | 9600 | Domyślny baudrate NEO-6M |
 
 ### 9.2 Kolory UI (format RGB565)
 
@@ -669,5 +704,5 @@ Szczegółowa dokumentacja API → [API_WWW.md](API_WWW.md)
 
 ---
 
-*TrassarV3 — Dokumentacja techniczna v2.11.0*
+*TrassarV3 — Dokumentacja techniczna v2.12.0*
 *ESP32-S3 N16R8 | ILI9341 320×240 | 6 pistoletów | 16 wzorców | 3 tryby pracy | WiFi AP*

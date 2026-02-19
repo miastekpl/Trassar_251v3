@@ -13,6 +13,7 @@
 #include "rtc_handler.h"
 #include "storage.h"
 #include "report_logger.h"
+#include "gps_handler.h"
 
 TrassarWebServer webServer;
 
@@ -320,6 +321,14 @@ String TrassarWebServer::getStateJson() {
     if (paintEngine.isPatternChangePending()) {
         doc["pendingPattern"] = patternMgr.getPattern(paintEngine.getPendingPattern()).code;
     }
+
+    // GPS
+    doc["gpsFix"] = gpsHandler.hasFix();
+    doc["gpsLat"] = serialized(String(gpsHandler.getLat(), 6));
+    doc["gpsLng"] = serialized(String(gpsHandler.getLng(), 6));
+    doc["gpsSat"] = gpsHandler.getSatellites();
+    doc["gpsSpeed"] = serialized(String(gpsHandler.getGpsSpeed(), 1));
+    doc["gpsHdop"] = serialized(String(gpsHandler.getHdop(), 1));
 
     // Anomalia pistoletow
     doc["gunAnomalyDetected"] = gunAnomaly.detected;
@@ -708,6 +717,31 @@ body{
                 style="flex:1;min-width:120px;accent-color:#2ae67a;">
             <span id="spdSliderVal" style="font-size:14px;font-weight:bold;color:#2ae67a;min-width:60px;">15.0 km/h</span>
             <button class="cal-btn" onclick="setMaxSpeed()">Zapisz</button>
+        </div>
+    </div>
+
+    <!-- ========== GPS ========== -->
+    <div class="card">
+        <h3>GPS</h3>
+        <div class="info-grid two">
+            <div class="info-item">
+                <div class="lbl">Fix / Satelity</div>
+                <div class="val" id="gpsFix">---</div>
+            </div>
+            <div class="info-item">
+                <div class="lbl">HDOP</div>
+                <div class="val" id="gpsHdop">---</div>
+            </div>
+        </div>
+        <div class="info-grid two" style="margin-top:6px;">
+            <div class="info-item">
+                <div class="lbl">Pozycja</div>
+                <div class="val" id="gpsPos" style="font-size:11px;">---</div>
+            </div>
+            <div class="info-item">
+                <div class="lbl">Predkosc GPS</div>
+                <div class="val" id="gpsSpd">---</div>
+            </div>
         </div>
     </div>
 
@@ -1133,6 +1167,22 @@ function fetchStatus(){
             swI.style.background=!isSmart?'#e6a02a':'';swI.style.color=!isSmart?'#0a0e17':'';
             document.getElementById('swDesc').textContent=isSmart?'dokonczy cykl przed zmiana':'natychmiastowa zmiana wzorca';
         }
+
+        /* GPS */
+        let gpsFixEl=document.getElementById('gpsFix');
+        if(gpsFixEl){
+            if(d.gpsFix){gpsFixEl.textContent='TAK / '+d.gpsSat;gpsFixEl.style.color='#2ae67a';}
+            else{gpsFixEl.textContent='BRAK / '+d.gpsSat;gpsFixEl.style.color='#e64040';}
+        }
+        let gpsPosEl=document.getElementById('gpsPos');
+        if(gpsPosEl){
+            if(d.gpsFix) gpsPosEl.textContent=d.gpsLat+', '+d.gpsLng;
+            else gpsPosEl.textContent='---';
+        }
+        let gpsSpdEl=document.getElementById('gpsSpd');
+        if(gpsSpdEl) gpsSpdEl.textContent=d.gpsSpeed+' km/h';
+        let gpsHdEl=document.getElementById('gpsHdop');
+        if(gpsHdEl) gpsHdEl.textContent=d.gpsHdop;
 
     }).catch(e=>console.error('Status error:',e));
 }

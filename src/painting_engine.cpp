@@ -10,6 +10,7 @@
 #include "statistics.h"
 #include "storage.h"
 #include "report_logger.h"
+#include "gps_handler.h"
 #include "buzzer.h"
 #include "button_handler.h"
 #include <math.h>
@@ -307,11 +308,13 @@ void PaintingEngine::stop() {
         stats.saveLifetime();
         buzzer.play(BUZ_PAINT_STOP);
 
-        // Zapis raportu na karte SD
+        // Zapis raportu na karte SD (z koordynatami GPS jesli dostepne)
         reportLogger.logSession(
             patternMgr.getCurrent().code,
             stats.getSessionDistance(),
-            stats.getSessionArea()
+            stats.getSessionArea(),
+            gpsHandler.hasFix() ? gpsHandler.getLat() : 0,
+            gpsHandler.hasFix() ? gpsHandler.getLng() : 0
         );
 
         g_state.currentScreen = SCREEN_HOME;

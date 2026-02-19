@@ -91,6 +91,17 @@ void MenuSystem::handleHomeScreen(ButtonEvent e) {
             }
             break;
 
+        case EVT_SELECT_LONG: {
+            // Przelaczanie trybu Smart/Instant bez telefonu
+            bool newSmart = !paintEngine.isSmartSwitch();
+            paintEngine.setSmartSwitch(newSmart);
+            storage.saveSwitchMode(newSmart);
+            buzzer.beep(1500, 80);
+            Serial.printf("[MENU] Tryb przelaczania: %s\n", newSmart ? "SMART" : "INSTANT");
+            g_state.displayNeedsUpdate = true;
+            break;
+        }
+
         default:
             break;
     }

@@ -1,4 +1,4 @@
-# TrassarV3 - API serwera WWW v2.11.0
+# TrassarV3 - API serwera WWW v2.12.0
 
 ## Informacje ogólne
 
@@ -30,6 +30,7 @@ Panel zawiera:
 - **Przycisk "Kolejna linia"** — widoczny w trybie SEMI gdy kreska zakończona
 - Sekcja kalibracji enkodera
 - Sekcja alarmu prędkości (suwak konfiguracji progu max.)
+- **Sekcja GPS** — fix/satelity, HDOP, pozycja, prędkość GPS
 - Informacje systemowe
 - **Menu serwisowe** z zakładkami:
   - **Statystyki** — dystans/powierzchnia/czas lifetime, status SD, dystans per pistolet, licznik strzałów
@@ -80,7 +81,13 @@ Zwraca aktualny stan systemu w formacie JSON.
     "customValid": false,
     "activeSlot": 0,
     "slotsValid": [true, false, false],
-    "smartSwitch": true
+    "smartSwitch": true,
+    "gpsFix": true,
+    "gpsLat": "52.229676",
+    "gpsLng": "21.012229",
+    "gpsSat": 8,
+    "gpsSpeed": "12.5",
+    "gpsHdop": "1.2"
 }
 ```
 
@@ -122,6 +129,12 @@ Zwraca aktualny stan systemu w formacie JSON.
 | `activeSlot` | int | Aktywny slot wzorca własnego (0-2) |
 | `slotsValid` | array[3] | Flagi zapisanych slotów (true = slot zawiera wzorzec) |
 | `smartSwitch` | bool | Tryb przełączania wzorców: true=Smart (czekaj na cykl), false=Instant (natychmiast) |
+| `gpsFix` | bool | Czy GPS ma fix (lokalizacja ważna, age < 3 s) |
+| `gpsLat` | string | Szerokość geograficzna (6 miejsc po przecinku) |
+| `gpsLng` | string | Długość geograficzna (6 miejsc po przecinku) |
+| `gpsSat` | int | Liczba widocznych satelitów |
+| `gpsSpeed` | string | Prędkość z GPS [km/h] |
+| `gpsHdop` | string | HDOP — dokładność pozycji (niższa = lepsza, <2.0 = dobra) |
 
 ---
 

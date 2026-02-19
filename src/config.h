@@ -1,13 +1,13 @@
 #pragma once
 // ============================================================
-// TrassarV3 - Konfiguracja sprzętowa v2.11.0
+// TrassarV3 - Konfiguracja sprzętowa v2.12.0
 // Komputer pokładowy malowarki pasów drogowych
 // ============================================================
 
 #include <Arduino.h>
 
 // ============ WERSJA FIRMWARE ============
-#define FW_VERSION      "2.11.0"
+#define FW_VERSION      "2.12.0"
 #define FW_NAME         "TrassarV3"
 #define FW_DATE         __DATE__
 
@@ -80,6 +80,11 @@
 // ============ Kalibracja ============
 #define DEFAULT_PULSES_PER_METER  100.0f
 #define CALIBRATION_DISTANCE_M     10.0f
+
+// ============ GPS NEO-6M (UART2) ============
+#define PIN_GPS_RX       47   // ESP32 RX <- GPS TX
+#define PIN_GPS_TX       48   // ESP32 TX -> GPS RX
+#define GPS_BAUD       9600   // Default NEO-6M baud rate
 
 // ============ Pomiar prędkości ============
 #define SPEED_CALC_INTERVAL_MS    250

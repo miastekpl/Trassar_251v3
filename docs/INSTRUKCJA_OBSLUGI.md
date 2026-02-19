@@ -1,4 +1,4 @@
-# TrassarV3 - Instrukcja obsługi v2.11.0
+# TrassarV3 - Instrukcja obsługi v2.12.0
 
 ## Spis treści
 
@@ -20,8 +20,9 @@
 16. [Detekcja anomalii pistoletów](#16-detekcja-anomalii-pistoletów)
 17. [API statystyk i raportów SD](#17-api-statystyk-i-raportów-sd)
 18. [Menu serwisowe w panelu WWW](#18-menu-serwisowe-w-panelu-www)
-19. [Przykłady zastosowania](#19-przykłady-zastosowania)
-20. [Rozwiązywanie problemów](#20-rozwiązywanie-problemów)
+19. [Moduł GPS](#19-moduł-gps)
+20. [Przykłady zastosowania](#20-przykłady-zastosowania)
+21. [Rozwiązywanie problemów](#21-rozwiązywanie-problemów)
 
 ---
 
@@ -46,7 +47,7 @@ System zapewnia:
 | Parametr | Wartość |
 |----------|---------|
 | Mikrokontroler | ESP32-S3 N16R8 (16 MB Flash, 8 MB PSRAM) |
-| Firmware | v2.11.0 |
+| Firmware | v2.12.0 |
 | Wyświetlacz | ILI9341 2.8" TFT, 320×240 px, tryb landscape |
 | Interfejs SPI | HSPI (SPI3), 27 MHz |
 | Zegar RTC | DS1307 z baterią CR2032 |
@@ -62,6 +63,7 @@ System zapewnia:
 | Watchdog | 3 s timeout, auto-reset ESP32 |
 | Gun keepalive | 300 ms — awaryjne wyłączenie pistoletów |
 | Kalibracja | Odcinek 10 m, zapis do NVS |
+| GPS | GY-NEO6MV2 (NEO-6M), UART2, 9600 baud |
 | Zasilanie | USB-C 5V (ESP32-S3 DevKit) |
 
 ---
@@ -76,7 +78,7 @@ System posiada **4 przyciski fizyczne**. Każdy przycisk obsługuje krótkie nac
 |----------|------|---------------------|--------------------------|
 | **START** | 38 | Start malowania / Pauza / Wznowienie | Wybór trybu pracy (na ekranie HOME w bezruchu) |
 | **STOP** | 39 | Zatrzymanie malowania / Cofnij w menu | Wejście w menu serwisowe / Powrót |
-| **SELEKTOR** | 40 | *Zależy od ekranu (patrz niżej)* | Wejdź w opcję menu |
+| **SELEKTOR** | 40 | *Zależy od ekranu (patrz niżej)* | HOME: przełącz Smart/Instant; Menu: wejdź w opcję |
 | **GAP (od przerwy)** | 7 | Start od przerwy (na ekranie HOME) | — |
 
 ### 3.2 Funkcja selektora w zależności od ekranu
@@ -85,7 +87,7 @@ Przycisk **SELEKTOR** pełni różne funkcje w zależności od aktualnie wyświe
 
 | Ekran | Krótkie naciśnięcie | Długie naciśnięcie (1 s) |
 |-------|---------------------|--------------------------|
-| **Ekran główny (HOME)** | Odwróć wzorzec (tylko P-3a / P-3b)* | — |
+| **Ekran główny (HOME)** | Odwróć wzorzec (tylko P-3a / P-3b)* | **Przełącz tryb Smart/Instant** (zmiana wzorców) |
 | **Ekran malowania** | Odwróć wzorzec (tylko P-3a / P-3b)* | — |
 | **Menu serwisowe** | **Następna pozycja w menu** | **Wejdź w wybraną opcję** |
 | **Czyszczenie dysz** | Następny wzorzec | Poprzedni wzorzec |
@@ -293,6 +295,7 @@ Wyświetla się po uruchomieniu systemu. Ekran w trybie landscape (320×240 px):
 | **START (1 s)** | Wybór trybu pracy (ekran wyboru trybu) |
 | **GAP** (GPIO 7) | Start od przerwy — rozpocznij od przerwy we wzorcu |
 | **SELEKTOR** | Odwróć wzorzec (tylko P-3a / P-3b) |
+| **SELEKTOR (1 s)** | Przełącz tryb przełączania wzorców: Smart ↔ Instant |
 | **STOP (1 s)** | Wejdź do menu serwisowego |
 
 Na ekranie wyświetlany jest aktualny tryb pracy: **[AUTO]**, **[SEMI]** lub **[RECZNY]**.
@@ -553,7 +556,8 @@ Zmiana wzorca **podczas malowania** następuje natychmiast:
 **Przykład (Instant):** Malując P-3a (ciągła + przerywana), klikasz P-2a. Maszyna natychmiast przełącza się — nawet w połowie kreski.
 
 **Wybór trybu przełączania:**
-- W panelu WWW pod podglądem wzorca — dwa przyciski: **Smart** / **Instant**
+- **Na urządzeniu:** Przytrzymaj **SELEKTOR (1 s)** na ekranie HOME — krótki beep potwierdzi zmianę
+- **W panelu WWW:** Pod podglądem wzorca — dwa przyciski: **Smart** / **Instant**
 - Aktywny tryb jest podświetlony
 - Wybór jest zapisywany trwale w NVS — przetrwa restart urządzenia
 
@@ -590,15 +594,16 @@ Naciśnij **STOP (1 s)** w trakcie pomiaru — kalibracja zostanie anulowana, po
 Raporty zapisywane są automatycznie po każdym zatrzymaniu malowania (STOP) na kartę SD w formacie CSV:
 
 - **Lokalizacja:** `/reports/RRRRMMDD.csv` (np. `/reports/20250612.csv`)
-- **Nagłówek:** `data,godzina,wzorzec,dystans_m,powierzchnia_m2`
+- **Nagłówek:** `data,godzina,wzorzec,dystans_m,powierzchnia_m2,lat,lon`
 - **Jeden wiersz** na każdą sesję malowania
+- Kolumny `lat` i `lon` zawierają koordynaty GPS w momencie zakończenia sesji (0 gdy brak fix)
 
 **Przykład zawartości pliku `/reports/20250612.csv`:**
 ```csv
-data,godzina,wzorzec,dystans_m,powierzchnia_m2
-2025-06-12,08:30:15,P-1a,1250.5,150.06
-2025-06-12,10:45:22,P-3a,875.3,210.07
-2025-06-12,14:10:08,P-2b,430.0,103.20
+data,godzina,wzorzec,dystans_m,powierzchnia_m2,lat,lon
+2025-06-12,08:30:15,P-1a,1250.5,150.06,52.229676,21.012229
+2025-06-12,10:45:22,P-3a,875.3,210.07,52.230100,21.013500
+2025-06-12,14:10:08,P-2b,430.0,103.20,0.000000,0.000000
 ```
 
 ### 11.2 Przeglądanie raportów
@@ -713,7 +718,7 @@ System wyposażony jest w pasywny buzzer (GPIO 8) generujący sygnały dźwięko
 
 ## 14. Architektura wielordzeniowa
 
-TrassarV3 v2.11.0 wykorzystuje oba rdzenie procesora ESP32-S3:
+TrassarV3 v2.12.0 wykorzystuje oba rdzenie procesora ESP32-S3:
 
 | Rdzeń | Zadania |
 |-------|---------|
@@ -855,7 +860,52 @@ Gdy system wykryje anomalię pistoletów (skonfigurowany pistolet nie maluje po 
 
 ---
 
-## 19. Przykłady zastosowania
+## 19. Moduł GPS
+
+### 19.1 Opis
+
+System obsługuje moduł GPS **GY-NEO6MV2** (chip NEO-6M) z anteną ceramiczną. Moduł dostarcza dane o pozycji geograficznej, prędkości i dokładności sygnału.
+
+### 19.2 Podłączenie
+
+| Pin GPS | Pin ESP32-S3 | GPIO | Opis |
+|---------|-------------|------|------|
+| VCC | 3V3 | — | Zasilanie 3.3V |
+| GND | GND | — | Masa |
+| TX | GPIO 47 | 47 | GPS TX → ESP32 RX (UART2) |
+| RX | GPIO 48 | 48 | GPS RX ← ESP32 TX (UART2) |
+
+> **Uwaga:** Moduł GPS komunikuje się przez UART2 z prędkością 9600 baud (domyślna NEO-6M). Antena GPS musi mieć widoczność nieba — montuj na zewnątrz kabiny maszyny.
+
+### 19.3 Dane GPS w panelu WWW
+
+Sekcja "GPS" w panelu sterowania wyświetla:
+
+| Pole | Opis |
+|------|------|
+| **Fix / Satelity** | Status fix (TAK/BRAK) i liczba widocznych satelitów |
+| **HDOP** | Dokładność pozycji (niższa = lepsza, <2.0 = dobra) |
+| **Pozycja** | Szerokość i długość geograficzna (gdy fix aktywny) |
+| **Prędkość GPS** | Prędkość mierzona przez GPS [km/h] |
+
+### 19.4 GPS w raportach CSV
+
+Po zatrzymaniu malowania (STOP) koordynaty GPS są automatycznie zapisywane w raporcie CSV:
+- Kolumny `lat` i `lon` w nagłówku i danych
+- Wartości 0.000000 gdy moduł GPS nie ma fix w momencie zapisu
+
+### 19.5 Rozwiązywanie problemów GPS
+
+| Problem | Możliwa przyczyna | Rozwiązanie |
+|---------|-------------------|-------------|
+| Brak fix (BRAK) | Antena nie widzi nieba | Zamontuj antenę na zewnątrz, z widocznością nieba |
+| Mało satelitów (<4) | Słaby sygnał | Poczekaj 1-2 min na cold start, popraw pozycję anteny |
+| HDOP > 5 | Niska dokładność | Za mało satelitów lub odbicia sygnału od budynków |
+| Brak danych w panelu | Złe podłączenie UART | Sprawdź piny GPIO 47 (RX) i GPIO 48 (TX) |
+
+---
+
+## 20. Przykłady zastosowania
 
 ### Przykład 1: Malowanie linii przerywanej P-1a na nowej drodze
 
@@ -864,7 +914,7 @@ Gdy system wykryje anomalię pistoletów (skonfigurowany pistolet nie maluje po 
 **Kroki:**
 
 1. **Przygotowanie:**
-   - Włącz urządzenie — pojawi się ekran powitalny "TrassarV3 v2.11.0", a po chwili ekran główny
+   - Włącz urządzenie — pojawi się ekran powitalny "TrassarV3 v2.12.0", a po chwili ekran główny
    - Sprawdź wyświetlany wzorzec w lewym górnym rogu
    - Jeśli wyświetlany wzorzec to nie P-1a, zmień go przez panel WWW: połącz się z WiFi "TrassarV3" (hasło: 12345678), otwórz http://192.168.4.1 i kliknij przycisk **P-1a**
    - Sprawdź status kalibracji w panelu WWW — powinno być "Skalibrowany"
@@ -1053,7 +1103,7 @@ START OD PRZERWY (GAP):  ░░░░██░░░░██░░░░██ 
 
 ---
 
-## 20. Rozwiązywanie problemów
+## 21. Rozwiązywanie problemów
 
 | Problem | Możliwa przyczyna | Rozwiązanie |
 |---------|-------------------|-------------|
@@ -1085,4 +1135,4 @@ START OD PRZERWY (GAP):  ░░░░██░░░░██░░░░██ 
 ---
 
 *TrassarV3 — Komputer pokładowy malowarki pasów drogowych*
-*Firmware v2.11.0 | ESP32-S3 N16R8 | 6 pistoletów, 16 wzorców, 3 tryby pracy, buzzer, watchdog, anomaly detect*
+*Firmware v2.12.0 | ESP32-S3 N16R8 | 6 pistoletów, 16 wzorców, 3 tryby pracy, buzzer, watchdog, anomaly detect*

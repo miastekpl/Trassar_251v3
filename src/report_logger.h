@@ -10,7 +10,7 @@
 class ReportLogger {
 public:
     bool begin();
-    void logSession(const char* patCode, float distanceM, float areaM2);
+    void logSession(const char* patCode, float distanceM, float areaM2, double lat = 0, double lng = 0);
     bool isReady() const { return sdReady; }
     int  getReportCount();
     bool getLastReport(char* buf, size_t len);

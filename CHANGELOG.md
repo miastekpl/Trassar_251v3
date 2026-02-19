@@ -7,6 +7,59 @@ Wersjonowanie zgodne z [Semantic Versioning](https://semver.org/lang/pl/).
 
 ---
 
+## [2.12.0] - 2026-02-19
+
+### Dodano - Moduł GPS, przełączanie Smart/Instant przyciskiem fizycznym
+
+#### 1) Obsługa modułu GPS GY-NEO6MV2 (NEO-6M)
+- Moduł GPS podłączony przez UART2: GPIO 47 (RX ← GPS TX), GPIO 48 (TX → GPS RX), 9600 baud
+- Biblioteka TinyGPSPlus do parsowania danych NMEA
+- Klasa `GpsHandler` z metodami: `hasFix()`, `getLat()`, `getLng()`, `getSatellites()`, `getGpsSpeed()`, `getHdop()`
+- Dane GPS w panelu WWW: sekcja "GPS" z fix/satelity, HDOP, pozycja, prędkość GPS
+- Dane GPS w statusie API: pola `gpsFix`, `gpsLat`, `gpsLng`, `gpsSat`, `gpsSpeed`, `gpsHdop`
+- Koordynaty GPS zapisywane w raportach CSV: dodane kolumny `lat`, `lon` w nagłówku i danych
+- GPS aktualizowany w pętli głównej (`gpsHandler.update()` w `loop()`)
+
+#### 2) Przełączanie Smart/Instant przyciskiem fizycznym
+- **SELEKTOR (1 s)** na ekranie HOME → przełącza tryb Smart/Instant bez telefonu
+- Krótki sygnał buzzera (1500 Hz, 80 ms) potwierdza zmianę
+- Ustawienie zapisywane trwale w NVS
+- Log na Serial: `[MENU] Tryb przelaczania: SMART/INSTANT`
+
+### Zmieniono
+- Wersja firmware: 2.11.0 → **2.12.0**
+- `report_logger.h/cpp`: sygnatura `logSession()` rozszerzona o `lat`, `lng`; CSV z kolumnami GPS
+- `painting_engine.cpp`: przekazuje koordynaty GPS do `reportLogger.logSession()` przy STOP
+- `menu.cpp`: nowy handler `EVT_SELECT_LONG` na `SCREEN_HOME` — toggle Smart/Instant
+- `web_server.cpp`: dane GPS w JSON statusu + sekcja GPS w HTML panelu + JS rendering
+- `platformio.ini`: dodano bibliotekę `mikalhart/TinyGPSPlus@^1.0.3`
+- `config.h`: piny GPS (47/48), stała `GPS_BAUD=9600`
+
+#### Nowe pliki
+| Plik | Opis |
+|------|------|
+| `src/gps_handler.h` | Deklaracja klasy `GpsHandler` (wrapper TinyGPSPlus) |
+| `src/gps_handler.cpp` | Implementacja: UART2 init, parsowanie NMEA |
+
+#### Nowe stałe w config.h
+| Stała | Wartość | Opis |
+|-------|---------|------|
+| `PIN_GPS_RX` | 47 | ESP32 RX ← GPS TX (UART2) |
+| `PIN_GPS_TX` | 48 | ESP32 TX → GPS RX (UART2) |
+| `GPS_BAUD` | 9600 | Domyślny baudrate NEO-6M |
+
+#### Nowe pola API status
+| Pole | Typ | Opis |
+|------|-----|------|
+| `gpsFix` | bool | Czy GPS ma fix (lokalizacja ważna, age < 3 s) |
+| `gpsLat` | string | Szerokość geograficzna (6 miejsc po przecinku) |
+| `gpsLng` | string | Długość geograficzna (6 miejsc po przecinku) |
+| `gpsSat` | int | Liczba widocznych satelitów |
+| `gpsSpeed` | string | Prędkość z GPS [km/h] |
+| `gpsHdop` | string | HDOP (dokładność pozycji) |
+
+---
+
 ## [2.11.0] - 2026-02-19
 
 ### Dodano - Podgląd multi-gun, tryb przełączania Smart/Instant

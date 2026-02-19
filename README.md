@@ -39,6 +39,8 @@ Obsługuje **6 pistoletów natryskowych**, **16 wzorców malowania** (15 normowy
 - **Eksport raportów CSV** - pobieranie plików CSV bezpośrednio z panelu WWW
 - **Licznik strzałów pistoletów** - lifetime count per pistolet (planowanie serwisu dysz)
 - **Podgląd wzorca Canvas** - multi-gun wizualizacja kreska/przerwa z szerokościami na panelu WWW
+- **Moduł GPS GY-NEO6MV2** - pozycja, prędkość GPS, satelity, HDOP — dane w WWW, API i raportach CSV
+- **Przełączanie Smart/Instant przyciskiem** - SELEKTOR (1 s) na HOME — bez telefonu
 
 ## Pistolety i ich zastosowanie
 
@@ -91,6 +93,7 @@ Obsługuje **6 pistoletów natryskowych**, **16 wzorców malowania** (15 normowy
 | Enkoder obrotowy | Pomiar dystansu + nawigacja menu |
 | Moduły przekaźnikowe x6 | Sterowanie pistoletami P1-P6 |
 | Buzzer pasywny | Sygnalizacja dźwiękowa (GPIO 8) |
+| GPS GY-NEO6MV2 | Moduł GPS NEO-6M z anteną (UART2) |
 
 ## Podłączenie WiFi
 
@@ -136,7 +139,8 @@ TrassarV3/
 │   ├── rtc_handler.h/cpp       # Obsługa zegara RTC DS1307
 │   ├── web_server.h/cpp        # Serwer WWW (WiFi AP + REST API)
 │   ├── menu.h/cpp              # System menu (nawigacja 9 ekranów)
-│   └── buzzer.h/cpp            # Sygnalizacja dźwiękowa (LEDC PWM)
+│   ├── buzzer.h/cpp            # Sygnalizacja dźwiękowa (LEDC PWM)
+│   └── gps_handler.h/cpp      # Obsługa GPS NEO-6M (UART2, TinyGPS++)
 ├── docs/
 │   ├── INSTRUKCJA_OBSLUGI.md   # Instrukcja obsługi
 │   ├── SCHEMAT_PODLACZEN.md    # Schemat podłączeń
@@ -154,7 +158,7 @@ TrassarV3/
 
 ## Wersja
 
-Aktualna wersja firmware: **v2.11.0**
+Aktualna wersja firmware: **v2.12.0**
 
 ## Licencja
 
