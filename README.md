@@ -8,7 +8,7 @@ Obsługuje **6 pistoletów natryskowych**, **16 wzorców malowania** (15 normowy
 - **6 pistoletów natryskowych** (P1-P6) sterowanych przekaźnikami
 - **16 wzorców malowania** (P-1a...P-7d + własny) - polskie normy oznakowania
 - **3 tryby pracy** - automatyczny, półautomatyczny, ręczny
-- **Wzorzec własny** - definiowany przez operatora z panelu WWW, zapis do NVS
+- **Wzorzec własny** - definiowany przez operatora z panelu WWW, 3 sloty pamięci, zapis do NVS
 - **Kalibracja enkodera** - procedura 10m z zapisem do NVS
 - **Obliczanie powierzchni** - na podstawie dystansu i szerokości pistoletów
 - **Inteligentne przełączanie wzorców** (Smart Switch) - dokończ cykl przed zmianą
@@ -33,6 +33,12 @@ Obsługuje **6 pistoletów natryskowych**, **16 wzorców malowania** (15 normowy
 - **API statystyk lifetime** (`/api/stats`) - dystans, powierzchnia, czas pracy przez WWW
 - **API raportów SD** (`/api/reports`) - lista plików raportów CSV przez WWW
 - **Detekcja anomalii pistoletów** - alert gdy pistolet nie strzela mimo aktywnej konfiguracji
+- **Mutex Core 0/1** - spinlock na g_state eliminujący race conditions między rdzeniami
+- **Wersjonowanie NVS** - automatyczna migracja danych przy aktualizacji firmware
+- **3 sloty wzorców własnych** - 3 niezależne presety zamiast jednego
+- **Eksport raportów CSV** - pobieranie plików CSV bezpośrednio z panelu WWW
+- **Licznik strzałów pistoletów** - lifetime count per pistolet (planowanie serwisu dysz)
+- **Podgląd wzorca Canvas** - wizualizacja kreska/przerwa na panelu WWW
 
 ## Pistolety i ich zastosowanie
 
@@ -148,7 +154,7 @@ TrassarV3/
 
 ## Wersja
 
-Aktualna wersja firmware: **v2.9.0**
+Aktualna wersja firmware: **v2.10.0**
 
 ## Licencja
 

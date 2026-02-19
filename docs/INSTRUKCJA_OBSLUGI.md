@@ -1,4 +1,4 @@
-# TrassarV3 - Instrukcja obsługi v2.9.0
+# TrassarV3 - Instrukcja obsługi v2.10.0
 
 ## Spis treści
 
@@ -46,7 +46,7 @@ System zapewnia:
 | Parametr | Wartość |
 |----------|---------|
 | Mikrokontroler | ESP32-S3 N16R8 (16 MB Flash, 8 MB PSRAM) |
-| Firmware | v2.9.0 |
+| Firmware | v2.10.0 |
 | Wyświetlacz | ILI9341 2.8" TFT, 320×240 px, tryb landscape |
 | Interfejs SPI | HSPI (SPI3), 27 MHz |
 | Zegar RTC | DS1307 z baterią CR2032 |
@@ -175,10 +175,12 @@ Oprócz 15 predefiniowanych wzorców normowych, system umożliwia zdefiniowanie 
 
 **Konfiguracja wzorca własnego:**
 - Dostępna wyłącznie przez **panel WWW** (sekcja "Wzorzec własny")
+- **3 niezależne sloty pamięci** (Slot 1/2/3) — każdy przechowuje oddzielny wzorzec
 - Dla każdego pistoletu (P1–P6) można wybrać tryb: **Wyłączony**, **Ciągły** lub **Przerywany**
 - Każdy pistolet ustawiony jako **Przerywany** ma własne, niezależne parametry: długość kreski i przerwy (0.1 – 50.0 m)
 - Dzięki temu różne pistolety mogą malować z różnym wzorem (np. P2: 3m/2m, P5: 1m/1m)
-- Wzorzec jest zapisywany trwale w NVS — przetrwa restart urządzenia
+- Wzorce zapisywane trwale w NVS — przetrwają restart urządzenia
+- Przełączanie między slotami: kliknij zakładkę slotu w panelu WWW
 
 **Ograniczenia:**
 - Wzorzec własny nie jest dostępny przez przycisk SELEKTOR na urządzeniu — tylko przez panel WWW
@@ -500,7 +502,8 @@ Panel sterowania w przeglądarce oferuje pełną kontrolę nad maszyną:
 | **Sterowanie** | Przyciski START / PAUZA / STOP / START OD PRZERWY |
 | **Tryb pracy** | 3 przyciski: AUTO / SEMI / RĘCZNY — aktywny podświetlony na zielono |
 | **Wybór wzorca** | 16 przycisków pogrupowanych: P-1x, P-2x, P-3x, P-4/P-6, P-7x, WŁASNY |
-| **Wzorzec własny** | Edytor: 6 pistoletów (wył/ciągły/przerywany), kreska/przerwa, zapis do NVS |
+| **Podgląd wzorca** | Canvas wizualizacja kreska/przerwa w skali z wymiarami |
+| **Wzorzec własny** | Edytor: 6 pistoletów, kreska/przerwa, 3 sloty pamięci, zapis do NVS |
 | **Odwracanie** | Przycisk "Odwróć" — aktywny tylko dla P-3a / P-3b |
 | **Pistolety** | 6 kółek P1–P6 (zielone = ON, szare = OFF, **czerwone migające** = anomalia) |
 | **Semi: kolejna linia** | Przycisk widoczny w trybie SEMI gdy kreska zakończona |
@@ -692,7 +695,7 @@ System wyposażony jest w pasywny buzzer (GPIO 8) generujący sygnały dźwięko
 
 ## 14. Architektura wielordzeniowa
 
-TrassarV3 v2.9.0 wykorzystuje oba rdzenie procesora ESP32-S3:
+TrassarV3 v2.10.0 wykorzystuje oba rdzenie procesora ESP32-S3:
 
 | Rdzeń | Zadania |
 |-------|---------|
@@ -701,6 +704,7 @@ TrassarV3 v2.9.0 wykorzystuje oba rdzenie procesora ESP32-S3:
 
 ### Korzyści
 - Obciążenie serwera HTTP (np. szybkie odświeżanie panelu) **nie wpływa** na czas reakcji pistoletów
+- **Mutex spinlock** (`portMUX_TYPE`) chroni współdzielone dane `g_state` przed race conditions
 - Gun keepalive (300 ms) jest niezawodny nawet przy wielu klientach HTTP
 - Watchdog monitoruje tylko Core 1 (krytyczny)
 
@@ -807,6 +811,7 @@ Wyświetla dane zebrane przez cały czas pracy urządzenia (lifetime) oraz bież
 | **Czas malowania** | Sumaryczny czas malowania (lifetime) |
 | **Karta SD** | Status karty SD + liczba raportów (np. "OK (12)") |
 | **Dystans per pistolet** | 6 kółek P1–P6 z dystansem w metrach (bieżąca sesja) |
+| **Licznik strzałów** | 6 kółek P1–P6 z liczbą strzałów (lifetime) — planowanie serwisu dysz |
 
 Dane odświeżają się automatycznie co 10 sekund.
 
@@ -818,8 +823,9 @@ Wyświetla tabelę plików raportów CSV z karty SD:
 |---------|------|
 | **Plik** | Nazwa pliku (format: `RRRRMMDD.csv`) |
 | **Rozmiar** | Rozmiar pliku (w B lub KB) |
+| **Pobierz** | Link do pobrania pliku CSV bezpośrednio z przeglądarki |
 
-Lista jest sortowana malejąco — najnowsze raporty na górze. Przycisk **Odśwież** ładuje ponownie listę z cache.
+Lista jest sortowana malejąco — najnowsze raporty na górze. Przycisk **Odśwież** ładuje ponownie listę z cache. Kliknięcie linku **CSV** pobiera plik raportu na urządzenie.
 
 ### 18.3 Wskaźniki anomalii pistoletów
 
@@ -840,7 +846,7 @@ Gdy system wykryje anomalię pistoletów (skonfigurowany pistolet nie maluje po 
 **Kroki:**
 
 1. **Przygotowanie:**
-   - Włącz urządzenie — pojawi się ekran powitalny "TrassarV3 v2.9.0", a po chwili ekran główny
+   - Włącz urządzenie — pojawi się ekran powitalny "TrassarV3 v2.10.0", a po chwili ekran główny
    - Sprawdź wyświetlany wzorzec w lewym górnym rogu
    - Jeśli wyświetlany wzorzec to nie P-1a, zmień go przez panel WWW: połącz się z WiFi "TrassarV3" (hasło: 12345678), otwórz http://192.168.4.1 i kliknij przycisk **P-1a**
    - Sprawdź status kalibracji w panelu WWW — powinno być "Skalibrowany"
@@ -1061,4 +1067,4 @@ START OD PRZERWY (GAP):  ░░░░██░░░░██░░░░██ 
 ---
 
 *TrassarV3 — Komputer pokładowy malowarki pasów drogowych*
-*Firmware v2.9.0 | ESP32-S3 N16R8 | 6 pistoletów, 16 wzorców, 3 tryby pracy, buzzer, watchdog, anomaly detect*
+*Firmware v2.10.0 | ESP32-S3 N16R8 | 6 pistoletów, 16 wzorców, 3 tryby pracy, buzzer, watchdog, anomaly detect*

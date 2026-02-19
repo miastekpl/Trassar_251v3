@@ -78,7 +78,12 @@ const PatternDef PatternManager::patterns[PREDEFINED_PAT_COUNT] = {
 void PatternManager::begin() {
     g_state.currentPattern = PAT_P1A;
     g_state.patternReversed = false;
-    // Zaladuj wzorzec wlasny z NVS
+    // Zaladuj sloty wzorcow wlasnych z NVS
+    for (int s = 0; s < NUM_CUSTOM_SLOTS; s++) {
+        CustomPatternCfg cfg = storage.loadCustomPattern(s);
+        slotValid[s] = cfg.valid;
+    }
+    // Domyslnie aktywuj slot 0
     loadCustomFromStorage();
 }
 
@@ -178,6 +183,31 @@ void PatternManager::setCustomPattern(const CustomPatternCfg& cfg) {
 }
 
 void PatternManager::loadCustomFromStorage() {
-    CustomPatternCfg cfg = storage.loadCustomPattern();
+    CustomPatternCfg cfg = storage.loadCustomPattern(activeCustomSlot);
     setCustomPattern(cfg);
+}
+
+void PatternManager::saveSlot(int slot, const CustomPatternCfg& cfg) {
+    if (slot < 0 || slot >= NUM_CUSTOM_SLOTS) return;
+    storage.saveCustomPattern(cfg, slot);
+    slotValid[slot] = cfg.valid;
+    Serial.printf("[PAT] Slot %d zapisany\n", slot);
+}
+
+CustomPatternCfg PatternManager::loadSlot(int slot) {
+    if (slot < 0 || slot >= NUM_CUSTOM_SLOTS) slot = 0;
+    return storage.loadCustomPattern(slot);
+}
+
+bool PatternManager::isSlotValid(int slot) const {
+    if (slot < 0 || slot >= NUM_CUSTOM_SLOTS) return false;
+    return slotValid[slot];
+}
+
+void PatternManager::activateSlot(int slot) {
+    if (slot < 0 || slot >= NUM_CUSTOM_SLOTS) return;
+    activeCustomSlot = slot;
+    CustomPatternCfg cfg = storage.loadCustomPattern(slot);
+    setCustomPattern(cfg);
+    Serial.printf("[PAT] Aktywowano slot %d\n", slot);
 }

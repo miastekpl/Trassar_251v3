@@ -35,9 +35,16 @@ public:
     void saveMode(MachineMode mode);
     MachineMode loadMode();
 
-    // Wzorzec wlasny
-    void saveCustomPattern(const CustomPatternCfg& cfg);
-    CustomPatternCfg loadCustomPattern();
+    // Wzorzec wlasny (3 sloty)
+    void saveCustomPattern(const CustomPatternCfg& cfg, int slot = 0);
+    CustomPatternCfg loadCustomPattern(int slot = 0);
+
+    // Licznik strzalow pistoletow (lifetime)
+    void saveGunShotCounts(const uint32_t counts[NUM_GUNS]);
+    void loadGunShotCounts(uint32_t counts[NUM_GUNS]);
+
+private:
+    void checkNvsVersion();
 };
 
 extern StorageManager storage;

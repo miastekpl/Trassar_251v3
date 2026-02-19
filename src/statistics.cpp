@@ -10,6 +10,11 @@ StatisticsManager stats;
 void StatisticsManager::begin() {
     resetSession();
     loadLifetime();
+    storage.loadGunShotCounts(gunShotCounts);
+    for (int i = 0; i < NUM_GUNS; i++) gunWasOn[i] = false;
+    Serial.printf("[STATS] Gun shots lifetime: P1=%u P2=%u P3=%u P4=%u P5=%u P6=%u\n",
+                  gunShotCounts[0], gunShotCounts[1], gunShotCounts[2],
+                  gunShotCounts[3], gunShotCounts[4], gunShotCounts[5]);
 }
 
 void StatisticsManager::updatePainting(float distanceDelta, const bool gunStates[NUM_GUNS]) {
@@ -24,7 +29,12 @@ void StatisticsManager::updatePainting(float distanceDelta, const bool gunStates
             gunDistances[i] += distanceDelta;
             sessionArea += area;
             lifetime.totalArea += area;
+            // Zlicz tranzycje OFF->ON (= nowy strzal)
+            if (!gunWasOn[i]) {
+                gunShotCounts[i]++;
+            }
         }
+        gunWasOn[i] = gunStates[i];
     }
 }
 
@@ -70,6 +80,7 @@ void StatisticsManager::saveLifetime() {
         lifetime.totalPaintTimeSec += getSessionTimeSec();
     }
     storage.saveLifetimeStats(lifetime);
+    storage.saveGunShotCounts(gunShotCounts);
 }
 
 void StatisticsManager::loadLifetime() {

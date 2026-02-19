@@ -27,6 +27,7 @@ private:
     void handleStatus();
     void handleStats();
     void handleReports();
+    void handleReportDownload();
     void handleControl();
     void handleNotFound();
 

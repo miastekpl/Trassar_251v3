@@ -24,16 +24,25 @@ public:
     // Zwraca konfigurację pistoletu z uwzględnieniem odwrócenia
     GunPatternCfg getGunConfig(GunID gun) const;
 
-    // Wzorzec wlasny
+    // Wzorzec wlasny (aktywny)
     void setCustomPattern(const CustomPatternCfg& cfg);
     void loadCustomFromStorage();
     bool isCustomValid() const { return customValid; }
+
+    // 3 sloty wzorcow wlasnych
+    void saveSlot(int slot, const CustomPatternCfg& cfg);
+    CustomPatternCfg loadSlot(int slot);
+    bool isSlotValid(int slot) const;
+    void activateSlot(int slot);
+    int getActiveSlot() const { return activeCustomSlot; }
 
     static const PatternDef patterns[PREDEFINED_PAT_COUNT];
 
 private:
     PatternDef customPatDef;
     bool customValid = false;
+    int activeCustomSlot = 0;
+    bool slotValid[NUM_CUSTOM_SLOTS] = {};
 };
 
 extern PatternManager patternMgr;

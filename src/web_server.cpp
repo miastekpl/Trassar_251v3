@@ -81,6 +81,7 @@ void TrassarWebServer::setupRoutes() {
     server.on("/api/status", HTTP_GET, [this]() { handleStatus(); });
     server.on("/api/stats", HTTP_GET, [this]() { handleStats(); });
     server.on("/api/reports", HTTP_GET, [this]() { handleReports(); });
+    server.on("/api/reports/download", HTTP_GET, [this]() { handleReportDownload(); });
     server.on("/api/control", HTTP_POST, [this]() { handleControl(); });
     server.onNotFound([this]() { handleNotFound(); });
 }
@@ -156,7 +157,9 @@ void TrassarWebServer::handleControl() {
             int val = server.arg("value").toInt();
             if (val >= 0 && val <= 2) {
                 MachineMode newMode = (MachineMode)val;
+                STATE_LOCK();
                 g_state.machineMode = newMode;
+                STATE_UNLOCK();
                 storage.saveMode(newMode);
                 Serial.printf("[WWW] Tryb pracy: %d\n", val);
             } else {
@@ -166,8 +169,7 @@ void TrassarWebServer::handleControl() {
             result = "brak parametru value";
         }
     } else if (action == "save_custom_pattern") {
-        // Parametry: g0..g5 (gun mode: 0=OFF,1=CONT,2=DASHED)
-        //            ln0..ln5 (line length per gun), gp0..gp5 (gap length per gun)
+        // Parametry: g0..g5, ln0..ln5, gp0..gp5, slot (0-2)
         CustomPatternCfg cfg = {};
         cfg.valid = true;
         for (int i = 0; i < NUM_GUNS; i++) {
@@ -179,7 +181,7 @@ void TrassarWebServer::handleControl() {
                 if (gm < 0 || gm > 2) gm = 0;
                 cfg.gunModes[i] = (uint8_t)gm;
             }
-            float ln = 4.0f, gp = 8.0f;  // Domyslne
+            float ln = 4.0f, gp = 8.0f;
             if (server.hasArg(lKey)) ln = server.arg(lKey).toFloat();
             if (server.hasArg(pKey)) gp = server.arg(pKey).toFloat();
             if (ln < 0.1f) ln = 0.1f;
@@ -189,16 +191,32 @@ void TrassarWebServer::handleControl() {
             cfg.lineLen[i] = ln;
             cfg.gapLen[i] = gp;
         }
-        patternMgr.setCustomPattern(cfg);
-        storage.saveCustomPattern(cfg);
-        Serial.println("[WWW] Wzorzec wlasny zapisany (per-gun)");
+        int slot = 0;
+        if (server.hasArg("slot")) {
+            slot = server.arg("slot").toInt();
+            if (slot < 0 || slot >= NUM_CUSTOM_SLOTS) slot = 0;
+        }
+        patternMgr.saveSlot(slot, cfg);
+        patternMgr.activateSlot(slot);
+        Serial.printf("[WWW] Wzorzec wlasny slot %d zapisany\n", slot);
+    } else if (action == "activate_slot") {
+        if (server.hasArg("value")) {
+            int slot = server.arg("value").toInt();
+            if (slot >= 0 && slot < NUM_CUSTOM_SLOTS && patternMgr.isSlotValid(slot)) {
+                patternMgr.activateSlot(slot);
+            } else {
+                result = "slot pusty lub nieprawidlowy";
+            }
+        }
     } else if (action == "semi_next_line") {
         paintEngine.semiNextLine();
     } else {
         result = "nieznana akcja";
     }
 
+    STATE_LOCK();
     g_state.displayNeedsUpdate = true;
+    STATE_UNLOCK();
     server.send(200, "application/json", "{\"result\":\"" + result + "\"}");
 }
 
@@ -215,9 +233,17 @@ void TrassarWebServer::handleNotFound() {
 String TrassarWebServer::getStateJson() {
     JsonDocument doc;
 
+    // --- Atomowy snapshot g_state (bezpieczny odczyt z Core 0) ---
+    STATE_LOCK();
+    MachineState  snapState   = g_state.machineState;
+    MachineMode   snapMode    = g_state.machineMode;
+    PatternID     snapPattern = g_state.currentPattern;
+    bool          snapReversed = g_state.patternReversed;
+    STATE_UNLOCK();
+
     // Stan maszyny
     const char* stateStr;
-    switch (g_state.machineState) {
+    switch (snapState) {
         case STATE_IDLE:     stateStr = "idle";     break;
         case STATE_PAINTING: stateStr = "painting"; break;
         case STATE_PAUSED:   stateStr = "paused";   break;
@@ -228,7 +254,7 @@ String TrassarWebServer::getStateJson() {
 
     // Tryb pracy
     const char* modeStr;
-    switch (g_state.machineMode) {
+    switch (snapMode) {
         case MODE_AUTO:      modeStr = "auto";      break;
         case MODE_SEMI_AUTO: modeStr = "semi";       break;
         case MODE_MANUAL:    modeStr = "manual";     break;
@@ -241,10 +267,13 @@ String TrassarWebServer::getStateJson() {
     const PatternDef& pat = patternMgr.getCurrent();
     doc["pattern"] = pat.code;
     doc["patternName"] = pat.name;
-    doc["patternIdx"] = (int)g_state.currentPattern;
-    doc["reversed"] = g_state.patternReversed;
+    doc["patternIdx"] = (int)snapPattern;
+    doc["reversed"] = snapReversed;
     doc["gapStart"] = paintEngine.isGapStart();
     doc["customValid"] = patternMgr.isCustomValid();
+    doc["activeSlot"] = patternMgr.getActiveSlot();
+    JsonArray slotsArr = doc["slotsValid"].to<JsonArray>();
+    for (int s = 0; s < NUM_CUSTOM_SLOTS; s++) slotsArr.add(patternMgr.isSlotValid(s));
 
     // Predkosc i dystans
     doc["speed"] = serialized(String(encoderDist.getSpeedKmh(), 1));
@@ -580,6 +609,11 @@ body{
                 <div class="pbtn" data-pid="14" onclick="setPat(14)">P-7d</div>
             </div>
         </div>
+        <!-- Pattern preview canvas -->
+        <div style="margin-top:10px;">
+            <div style="font-size:10px;color:#6b7d9a;margin-bottom:4px;">PODGLAD WZORCA</div>
+            <canvas id="patCvs" width="480" height="70" style="width:100%;height:70px;background:#0d1520;border-radius:6px;border:1px solid #1e2d42;"></canvas>
+        </div>
     </div>
 
     <!-- ========== MODE SELECT ========== -->
@@ -599,9 +633,14 @@ body{
     <!-- ========== CUSTOM PATTERN ========== -->
     <div class="card">
         <h3>Wzorzec wlasny</h3>
+        <div style="display:flex;gap:4px;margin-bottom:10px;">
+            <button class="svc-tab act" id="slotTab0" onclick="selSlot(0)">Slot 1</button>
+            <button class="svc-tab" id="slotTab1" onclick="selSlot(1)">Slot 2</button>
+            <button class="svc-tab" id="slotTab2" onclick="selSlot(2)">Slot 3</button>
+        </div>
         <div id="cpGuns"></div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;">
-            <button class="cal-btn" onclick="saveCustomPat()">Zapisz wzorzec</button>
+            <button class="cal-btn" onclick="saveCustomPat()">Zapisz slot</button>
             <button class="cal-btn" onclick="setPat(15)" id="cpUseBtn" style="opacity:.4;">Uzyj wzorca</button>
         </div>
     </div>
@@ -685,6 +724,8 @@ body{
             </div>
             <div style="margin-top:8px;font-size:11px;color:#6b7d9a;">Dystans per pistolet (sesja):</div>
             <div class="guns-row" style="margin-top:6px;" id="gunDistRow"></div>
+            <div style="margin-top:8px;font-size:11px;color:#6b7d9a;">Licznik strzalow per pistolet (lifetime):</div>
+            <div class="guns-row" style="margin-top:6px;" id="gunShotRow"></div>
         </div>
         <div id="svcP1" style="display:none;">
             <div id="repList" style="font-size:12px;color:#6b7d9a;">Ladowanie...</div>
@@ -719,6 +760,17 @@ const MODE_DESC=["Automatyczny - dystans steruje pistoletami","Polautomatyczny -
 let calibrating=false;
 let spdSliderLoaded=false;
 let cpInited=false;
+let curSlot=0;
+/* Pattern definitions for preview (line,gap per P index - primary gun only) */
+const PAT_DEFS=[
+    [4,8],[2,4],[2,2],[1,1],[1,1],  /* P-1a..P-1e */
+    [0,0],[0,0],                     /* P-2a,P-2b (continuous) */
+    [4,2],[1,1],                     /* P-3a,P-3b (mixed) */
+    [0,0],                           /* P-4 (continuous) */
+    [4,2],                           /* P-6 */
+    [1,1],[0,0],[1,1],[0,0],         /* P-7a..P-7d */
+    [0,0]                            /* custom - filled dynamically */
+];
 
 /* ------- Commands ------- */
 function cmd(action){
@@ -786,7 +838,7 @@ function initCustomGuns(){
     el.innerHTML=h;
 }
 function saveCustomPat(){
-    let body='action=save_custom_pattern';
+    let body='action=save_custom_pattern&slot='+curSlot;
     for(let i=0;i<6;i++){
         body+='&g'+i+'='+document.getElementById('cpG'+i).value;
         let ln=document.getElementById('cpLn'+i).value||'4.0';
@@ -798,6 +850,49 @@ function saveCustomPat(){
         headers:{'Content-Type':'application/x-www-form-urlencoded'},
         body:body
     }).then(r=>r.json()).then(()=>fetchStatus());
+}
+function selSlot(s){
+    curSlot=s;
+    for(let i=0;i<3;i++){
+        let t=document.getElementById('slotTab'+i);
+        if(i===s)t.classList.add('act');else t.classList.remove('act');
+    }
+    fetch('/api/control',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},
+        body:'action=activate_slot&value='+s}).then(r=>r.json()).then(()=>fetchStatus());
+}
+/* ------- Pattern preview canvas ------- */
+function drawPatPreview(patIdx){
+    let cvs=document.getElementById('patCvs');if(!cvs)return;
+    let ctx=cvs.getContext('2d');
+    let W=cvs.width,H=cvs.height;
+    ctx.clearRect(0,0,W,H);
+    let d=PAT_DEFS[patIdx];if(!d)return;
+    let ln=d[0],gp=d[1];
+    if(ln<=0&&gp<=0){
+        /* continuous pattern */
+        ctx.fillStyle='#2ae67a';ctx.fillRect(10,15,W-20,H-30);
+        ctx.fillStyle='#6b7d9a';ctx.font='11px sans-serif';ctx.textAlign='center';
+        ctx.fillText('Ciagly',W/2,H-4);
+        return;
+    }
+    let cycle=ln+gp;if(cycle<=0)return;
+    let scale=(W-20)/Math.max(cycle*3,cycle);
+    if(scale>40)scale=40;if(scale<2)scale=2;
+    let x=10;
+    ctx.fillStyle='#6b7d9a';ctx.font='10px sans-serif';ctx.textAlign='center';
+    let y0=10,h=H-25;
+    for(let rep=0;rep<20&&x<W-5;rep++){
+        /* line */
+        let lw=ln*scale;
+        ctx.fillStyle='#2ae67a';ctx.fillRect(x,y0,Math.max(lw,1),h);
+        x+=lw;
+        /* gap */
+        let gw=gp*scale;
+        ctx.fillStyle='#1e2d42';ctx.fillRect(x,y0,Math.max(gw,1),h);
+        x+=gw;
+    }
+    ctx.fillStyle='#6b7d9a';
+    ctx.fillText(ln+'m / '+gp+'m',W/2,H-3);
 }
 /* Speed slider live update */
 document.addEventListener('DOMContentLoaded',function(){
@@ -957,6 +1052,17 @@ function fetchStatus(){
         document.getElementById('sUp').textContent=uh+'h '+um+'m '+us+'s';
         document.getElementById('sCli').textContent=d.clients;
 
+        /* Pattern preview canvas */
+        drawPatPreview(d.patternIdx);
+
+        /* Slot tabs sync */
+        curSlot=d.activeSlot||0;
+        for(let i=0;i<3;i++){
+            let st=document.getElementById('slotTab'+i);
+            if(i===curSlot)st.classList.add('act');else st.classList.remove('act');
+            if(d.slotsValid&&d.slotsValid[i])st.style.opacity='1';else st.style.opacity='.5';
+        }
+
     }).catch(e=>console.error('Status error:',e));
 }
 
@@ -985,6 +1091,15 @@ function loadStats(){
             h+='<div class="gun-item"><div class="gun-circle off" style="width:42px;height:42px;font-size:9px;">'+d.gunDistances[i]+'m</div><div class="gun-label">P'+(i+1)+'</div></div>';
         }
         row.innerHTML=h;
+        /* Gun shot counts (lifetime) */
+        let sRow=document.getElementById('gunShotRow');
+        if(sRow&&d.gunShotCounts){
+            let sh='';
+            for(let i=0;i<6;i++){
+                sh+='<div class="gun-item"><div class="gun-circle off" style="width:42px;height:42px;font-size:9px;">'+d.gunShotCounts[i]+'</div><div class="gun-label">P'+(i+1)+'</div></div>';
+            }
+            sRow.innerHTML=sh;
+        }
     }).catch(function(e){console.error('Stats:',e);});
 }
 function loadReports(){
@@ -992,10 +1107,11 @@ function loadReports(){
     el.innerHTML='<span style="color:#6b7d9a;">Ladowanie...</span>';
     fetch('/api/reports').then(function(r){return r.json();}).then(function(d){
         if(d.length===0){el.innerHTML='Brak raportow na karcie SD.';return;}
-        let h='<table class="rep-tbl"><tr><th>Plik</th><th style="text-align:right">Rozmiar</th></tr>';
+        let h='<table class="rep-tbl"><tr><th>Plik</th><th>Rozmiar</th><th style="text-align:right">Pobierz</th></tr>';
         d.forEach(function(r){
             let sz=r.size>1024?(r.size/1024).toFixed(1)+' KB':r.size+' B';
-            h+='<tr><td>'+r.file+'</td><td>'+sz+'</td></tr>';
+            h+='<tr><td>'+r.file+'</td><td>'+sz+'</td>';
+            h+='<td style="text-align:right"><a href="/api/reports/download?file='+encodeURIComponent(r.file)+'" style="color:#2ae67a;text-decoration:none;font-weight:bold;">CSV</a></td></tr>';
         });
         h+='</table>';
         el.innerHTML=h;
@@ -1053,6 +1169,12 @@ String TrassarWebServer::getStatsJson() {
         gunDist.add(serialized(String(stats.getGunDistance(i), 1)));
     }
 
+    // Licznik strzalow pistoletow (lifetime)
+    JsonArray gunShots = doc["gunShotCounts"].to<JsonArray>();
+    for (int i = 0; i < NUM_GUNS; i++) {
+        gunShots.add(stats.getGunShotCount(i));
+    }
+
     // Raporty SD
     doc["sdReady"] = reportLogger.isReady();
     doc["reportCount"] = reportLogger.getReportCount();
@@ -1071,6 +1193,52 @@ void TrassarWebServer::handleReports() {
 
 String TrassarWebServer::getReportsJson() {
     return reportLogger.getReportListJson();
+}
+
+// ============================================================
+// GET /api/reports/download?file=FILENAME - Pobierz plik CSV
+// Strumieniowe wysylanie pliku z karty SD (bez bufora w RAM)
+// ============================================================
+void TrassarWebServer::handleReportDownload() {
+    if (!server.hasArg("file")) {
+        server.send(400, "text/plain", "Brak parametru file");
+        return;
+    }
+    String fname = server.arg("file");
+    // Zabezpieczenie: tylko litery, cyfry, kropka, podkreslenie
+    for (unsigned int i = 0; i < fname.length(); i++) {
+        char c = fname.charAt(i);
+        if (!isalnum(c) && c != '.' && c != '_' && c != '-') {
+            server.send(400, "text/plain", "Nieprawidlowa nazwa pliku");
+            return;
+        }
+    }
+
+    String path = "/reports/" + fname;
+    if (!reportLogger.isReady() || !SD.exists(path.c_str())) {
+        server.send(404, "text/plain", "Plik nie znaleziony");
+        return;
+    }
+
+    File f = SD.open(path.c_str(), FILE_READ);
+    if (!f) {
+        server.send(500, "text/plain", "Blad otwarcia pliku");
+        return;
+    }
+
+    // Wyslij naglowki
+    server.sendHeader("Content-Disposition", "attachment; filename=\"" + fname + "\"");
+    server.setContentLength(f.size());
+    server.send(200, "text/csv", "");
+
+    // Wyslij plik chunkami po 512 bajtow
+    uint8_t buf[512];
+    while (f.available()) {
+        int r = f.read(buf, sizeof(buf));
+        if (r > 0) server.sendContent((const char*)buf, r);
+    }
+    f.close();
+    Serial.printf("[WWW] Pobranie raportu: %s\n", fname.c_str());
 }
 
 // buildHtmlPage() - nie uzywane, HTML wysylany chunkami z handleRoot()

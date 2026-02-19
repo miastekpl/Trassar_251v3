@@ -1,13 +1,13 @@
 #pragma once
 // ============================================================
-// TrassarV3 - Konfiguracja sprzętowa v2.9.0
+// TrassarV3 - Konfiguracja sprzętowa v2.10.0
 // Komputer pokładowy malowarki pasów drogowych
 // ============================================================
 
 #include <Arduino.h>
 
 // ============ WERSJA FIRMWARE ============
-#define FW_VERSION      "2.9.0"
+#define FW_VERSION      "2.10.0"
 #define FW_NAME         "TrassarV3"
 #define FW_DATE         __DATE__
 
@@ -198,6 +198,19 @@ struct SystemState {
 };
 
 extern SystemState g_state;
+
+// ============ Mutex dostepu do g_state (Core 0 ↔ Core 1) ============
+extern portMUX_TYPE g_stateMux;
+
+// Makra bezpiecznego dostepu
+#define STATE_LOCK()   taskENTER_CRITICAL(&g_stateMux)
+#define STATE_UNLOCK() taskEXIT_CRITICAL(&g_stateMux)
+
+// ============ Wersja formatu danych NVS ============
+#define NVS_DATA_VERSION  2  // Inkrementuj przy zmianie struktur NVS
+
+// ============ Sloty wzorcow wlasnych ============
+#define NUM_CUSTOM_SLOTS  3
 
 // ============ Konfiguracja wzorca wlasnego (NVS) ============
 struct CustomPatternCfg {

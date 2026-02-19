@@ -1,4 +1,4 @@
-# TrassarV3 - Dokumentacja techniczna i schemat podłączeń v2.9.0
+# TrassarV3 - Dokumentacja techniczna i schemat podłączeń v2.10.0
 
 ## Spis treści
 
@@ -669,5 +669,5 @@ Szczegółowa dokumentacja API → [API_WWW.md](API_WWW.md)
 
 ---
 
-*TrassarV3 — Dokumentacja techniczna v2.9.0*
+*TrassarV3 — Dokumentacja techniczna v2.10.0*
 *ESP32-S3 N16R8 | ILI9341 320×240 | 6 pistoletów | 16 wzorców | 3 tryby pracy | WiFi AP*

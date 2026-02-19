@@ -7,6 +7,85 @@ Wersjonowanie zgodne z [Semantic Versioning](https://semver.org/lang/pl/).
 
 ---
 
+## [2.10.0] - 2026-02-19
+
+### Dodano - Bezpieczeństwo wielordzeniowe, sloty wzorców, eksport CSV, podgląd wzorca
+
+#### 1) Mutex Core 0/1 — eliminacja race conditions
+- Dodano `portMUX_TYPE g_stateMux` ze spinlockiem `taskENTER_CRITICAL`/`taskEXIT_CRITICAL`
+- Makra `STATE_LOCK()` / `STATE_UNLOCK()` do bezpiecznego dostępu do `g_state` z obu rdzeni
+- Ochrona zapisów `machineMode`, `displayNeedsUpdate` z Core 0 (serwer WWW)
+- Atomowy snapshot pól `g_state` w `getStateJson()` — brak częściowych odczytów
+
+#### 2) Walidacja NVS z wersją — migracja danych przy upgrade
+- Pole `NVS_DATA_VERSION` (uint8_t) w NVS — bieżąca wersja: 2
+- Przy starcie `storage.begin()` sprawdza wersję i migruje dane:
+  - v0/v1 → v2: kasuje stare klucze wzorców własnych (zmiana formatu struct)
+- Automatyczna aktualizacja wersji NVS po migracji
+- Zabezpieczenie przed deserializacją niekompatybilnych danych po update firmware
+
+#### 3) 3 sloty pamięci wzorców własnych
+- Zamiast jednego wzorca własnego — 3 niezależne sloty (Slot 1/2/3)
+- Panel WWW: 3 zakładki slotów z wizualnym wskaźnikiem aktywnego i zapisanych
+- Klucze NVS: `cust_p0`, `cust_p1`, `cust_p2`
+- Nowa akcja API: `activate_slot` (value=0-2) — przełączanie aktywnego slotu
+- Akcja `save_custom_pattern` rozszerzona o parametr `slot` (0-2)
+- Nowe pola API status: `activeSlot`, `slotsValid[3]`
+
+#### 4) Eksport raportów CSV przez WWW — pobieranie plików
+- Nowy endpoint: `GET /api/reports/download?file=FILENAME`
+- Strumieniowe wysyłanie pliku z karty SD (512 B chunki — brak bufora w RAM)
+- Nagłówek `Content-Disposition: attachment` — automatyczne pobieranie pliku
+- Walidacja nazwy pliku: tylko alfanumeryczne + `.`, `_`, `-`
+- Tabela raportów w panelu WWW: nowa kolumna "Pobierz" z linkami CSV
+
+#### 5) Licznik strzałów pistoletów (lifetime)
+- Detekcja tranzycji OFF→ON per pistolet (zliczanie strzałów)
+- Liczniki zapisywane trwale w NVS (`gun_shots` — tablica 6 × uint32_t)
+- Automatyczny zapis przy `saveLifetime()` (co 60 s podczas malowania)
+- Nowe pole API stats: `gunShotCounts[6]`
+- Panel WWW: wyświetlanie liczników w menu serwisowym (zakładka Statystyki)
+
+#### 6) Podgląd wzorca na WWW — Canvas wizualizacja
+- Element `<canvas>` pod sekcją wyboru wzorca
+- Rysowanie wzorca kreska/przerwa w skali z wymiarami (np. "4m / 8m")
+- Wzorce ciągłe: wypełniony prostokąt z etykietą "Ciągły"
+- Automatyczna aktualizacja przy zmianie wzorca (co 1 s z `fetchStatus`)
+- Tablica `PAT_DEFS` z definicjami kreska/przerwa dla 16 wzorców
+
+### Zmieniono
+- Wersja firmware: 2.9.0 → **2.10.0**
+- `config.h`: `STATE_LOCK()/STATE_UNLOCK()`, `NVS_DATA_VERSION=2`, `NUM_CUSTOM_SLOTS=3`
+- `storage`: wersjonowanie NVS, slotowe wzorce, liczniki strzałów
+- `patterns`: 3 sloty wzorców własnych, `activateSlot()`, `isSlotValid()`
+- `statistics`: detekcja tranzycji OFF→ON, `gunShotCounts`, zapis do NVS
+- `web_server`: mutex, sloty, canvas preview, CSV download, gun shot display
+- `main.cpp`: definicja `portMUX_TYPE g_stateMux`
+
+#### Nowe stałe/typy w config.h
+| Typ/Stała | Wartość | Opis |
+|-----------|---------|------|
+| `NVS_DATA_VERSION` | 2 | Wersja formatu danych NVS |
+| `NUM_CUSTOM_SLOTS` | 3 | Liczba slotów wzorców własnych |
+| `STATE_LOCK()` | makro | Wejście w sekcję krytyczną g_state |
+| `STATE_UNLOCK()` | makro | Wyjście z sekcji krytycznej g_state |
+
+#### Nowe endpointy/akcje API
+| Endpoint/Akcja | Opis |
+|----------------|------|
+| `GET /api/reports/download?file=X` | Pobierz plik CSV raportu |
+| `activate_slot` (value=0-2) | Przełącz aktywny slot wzorca własnego |
+| `save_custom_pattern` (+slot) | Zapis wzorca do wybranego slotu |
+
+#### Nowe pola API
+| Pole | Endpoint | Typ | Opis |
+|------|----------|-----|------|
+| `activeSlot` | /api/status | int | Aktywny slot wzorca własnego (0-2) |
+| `slotsValid` | /api/status | array[3] | Flagi zapisanych slotów |
+| `gunShotCounts` | /api/stats | array[6] | Licznik strzałów per pistolet (lifetime) |
+
+---
+
 ## [2.9.0] - 2026-02-18
 
 ### Dodano - Tryby pracy (Auto/Semi/Manual) + Wzorzec własny

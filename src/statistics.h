@@ -31,6 +31,9 @@ public:
     // Dystans per pistolet w sesji
     float getGunDistance(int gun) const { return gunDistances[gun]; }
 
+    // Licznik strzalow pistoletow (lifetime)
+    uint32_t getGunShotCount(int gun) const { return gunShotCounts[gun]; }
+
     // Zapis lifetime do NVS
     void saveLifetime();
     void loadLifetime();
@@ -47,6 +50,10 @@ private:
 
     // Lifetime
     LifetimeStats lifetime;
+
+    // Licznik strzalow pistoletow (lifetime, zlicza tranzycje OFF->ON)
+    uint32_t gunShotCounts[NUM_GUNS] = {};
+    bool     gunWasOn[NUM_GUNS] = {};  // Stan poprzedni (do detekcji tranzycji)
 };
 
 extern StatisticsManager stats;

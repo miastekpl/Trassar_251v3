@@ -11,6 +11,29 @@ static Preferences prefs;
 
 void StorageManager::begin() {
     Serial.println("[NVS] Inicjalizacja pamieci trwalej");
+    checkNvsVersion();
+}
+
+void StorageManager::checkNvsVersion() {
+    prefs.begin("trassar", false);
+    uint8_t ver = prefs.getUChar("nvs_ver", 0);
+    if (ver != NVS_DATA_VERSION) {
+        Serial.printf("[NVS] Wersja NVS: %d -> %d (migracja)\n", ver, NVS_DATA_VERSION);
+        // Kasuj dane niekompatybilne ze starszymi wersjami
+        if (ver < 2) {
+            // v1->v2: zmiana CustomPatternCfg (lineLen/gapLen -> tablice per-gun)
+            // + dodanie slotow + gun shot counts
+            prefs.remove("cust_pat");   // Stary jednosotowy wzorzec
+            prefs.remove("cust_p0");
+            prefs.remove("cust_p1");
+            prefs.remove("cust_p2");
+            Serial.println("[NVS] Wyczyszczono wzorce wlasne (zmiana formatu)");
+        }
+        prefs.putUChar("nvs_ver", NVS_DATA_VERSION);
+    } else {
+        Serial.printf("[NVS] Wersja NVS: %d (OK)\n", ver);
+    }
+    prefs.end();
 }
 
 void StorageManager::saveCalibration(float pulsesPerMeter) {
@@ -90,20 +113,41 @@ MachineMode StorageManager::loadMode() {
     return (MachineMode)val;
 }
 
-void StorageManager::saveCustomPattern(const CustomPatternCfg& cfg) {
+void StorageManager::saveCustomPattern(const CustomPatternCfg& cfg, int slot) {
+    if (slot < 0 || slot >= NUM_CUSTOM_SLOTS) slot = 0;
+    char key[12];
+    snprintf(key, sizeof(key), "cust_p%d", slot);
     prefs.begin("trassar", false);
-    prefs.putBytes("cust_pat", &cfg, sizeof(cfg));
+    prefs.putBytes(key, &cfg, sizeof(cfg));
     prefs.end();
-    Serial.println("[NVS] Zapisano wzorzec wlasny (per-gun)");
+    Serial.printf("[NVS] Zapisano wzorzec wlasny slot %d\n", slot);
 }
 
-CustomPatternCfg StorageManager::loadCustomPattern() {
+CustomPatternCfg StorageManager::loadCustomPattern(int slot) {
+    if (slot < 0 || slot >= NUM_CUSTOM_SLOTS) slot = 0;
     CustomPatternCfg cfg = {};
+    char key[12];
+    snprintf(key, sizeof(key), "cust_p%d", slot);
     prefs.begin("trassar", true);
-    size_t len = prefs.getBytes("cust_pat", &cfg, sizeof(cfg));
+    size_t len = prefs.getBytes(key, &cfg, sizeof(cfg));
     prefs.end();
     if (len != sizeof(cfg)) {
         cfg.valid = false;
     }
     return cfg;
+}
+
+void StorageManager::saveGunShotCounts(const uint32_t counts[NUM_GUNS]) {
+    prefs.begin("trassar", false);
+    prefs.putBytes("gun_shots", counts, sizeof(uint32_t) * NUM_GUNS);
+    prefs.end();
+}
+
+void StorageManager::loadGunShotCounts(uint32_t counts[NUM_GUNS]) {
+    prefs.begin("trassar", true);
+    size_t len = prefs.getBytes("gun_shots", counts, sizeof(uint32_t) * NUM_GUNS);
+    prefs.end();
+    if (len != sizeof(uint32_t) * NUM_GUNS) {
+        for (int i = 0; i < NUM_GUNS; i++) counts[i] = 0;
+    }
 }

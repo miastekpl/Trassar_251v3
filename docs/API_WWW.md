@@ -1,4 +1,4 @@
-# TrassarV3 - API serwera WWW v2.9.0
+# TrassarV3 - API serwera WWW v2.10.0
 
 ## Informacje ogólne
 
@@ -23,7 +23,8 @@ Panel zawiera:
 - Przyciski START / PAUZA / STOP / **START OD PRZERWY**
 - **Selektor trybu pracy** — 3 przyciski: AUTO / SEMI / RĘCZNY
 - 16 przycisków wzorców pogrupowanych: P-1x, P-2x, P-3x, P-4/P-6, P-7x, WŁASNY
-- **Edytor wzorca własnego** — konfiguracja 6 pistoletów, kreska/przerwa, zapis do NVS
+- **Edytor wzorca własnego** — konfiguracja 6 pistoletów, kreska/przerwa, 3 sloty pamięci, zapis do NVS
+- **Podgląd wzorca** — Canvas wizualizacja kreska/przerwa w skali
 - Przycisk odwracania (dla P-3a/P-3b)
 - Wskaźniki 6 pistoletów (P1-P6)
 - **Przycisk "Kolejna linia"** — widoczny w trybie SEMI gdy kreska zakończona
@@ -31,8 +32,8 @@ Panel zawiera:
 - Sekcja alarmu prędkości (suwak konfiguracji progu max.)
 - Informacje systemowe
 - **Menu serwisowe** z zakładkami:
-  - **Statystyki** — dystans/powierzchnia/czas lifetime, status SD, dystans per pistolet
-  - **Raporty SD** — tabela plików CSV z nazwą i rozmiarem
+  - **Statystyki** — dystans/powierzchnia/czas lifetime, status SD, dystans per pistolet, licznik strzałów
+  - **Raporty SD** — tabela plików CSV z nazwą, rozmiarem i linkiem pobierania
 - **Banner anomalii pistoletów** — pulsujący alert gdy wykryto anomalię
 - Wskaźniki anomalii na kółkach pistoletów (migająca czerwona ramka)
 
@@ -76,7 +77,9 @@ Zwraca aktualny stan systemu w formacie JSON.
     "mode": "auto",
     "semiLineComplete": false,
     "patternIdx": 0,
-    "customValid": false
+    "customValid": false,
+    "activeSlot": 0,
+    "slotsValid": [true, false, false]
 }
 ```
 
@@ -115,6 +118,8 @@ Zwraca aktualny stan systemu w formacie JSON.
 | `semiLineComplete` | bool | Czy kreska w trybie SEMI jest zakończona (czeka na START) |
 | `patternIdx` | int | Indeks aktualnego wzorca (0–15) |
 | `customValid` | bool | Czy wzorzec własny jest skonfigurowany i gotowy do użycia |
+| `activeSlot` | int | Aktywny slot wzorca własnego (0-2) |
+| `slotsValid` | array[3] | Flagi zapisanych slotów (true = slot zawiera wzorzec) |
 
 ---
 
@@ -133,6 +138,7 @@ Zwraca statystyki lifetime i bieżącej sesji.
     "sessionAreaM2": "30.04",
     "sessionTimeSec": 180,
     "gunDistances": ["250.3", "0.0", "250.3", "0.0", "0.0", "0.0"],
+    "gunShotCounts": [1250, 0, 1248, 0, 0, 0],
     "sdReady": true,
     "reportCount": 12
 }
@@ -149,6 +155,7 @@ Zwraca statystyki lifetime i bieżącej sesji.
 | `sessionAreaM2` | string | Powierzchnia bieżącej sesji [m²] |
 | `sessionTimeSec` | int | Czas bieżącej sesji [sekundy] |
 | `gunDistances` | array[6] | Dystans per pistolet w sesji [m] |
+| `gunShotCounts` | array[6] | Licznik strzałów per pistolet (lifetime, tranzycje OFF→ON) |
 | `sdReady` | bool | Czy karta SD jest dostępna |
 | `reportCount` | int | Liczba plików raportów na karcie SD |
 
@@ -178,6 +185,37 @@ Zwraca listę plików raportów z karty SD (z cache, odświeżany co 15 s).
 
 ---
 
+### GET /api/reports/download
+
+Pobiera plik raportu CSV z karty SD (strumieniowo, 512 B chunki).
+
+**Parametry (query string):**
+
+| Parametr | Wymagany | Opis |
+|----------|----------|------|
+| `file` | Tak | Nazwa pliku do pobrania (np. `20260219.csv`) |
+
+**Odpowiedź:** `text/csv` z nagłówkiem `Content-Disposition: attachment`
+
+**Walidacja:** Nazwa pliku może zawierać tylko litery, cyfry, `.`, `_`, `-`. Pozostałe znaki są odrzucane (HTTP 400).
+
+**Kody odpowiedzi:**
+
+| Kod | Opis |
+|-----|------|
+| 200 | Plik pobrany pomyślnie |
+| 400 | Brak parametru `file` lub nieprawidłowa nazwa |
+| 404 | Plik nie istnieje na karcie SD |
+| 500 | Błąd otwarcia pliku |
+
+**Przykład:**
+```bash
+# Pobierz raport z 19 lutego 2026
+curl -O http://192.168.4.1/api/reports/download?file=20260219.csv
+```
+
+---
+
 ### POST /api/control
 
 Wysyła komendę sterującą do systemu.
@@ -201,7 +239,8 @@ Wysyła komendę sterującą do systemu.
 | `toggle_reverse` | - | Odwróć wzorzec (P-3a/P-3b) |
 | `set_mode` | 0-2 | Ustaw tryb pracy: 0=AUTO, 1=SEMI, 2=RĘCZNY (zapis do NVS) |
 | `semi_next_line` | - | Wyzwól kolejną kreskę w trybie SEMI (działa tylko gdy `semiLineComplete=true`) |
-| `save_custom_pattern` | *patrz niżej* | Zapisz wzorzec własny do NVS |
+| `save_custom_pattern` | *patrz niżej* | Zapisz wzorzec własny do wybranego slotu NVS |
+| `activate_slot` | 0-2 | Przełącz aktywny slot wzorca własnego (slot musi być zapisany) |
 | `cal_start` | - | Rozpocznij kalibrację enkodera |
 | `cal_finish` | - | Zakończ kalibrację enkodera |
 | `set_max_speed` | 5.0–30.0 | Ustaw próg alarmu prędkości [km/h] (zapis do NVS) |
@@ -234,10 +273,11 @@ Wysyła komendę sterującą do systemu.
 | `g0`–`g5` | Tak | Tryb pistoletu P1–P6: 0=wyłączony, 1=ciągły, 2=przerywany |
 | `ln0`–`ln5` | Tak | Długość kreski per pistolet [m] (0.1–50.0) |
 | `gp0`–`gp5` | Tak | Długość przerwy per pistolet [m] (0.1–50.0) |
+| `slot` | Nie | Numer slotu do zapisu (0-2, domyślnie 0) |
 
 Każdy pistolet ustawiony jako "przerywany" (2) ma własne, niezależne parametry kreski i przerwy. Pistolety ciągłe i wyłączone ignorują te wartości.
 
-Po zapisie wzorzec jest automatycznie aplikowany i zaznaczany jako aktywny.
+Po zapisie wzorzec jest automatycznie aplikowany i zaznaczany jako aktywny w wybranym slocie.
 
 **Przykłady użycia (curl):**
 
@@ -289,6 +329,15 @@ curl -X POST -d "action=save_custom_pattern&g0=0&g1=2&g2=0&g3=0&g4=2&g5=0&ln0=4&
 
 # Użyj wzorca własnego (indeks 15)
 curl -X POST -d "action=set_pattern&value=15" http://192.168.4.1/api/control
+
+# Aktywuj slot 2 wzorca własnego
+curl -X POST -d "action=activate_slot&value=1" http://192.168.4.1/api/control
+
+# Zapisz wzorzec własny do slotu 3
+curl -X POST -d "action=save_custom_pattern&slot=2&g0=0&g1=1&g2=0&g3=0&g4=0&g5=0&ln0=4&gp0=8&ln1=4&gp1=8&ln2=4&gp2=8&ln3=4&gp3=8&ln4=4&gp4=8&ln5=4&gp5=8" http://192.168.4.1/api/control
+
+# Pobierz raport CSV
+curl -O http://192.168.4.1/api/reports/download?file=20260219.csv
 ```
 
 ## Kody odpowiedzi HTTP

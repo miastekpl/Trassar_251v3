@@ -30,6 +30,7 @@
 
 // Globalny stan systemu
 SystemState g_state;
+portMUX_TYPE g_stateMux = portMUX_INITIALIZER_UNLOCKED;
 
 // Stan detekcji anomalii pistoletow
 GunAnomalyState gunAnomaly;
