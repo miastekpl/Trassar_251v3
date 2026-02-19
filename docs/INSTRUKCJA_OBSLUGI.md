@@ -1101,6 +1101,36 @@ START OD PRZERWY (GAP):  ░░░░██░░░░██░░░░██ 
    - **Puść START** → pistolety natychmiast się wyłączają
    - Statystyki (dystans, powierzchnia) naliczane są normalnie
 
+### Przykład 8: Praca z GPS — raport z koordynatami lokalizacji
+
+**Scenariusz:** Zleceniodawca wymaga dokumentacji potwierdzającej, że oznakowanie zostało wykonane w konkretnym miejscu. Moduł GPS rejestruje pozycję w raporcie CSV.
+
+**Kroki:**
+
+1. **Przed pracą — sprawdź GPS:**
+   - Połącz się z WiFi TrassarV3 i otwórz panel WWW
+   - Sprawdź sekcję "GPS" — powinno być: **Fix: TAK**, satelity ≥ 4, HDOP < 3.0
+   - Jeśli brak fix — poczekaj 1-2 min, upewnij się że antena GPS widzi niebo
+
+2. **Malowanie z rejestracją GPS:**
+   - Pracuj normalnie — wybierz wzorzec, naciśnij START, maluj
+   - GPS automatycznie zbiera dane w tle — nie wymaga żadnych dodatkowych akcji
+   - W panelu WWW na żywo widoczna jest pozycja i prędkość GPS
+
+3. **Po zakończeniu — raport z koordynatami:**
+   - Naciśnij STOP — raport CSV automatycznie zapisze się z koordynatami GPS
+   - W panelu WWW → Menu serwisowe → Raporty SD → pobierz plik CSV
+   - Plik zawiera kolumny `lat` i `lon` z pozycją w momencie zakończenia sesji
+
+**Przykład raportu CSV:**
+```csv
+data,godzina,wzorzec,dystans_m,powierzchnia_m2,lat,lon
+2026-02-19,09:15:30,P-1a,1850.0,222.00,52.229676,21.012229
+2026-02-19,11:40:15,P-3a,920.5,220.92,52.231500,21.015800
+```
+
+> **Wskazówka:** Koordynaty można wkleić do Google Maps, aby potwierdzić lokalizację prac.
+
 ---
 
 ## 21. Rozwiązywanie problemów
@@ -1135,4 +1165,4 @@ START OD PRZERWY (GAP):  ░░░░██░░░░██░░░░██ 
 ---
 
 *TrassarV3 — Komputer pokładowy malowarki pasów drogowych*
-*Firmware v2.12.0 | ESP32-S3 N16R8 | 6 pistoletów, 16 wzorców, 3 tryby pracy, buzzer, watchdog, anomaly detect*
+*Firmware v2.12.0 | ESP32-S3 N16R8 | GPS NEO-6M | 6 pistoletów, 16 wzorców, 3 tryby pracy, Smart/Instant, buzzer, watchdog, anomaly detect*

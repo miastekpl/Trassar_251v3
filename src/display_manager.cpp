@@ -1,7 +1,7 @@
 // ============================================================
 // TrassarV3 - Implementacja modulu wyswietlacza ILI9341
 // 320x240 landscape, podswietlenie LEDC PWM
-// v2.9.0 - Tryby pracy (AUTO/SEMI/MANUAL), wskaznik trybu
+// v2.12.0 - Tryby pracy (AUTO/SEMI/MANUAL), wskaznik trybu
 //           Anti-flicker na WSZYSTKICH ekranach (setTextPadding)
 //           Pionowa wizualizacja wzorca (kolumny jak na drodze)
 //           Layout 3-kolumnowy: info | viz | predkosc

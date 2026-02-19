@@ -1,7 +1,7 @@
 #pragma once
 // ============================================================
 // TrassarV3 - Modul wyswietlacza ILI9341  320x240 landscape
-// Komputer pokladowy malowarki pasow drogowych  v2.9.0
+// Komputer pokladowy malowarki pasow drogowych  v2.12.0
 // ============================================================
 
 #include <TFT_eSPI.h>

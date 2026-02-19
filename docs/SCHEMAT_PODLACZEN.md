@@ -29,18 +29,19 @@
 | Zasilanie | USB-C 5V |
 | Framework | Arduino (ESP-IDF) + PlatformIO |
 
-### 1.2 Peryferia
+### 1.2 Peryferia — dokładne modele komponentów
 
-| Komponent | Model | Interfejs | Opis |
-|-----------|-------|-----------|------|
-| Wyświetlacz | ILI9341 2.8" TFT | SPI (HSPI/SPI3) | 320×240 px, landscape, 27 MHz |
-| Karta SD | Zintegrowana w module TFT | SPI (HSPI/SPI3) | FAT32, współdzieli magistralę z TFT |
-| Zegar RTC | DS1307 | I2C | Bateria CR2032, podtrzymanie czasu |
-| Enkoder | Obrotowy (koło pomiarowe) | Digital + ISR | CLK/DT + przycisk SW |
-| Przyciski | BS-33B monostabilne × 3 + 1 | Digital (pull-up) | START, STOP, SELEKTOR, GAP |
-| Przekaźniki | Moduł 6-kanałowy 5V | Digital | Sterowanie pistoletami P1–P6 |
-| Buzzer | Pasywny | LEDC PWM (kanał 1) | Sygnalizacja dźwiękowa, GPIO 8 |
-| GPS | GY-NEO6MV2 (NEO-6M) | UART2 (9600 baud) | Pozycja, prędkość, satelity |
+| # | Komponent | Model / Part Number | Interfejs | Opis |
+|---|-----------|---------------------|-----------|------|
+| 1 | Wyświetlacz LCD | **ILI9341 2.8" TFT SPI** (moduł 240×320 z Touch + SD) | SPI (HSPI/SPI3), 27 MHz | Sterownik ILI9341, rozdzielczość 320×240 px, tryb landscape |
+| 2 | Karta SD | **MicroSD** (slot zintegrowany w module ILI9341) | SPI (HSPI/SPI3) | FAT32, współdzieli magistralę SPI z TFT |
+| 3 | Zegar RTC | **DS1307 AT24C32** (moduł z EEPROM + slot baterii) | I2C (adres 0x68) | Bateria CR2032, dokładność ±2 ppm |
+| 4 | Enkoder | **Enkoder obrotowy inkrementalny** (typ KY-040 lub HW-040) | Digital + ISR (CHANGE) | 20 impulsów/obrót, z przyciskiem SW |
+| 5 | Przyciski | **BS-33B** monostabilne NO × 3 szt. | Digital (INPUT_PULLUP) | START, STOP, SELEKTOR — montaż panelowy |
+| 6 | Moduł przekaźników | **SRD-05VDC-SL-C 6-kanałowy** (moduł z optoisolacją) | Digital (HIGH = ON) | 6× przekaźnik 5V/10A, opto-izolacja, diody flyback |
+| 7 | Buzzer | **Buzzer pasywny 5V** (np. TMB12A05 lub odpowiednik) | LEDC PWM (kanał 1) | Pasywny — wymaga sygnału PWM, zakres 100 Hz – 5 kHz |
+| 8 | GPS | **GY-NEO6MV2** (chip u-blox NEO-6M + antena ceramiczna) | UART2 (9600 baud) | Antena 25×25 mm, 50 kanałów, NMEA 0183, cold start <35 s |
+| 9 | Bateria RTC | **CR2032** 3V litowa | — | Podtrzymanie zegara DS1307 po odłączeniu zasilania |
 
 ### 1.3 Firmware
 
@@ -48,9 +49,28 @@
 |----------|---------|
 | Wersja | 2.12.0 |
 | Platforma | ESP32-S3 (PlatformIO) |
-| Biblioteki | TFT_eSPI, ArduinoJson v7, SD, Wire, WiFi, esp_task_wdt |
+| Biblioteki | TFT_eSPI v2.5.43, ArduinoJson v7.0.4, RTClib v2.1.4, TinyGPSPlus v1.0.3, SD, Wire, WiFi, esp_task_wdt |
 | Orientacja ekranu | Landscape (setRotation 1) |
 | Anti-flicker | setTextPadding() zamiast clear() na HOME/PAINTING |
+
+### 1.4 Lista materiałów (BOM)
+
+| # | Komponent | Ilość | Uwagi zakupowe |
+|---|-----------|-------|----------------|
+| 1 | ESP32-S3 N16R8 DevKitC-1 | 1 | Espressif, 16 MB Flash, 8 MB PSRAM, USB-C |
+| 2 | Moduł ILI9341 2.8" TFT z SD i Touch | 1 | Moduł 14-pin (SPI), zintegrowany slot MicroSD |
+| 3 | Moduł RTC DS1307 AT24C32 | 1 | Z gniazdem na CR2032 |
+| 4 | Bateria CR2032 | 1 | Litowa 3V, do modułu DS1307 |
+| 5 | Enkoder obrotowy KY-040 | 1 | 5-pin: CLK, DT, SW, VCC, GND |
+| 6 | Przycisk BS-33B (NO, monostabilny) | 3 | START, STOP, SELEKTOR |
+| 7 | Moduł przekaźników 6-kanałowy 5V | 1 | Z opto-izolacją, wejścia aktywne HIGH |
+| 8 | Moduł GPS GY-NEO6MV2 NEO-6M | 1 | Z anteną ceramiczną na kablu |
+| 9 | Buzzer pasywny 5V | 1 | 2-pin (+/−), montaż panelowy |
+| 10 | Karta MicroSD | 1 | FAT32, min. 1 GB, klasa 4+ |
+| 11 | Przewody połączeniowe Dupont | ~40 | Żeńsko-żeński i żeńsko-męski |
+| 12 | Zasilacz USB-C 5V/2A | 1 | Minimum 1.5A przy pełnym obciążeniu |
+| 13 | Koło pomiarowe + uchwyt enkodera | 1 | Obwód dopasowany do kalibracji |
+| 14 | Zawory elektromagnetyczne pistoletów | 6 | Podłączenie do wyjść NO przekaźników |
 
 ---
 
@@ -435,7 +455,7 @@ Na fizycznym panelu sterowania (ekran HOME i PAINTING) przycisk SELEKTOR **nie z
 | Źródło | Napięcie | Odbiorcy |
 |--------|----------|----------|
 | USB-C ESP32-S3 | 5V (VBUS) | ESP32-S3, DS1307, moduł przekaźnikowy |
-| Regulator ESP32-S3 | 3.3V | ILI9341, enkoder, karta SD |
+| Regulator ESP32-S3 | 3.3V | ILI9341, enkoder, karta SD, GPS GY-NEO6MV2 |
 
 ### 7.2 Schemat zasilania
 
@@ -448,7 +468,8 @@ Na fizycznym panelu sterowania (ekran HOME i PAINTING) przycisk SELEKTOR **nie z
       │               │
       │               ├──── ILI9341 TFT (VCC)
       │               ├──── Karta SD (VCC)
-      │               └──── Enkoder (VCC, opcjonalnie)
+      │               ├──── Enkoder (VCC, opcjonalnie)
+      │               └──── GPS GY-NEO6MV2 (VCC 3.3V)
       │
       ├──── DS1307 RTC (VCC = 5V)
       │
@@ -671,6 +692,7 @@ Szczegółowa dokumentacja API → [API_WWW.md](API_WWW.md)
 3. **Enkoder:** Przy dłuższych przewodach (>30 cm) dodaj kondensatory filtrujące 100 nF między CLK/DT a GND
 4. **Przekaźniki:** Przewody do 50 cm — sygnał cyfrowy 3.3V jest odporny na zakłócenia
 5. **Przyciski:** Bez ograniczeń długości dla BS-33B (sygnał cyfrowy z pull-up)
+6. **GPS (UART2):** Przewody TX/RX do 1 m — sygnał cyfrowy 3.3V. Antena GPS na zewnątrz kabiny z widocznością nieba
 
 ### 10.2 Montaż enkodera
 
@@ -696,7 +718,15 @@ Szczegółowa dokumentacja API → [API_WWW.md](API_WWW.md)
 - **GPIO 0:** Używany przez bootloader — nie podłączać
 - Moduły przekaźnikowe powinny mieć diody zabezpieczające (flyback) — wbudowane w większości modułów
 
-### 10.6 Aktualizacja firmware
+### 10.6 Montaż anteny GPS
+
+- Antena ceramiczna modułu GY-NEO6MV2 **musi mieć widoczność nieba** — zamontuj na zewnątrz kabiny
+- Antena na kablu — można poprowadzić przewód do dachu maszyny
+- Cold start (pierwsze uruchomienie): do 35 sekund na złapanie fix
+- Warm start (kolejne): 1–5 sekund
+- Moduł GPS zasilany z 3.3V — podłączyć do pinu 3V3 ESP32-S3
+
+### 10.7 Aktualizacja firmware
 
 - Podłącz ESP32-S3 przez USB-C
 - W PlatformIO: `pio run --target upload`
@@ -705,4 +735,4 @@ Szczegółowa dokumentacja API → [API_WWW.md](API_WWW.md)
 ---
 
 *TrassarV3 — Dokumentacja techniczna v2.12.0*
-*ESP32-S3 N16R8 | ILI9341 320×240 | 6 pistoletów | 16 wzorców | 3 tryby pracy | WiFi AP*
+*ESP32-S3 N16R8 | ILI9341 320×240 | GPS NEO-6M | 6 pistoletów | 16 wzorców | 3 tryby pracy | WiFi AP*
