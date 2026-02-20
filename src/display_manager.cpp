@@ -79,6 +79,7 @@
 // Ekran wyboru trybu pracy
 #define MODE_ITEM_H         48      // Wysokosc pozycji trybu
 #define MODE_START_Y        36      // Y pierwszej pozycji
+#define MODE_COUNT          3       // Liczba trybow (AUTO/SEMI/MANUAL)
 
 // Ekran splasha
 #define SPLASH_TITLE_OFS    (-40)   // Offset Y tytulu od srodka ekranu
@@ -378,7 +379,7 @@ void DisplayManager::drawPatternVisualization(int vizX, int vizY, int vizW, int 
             float lineLen = cfg[gi].lineLen;
             float gapLen  = cfg[gi].gapLen;
             float cycle   = lineLen + gapLen;
-            if (cycle <= 0) { cx += cw + colGap; continue; }
+            if (cycle <= 0) { cx += cw + VIZ_COL_GAP; continue; }
 
             // Tlo = kolor przerwy
             tft.fillRect(cx, colY, cw, colH, COLOR_GUN_OFF);
