@@ -53,6 +53,7 @@ void MenuSystem::handleEvent(ButtonEvent event) {
         case SCREEN_REPORTS:        handleReports(event);         break;
         case SCREEN_NOZZLE_CLEAN:   handleNozzleClean(event);     break;
         case SCREEN_MODE_SELECT:    handleModeSelect(event);      break;
+        case SCREEN_SESSION_RESET:  handleSessionReset(event);    break;
     }
 }
 
@@ -220,6 +221,9 @@ void MenuSystem::handleServiceMenu(ButtonEvent e) {
                         nozzlePatternIdx = 0;
                     goToScreen(SCREEN_NOZZLE_CLEAN);
                     break;
+                case 4:
+                    goToScreen(SCREEN_SESSION_RESET);
+                    break;
             }
             break;
 
@@ -327,6 +331,35 @@ void MenuSystem::handleNozzleClean(ButtonEvent e) {
 
         case EVT_STOP_LONG:
             guns.allOff();
+            goToScreen(SCREEN_SERVICE_MENU);
+            break;
+
+        default:
+            break;
+    }
+}
+
+// ============ SCREEN_SESSION_RESET ============
+// START = potwierdz reset (zeruj liczniki sesji)
+// STOP  = anuluj (powrot do menu serwisowego)
+
+void MenuSystem::handleSessionReset(ButtonEvent e) {
+    switch (e) {
+        case EVT_START_SHORT:
+        case EVT_START_LONG: {
+            // Reset licznikow sesji
+            stats.resetSession();
+            encoderDist.resetDistance();
+            g_state.machineState = STATE_IDLE;
+            buzzer.beep(2000, 150);  // Sygnal potwierdzenia
+            Serial.println("[MENU] Reset etapu - liczniki wyzerowane");
+            goToScreen(SCREEN_HOME);
+            break;
+        }
+
+        case EVT_STOP_SHORT:
+        case EVT_STOP_LONG:
+            // Anuluj - powrot do menu
             goToScreen(SCREEN_SERVICE_MENU);
             break;
 
@@ -457,6 +490,15 @@ void MenuSystem::update() {
         // ---- Wybor trybu pracy ----
         case SCREEN_MODE_SELECT:
             display.drawModeSelect(modeSelectIdx, g_state.machineMode);
+            break;
+
+        // ---- Reset etapu ----
+        case SCREEN_SESSION_RESET:
+            display.drawSessionResetScreen(
+                stats.getSessionDistance(),
+                stats.getSessionArea(),
+                stats.getSessionTimeSec()
+            );
             break;
     }
 }

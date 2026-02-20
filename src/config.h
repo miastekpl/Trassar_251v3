@@ -132,7 +132,8 @@ enum ScreenID : uint8_t {
     SCREEN_DISTANCE_METER,
     SCREEN_REPORTS,
     SCREEN_NOZZLE_CLEAN,
-    SCREEN_MODE_SELECT
+    SCREEN_MODE_SELECT,
+    SCREEN_SESSION_RESET
 };
 
 // ============ Identyfikatory wzorców ============

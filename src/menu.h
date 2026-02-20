@@ -17,9 +17,10 @@ private:
     void handleReports(ButtonEvent e);
     void handleNozzleClean(ButtonEvent e);
     void handleModeSelect(ButtonEvent e);
+    void handleSessionReset(ButtonEvent e);
     void goToScreen(ScreenID screen);
 
-    static const int SERVICE_MENU_ITEMS = 4;
+    static const int SERVICE_MENU_ITEMS = 5;
 
     // Pomiar dystansu
     bool distMeasuring = false;

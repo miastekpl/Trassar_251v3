@@ -38,6 +38,9 @@ public:
     // Wybor trybu pracy
     void drawModeSelect(int selectedMode, MachineMode currentMode);
 
+    // Reset etapu (potwierdzenie)
+    void drawSessionResetScreen(float distM, float areaM2, unsigned long timeSec);
+
     // ---- Elementy pomocnicze ----
     void drawHeader(const char* title);
     void drawGunRects(int y, const GunPatternCfg gunsCfg[6],
