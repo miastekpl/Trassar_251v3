@@ -7,7 +7,7 @@
 #include <Arduino.h>
 
 // ============ WERSJA FIRMWARE ============
-#define FW_VERSION      "2.12.0"
+#define FW_VERSION      "2.13.0"
 #define FW_NAME         "TrassarV3"
 #define FW_DATE         __DATE__
 

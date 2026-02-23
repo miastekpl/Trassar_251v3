@@ -1,4 +1,4 @@
-# TrassarV3 - Instrukcja obsługi v2.12.0
+# TrassarV3 - Instrukcja obsługi v2.13.0
 
 ## Spis treści
 
@@ -47,7 +47,7 @@ System zapewnia:
 | Parametr | Wartość |
 |----------|---------|
 | Mikrokontroler | ESP32-S3 N16R8 (16 MB Flash, 8 MB PSRAM) |
-| Firmware | v2.12.0 |
+| Firmware | v2.13.0 |
 | Wyświetlacz | ILI9341 2.8" TFT, 320×240 px, tryb landscape |
 | Interfejs SPI | HSPI (SPI3), 27 MHz |
 | Zegar RTC | DS1307 z baterią CR2032 |
@@ -372,7 +372,7 @@ Aktualnie wybrany tryb oznaczony jest kursorem **►**. Bieżący aktywny tryb o
 
 Dostęp: **STOP (1 s)** na ekranie głównym.
 
-Ekran wyświetla 4 pozycje z nagłówkiem "SERWIS":
+Ekran wyświetla 5 pozycji z nagłówkiem "SERWIS":
 
 | # | Pozycja | Opis |
 |---|---------|------|
@@ -380,6 +380,7 @@ Ekran wyświetla 4 pozycje z nagłówkiem "SERWIS":
 | 2 | **Pomiar dystansu** | Ręczny pomiar odległości (niezależny od malowania) |
 | 3 | **Raporty** | Przeglądanie raportów z karty SD |
 | 4 | **Czyszczenie dysz** | Ręczne uruchamianie pistoletów |
+| 5 | **Reset etapu** | Zerowanie liczników sesji (dystans, powierzchnia, czas) |
 
 **Nawigacja w menu serwisowym:**
 
@@ -437,6 +438,45 @@ Na ekranie: Nagłówek "CZYSZCZENIE DYSZ", kod i nazwa wzorca, legenda kolorów,
 > **Ważne:** W trybie czyszczenia dysz zabezpieczenie prędkości minimalnej jest **wyłączone** — pistolety działają nawet na postoju. Działają TYLKO gdy trzymasz przycisk START.
 
 Powrót: **STOP (1 s)**
+
+### 7.9 Reset etapu (sesji)
+
+Ekran dostępny z menu serwisowego → pozycja 5 "Reset etapu". Służy do zerowania liczników sesji między etapami pracy bez wyłączania urządzenia.
+
+```
+┌──────────────────────────────────────────┐
+│         RESET ETAPU                      │
+│                                          │
+│  Dystans sesji:      1250.5 m            │
+│  Powierzchnia sesji: 150.06 m2           │
+│  Czas sesji:         1845 s              │
+│                                          │
+│  Wyzerowac liczniki sesji?               │
+│                                          │
+│  START = TAK        STOP = NIE           │
+└──────────────────────────────────────────┘
+```
+
+**Sterowanie:**
+
+| Przycisk | Akcja |
+|----------|-------|
+| **START** | Potwierdź reset — zeruje liczniki sesji, sygnał buzzera, powrót do HOME |
+| **STOP** | Anuluj — powrót do menu serwisowego bez zmian |
+
+**Co jest zerowane:**
+- Dystans sesji (enkoder)
+- Powierzchnia sesji
+- Czas sesji
+- Stan maszyny ustawiany na IDLE
+
+**Co NIE jest zerowane:**
+- Statystyki lifetime (łączny dystans, powierzchnia, czas)
+- Kalibracja enkodera
+- Ustawienia (wzorzec, tryb pracy, próg prędkości)
+- Raporty na karcie SD
+
+> **Typowy scenariusz:** Zakończ etap malowania (STOP → raport zapisany na SD) → wejdź w menu serwisowe (STOP 1 s) → wybierz "Reset etapu" → potwierdź → zacznij nowy etap z czystymi licznikami.
 
 ---
 
@@ -718,7 +758,7 @@ System wyposażony jest w pasywny buzzer (GPIO 8) generujący sygnały dźwięko
 
 ## 14. Architektura wielordzeniowa
 
-TrassarV3 v2.12.0 wykorzystuje oba rdzenie procesora ESP32-S3:
+TrassarV3 v2.13.0 wykorzystuje oba rdzenie procesora ESP32-S3 i obsługuje 10 ekranów interfejsu:
 
 | Rdzeń | Zadania |
 |-------|---------|
@@ -914,7 +954,7 @@ Po zatrzymaniu malowania (STOP) koordynaty GPS są automatycznie zapisywane w ra
 **Kroki:**
 
 1. **Przygotowanie:**
-   - Włącz urządzenie — pojawi się ekran powitalny "TrassarV3 v2.12.0", a po chwili ekran główny
+   - Włącz urządzenie — pojawi się ekran powitalny "TrassarV3", a po chwili ekran główny
    - Sprawdź wyświetlany wzorzec w lewym górnym rogu
    - Jeśli wyświetlany wzorzec to nie P-1a, zmień go przez panel WWW: połącz się z WiFi "TrassarV3" (hasło: 12345678), otwórz http://192.168.4.1 i kliknij przycisk **P-1a**
    - Sprawdź status kalibracji w panelu WWW — powinno być "Skalibrowany"
@@ -1133,6 +1173,83 @@ data,godzina,wzorzec,dystans_m,powierzchnia_m2,lat,lon
 
 ---
 
+### Przykład 9: Wieloetapowa praca z resetem sesji
+
+**Scenariusz:** Ekipa maluje 3 odcinki drogi w ciągu dnia. Każdy odcinek wymaga osobnego raportu i świeżych liczników — operator chce widzieć dystans i powierzchnię tylko dla bieżącego etapu, bez narastających wartości z poprzednich odcinków.
+
+**Etap 1 — malowanie pierwszego odcinka:**
+
+1. Włącz maszynę, ustaw wzorzec **P-2a** (ciągła wąska) przez panel WWW
+2. Naciśnij **START** → maluj pierwszy odcinek
+3. Po zakończeniu naciśnij **STOP** — raport CSV zapisze się na kartę SD
+4. Na ekranie HOME widoczny jest narosły dystans i powierzchnia z etapu 1
+
+**Reset — przygotowanie do etapu 2:**
+
+5. Przytrzymaj **STOP (1 s)** → menu serwisowe
+6. Naciśnij **SELEKTOR** 4 razy aby dojść do pozycji 5: **Reset etapu**
+7. Przytrzymaj **SELEKTOR (1 s)** aby wejść na ekran resetu
+8. Na ekranie widoczne statystyki etapu 1: dystans, powierzchnia, czas
+9. Naciśnij **START** (TAK) → krótki beep potwierdza, liczniki wyzerowane
+10. System wraca na ekran HOME z zerowym dystansem i powierzchnią
+
+**Etap 2 — malowanie drugiego odcinka:**
+
+11. Zmień wzorzec na **P-1a** (przerywana długa) przez panel WWW
+12. Naciśnij **START** → maluj drugi odcinek
+13. Wyświetlacz pokazuje dane tylko z bieżącego etapu (od zera)
+14. **STOP** → raport etapu 2 zapisany na SD
+
+**Reset i etap 3:**
+
+15. Powtórz kroki 5–10 (reset etapu)
+16. Maluj trzeci odcinek
+17. **STOP** → raport etapu 3 zapisany na SD
+
+**Wynik na karcie SD — 3 osobne raporty:**
+```csv
+data,godzina,wzorzec,dystans_m,powierzchnia_m2,lat,lon
+2026-02-23,08:30:15,P-2a,1250.5,150.06,52.229676,21.012229
+2026-02-23,10:45:22,P-1a,875.3,105.04,52.230100,21.013500
+2026-02-23,14:10:08,P-1a,430.0,51.60,52.231200,21.014100
+```
+
+> **Uwaga:** Statystyki lifetime (łączne) nie są zerowane — rosną przez cały dzień. Reset dotyczy wyłącznie liczników sesji widocznych na ekranie HOME i PAINTING.
+
+---
+
+### Przykład 10: Malowanie krawędzi jezdni na autostradzie
+
+**Scenariusz:** Autostrada wymaga malowania linii krawędziowych po obu stronach. Prawa strona — linia ciągła szeroka (P-7b, 24 cm), lewa strona — linia przerywana wąska (P-7c, 12 cm). Praca w trybie automatycznym z GPS.
+
+**Kroki — prawa krawędź (linia ciągła):**
+
+1. Sprawdź GPS w panelu WWW — Fix: TAK, satelity ≥ 4
+2. Ustaw wzorzec **P-7b** (krawędziowa ciągła szeroka) przez WWW
+3. Upewnij się, że tryb to **AUTO** (domyślny)
+4. Naciśnij **START** → ruszaj z prędkością 5–12 km/h
+5. Pistolet P6 (24 cm) maluje ciągle — prostokąt P6 na ekranie zielony
+6. Po zakończeniu odcinka naciśnij **STOP** → raport z GPS na SD
+
+**Reset i zmiana na lewą krawędź:**
+
+7. Menu serwisowe → Reset etapu → START (TAK)
+8. Zmień wzorzec na **P-7c** (krawędziowa przerywana wąska) przez WWW
+9. Przejedź na lewą stronę jezdni
+
+**Lewa krawędź (linia przerywana):**
+
+10. Naciśnij **START** → pistolet P5 (12 cm) maluje cyklicznie 1m / 2m
+11. Na ekranie: P5 świeci zielono podczas kreski, gaśnie w przerwie
+12. Po zakończeniu: **STOP** → osobny raport na SD
+
+**Co widzisz na panelu WWW:**
+- Sekcja GPS: pozycja na mapie aktualizowana na żywo
+- Sekcja statystyki: osobne dane dla każdego etapu (dzięki resetowi)
+- 2 raporty CSV z koordynatami GPS potwierdzającymi trasę
+
+---
+
 ## 21. Rozwiązywanie problemów
 
 | Problem | Możliwa przyczyna | Rozwiązanie |
@@ -1165,4 +1282,4 @@ data,godzina,wzorzec,dystans_m,powierzchnia_m2,lat,lon
 ---
 
 *TrassarV3 — Komputer pokładowy malowarki pasów drogowych*
-*Firmware v2.12.0 | ESP32-S3 N16R8 | GPS NEO-6M | 6 pistoletów, 16 wzorców, 3 tryby pracy, Smart/Instant, buzzer, watchdog, anomaly detect*
+*Firmware v2.13.0 | ESP32-S3 N16R8 | GPS NEO-6M | 6 pistoletów, 16 wzorców, 3 tryby pracy, Smart/Instant, reset etapu, buzzer, watchdog, anomaly detect*

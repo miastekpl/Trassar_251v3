@@ -1,4 +1,4 @@
-# TrassarV3 - Dokumentacja techniczna i schemat podłączeń v2.12.0
+# TrassarV3 - Dokumentacja techniczna i schemat podłączeń v2.13.0
 
 ## Spis treści
 
@@ -47,7 +47,7 @@
 
 | Parametr | Wartość |
 |----------|---------|
-| Wersja | 2.12.0 |
+| Wersja | 2.13.0 |
 | Platforma | ESP32-S3 (PlatformIO) |
 | Biblioteki | TFT_eSPI v2.5.43, ArduinoJson v7.0.4, RTClib v2.1.4, TinyGPSPlus v1.0.3, SD, Wire, WiFi, esp_task_wdt |
 | Orientacja ekranu | Landscape (setRotation 1) |
@@ -580,9 +580,16 @@ Na fizycznym panelu sterowania (ekran HOME i PAINTING) przycisk SELEKTOR **nie z
   ┌──────────┐                ┌──────────────┐
   │ SERVICE  │                │ MODE SELECT  │
   │  MENU    │                │ AUTO/SEMI/   │
-  └──────────┘                │ RĘCZNY       │
+  └─────┬────┘                │ RĘCZNY       │
    → Kalibracja/Pomiar/       └──────────────┘
-     Raporty/Czyszczenie        → Zapisuje do NVS
+     Raporty/Czyszczenie/       → Zapisuje do NVS
+     Reset etapu
+        │
+        ▼
+  ┌──────────────┐
+  │SESSION RESET │  START=TAK → zeruj liczniki → HOME
+  │ (potwierdź)  │  STOP=NIE → powrót do MENU
+  └──────────────┘
 ```
 
 ### 8.5 Logika sterowania pistoletami (3 tryby)
@@ -635,7 +642,7 @@ Szczegółowa dokumentacja API → [API_WWW.md](API_WWW.md)
 
 | Parametr | Wartość | Opis |
 |----------|---------|------|
-| FW_VERSION | "2.12.0" | Wersja firmware |
+| FW_VERSION | "2.13.0" | Wersja firmware |
 | FW_NAME | "TrassarV3" | Nazwa systemu |
 | WIFI_AP_SSID | "TrassarV3" | Nazwa sieci WiFi |
 | WIFI_AP_PASS | "12345678" | Hasło WiFi |
@@ -734,5 +741,5 @@ Szczegółowa dokumentacja API → [API_WWW.md](API_WWW.md)
 
 ---
 
-*TrassarV3 — Dokumentacja techniczna v2.12.0*
+*TrassarV3 — Dokumentacja techniczna v2.13.0*
 *ESP32-S3 N16R8 | ILI9341 320×240 | GPS NEO-6M | 6 pistoletów | 16 wzorców | 3 tryby pracy | WiFi AP*

@@ -41,6 +41,8 @@ Obsługuje **6 pistoletów natryskowych**, **16 wzorców malowania** (15 normowy
 - **Podgląd wzorca Canvas** - multi-gun wizualizacja kreska/przerwa z szerokościami na panelu WWW
 - **Moduł GPS GY-NEO6MV2** - pozycja, prędkość GPS, satelity, HDOP — dane w WWW, API i raportach CSV
 - **Przełączanie Smart/Instant przyciskiem** - SELEKTOR (1 s) na HOME — bez telefonu
+- **Reset etapu (sesji)** - zerowanie liczników sesji z menu serwisowego po zakończeniu etapu pracy
+- **Stałe layoutu wyświetlacza** - ~40 nazwanych `#define` zamiast magic numbers, łatwiejsza konserwacja UI
 
 ## Pistolety i ich zastosowanie
 
@@ -134,11 +136,11 @@ TrassarV3/
 │   ├── painting_engine.h/cpp   # Silnik malowania (maszyna stanów)
 │   ├── statistics.h/cpp        # Statystyki (sesja + lifetime)
 │   ├── storage.h/cpp           # Pamięć trwała NVS (Preferences)
-│   ├── display_manager.h/cpp   # Obsługa wyświetlacza (10 ekranów)
+│   ├── display_manager.h/cpp   # Obsługa wyświetlacza (10 ekranów, stałe layoutu)
 │   ├── button_handler.h/cpp    # Obsługa przycisków BS-33B
 │   ├── rtc_handler.h/cpp       # Obsługa zegara RTC DS1307
 │   ├── web_server.h/cpp        # Serwer WWW (WiFi AP + REST API)
-│   ├── menu.h/cpp              # System menu (nawigacja 9 ekranów)
+│   ├── menu.h/cpp              # System menu (nawigacja 10 ekranów)
 │   ├── buzzer.h/cpp            # Sygnalizacja dźwiękowa (LEDC PWM)
 │   └── gps_handler.h/cpp      # Obsługa GPS NEO-6M (UART2, TinyGPS++)
 ├── docs/
@@ -158,7 +160,49 @@ TrassarV3/
 
 ## Wersja
 
-Aktualna wersja firmware: **v2.12.0**
+Aktualna wersja firmware: **v2.13.0**
+
+## Rekomendacje rozwoju
+
+Poniżej lista rekomendowanych usprawnień i nowych funkcji, które warto rozważyć w kolejnych wersjach:
+
+### Architektura i kod
+- **Migracja z `#define` na `constexpr`** — zastąpienie makr preprocessora typowanymi stałymi C++17 (lepsza diagnostyka kompilatora, namespace'y)
+- **Refaktoring display_manager na klasy ekranów** — każdy ekran jako osobna klasa dziedzicząca po `Screen`, eliminacja rozbudowanego switch/case w `menu.cpp`
+- **Event system (kolejka zdarzeń)** — zamiast bezpośredniego wywoływania handlerów z `loop()`, kolejka `xQueueSend` między Core 0 (WWW) a Core 1 (logika)
+- **OTA (Over-The-Air) update** — aktualizacja firmware przez WiFi bez kabla USB, z panelu WWW
+- **Unit testy** — testy logiki `painting_engine`, `patterns`, `statistics` na hoście x86 (PlatformIO native)
+
+### Interfejs i UX
+- **Joystick analogowy (KY-023)** — zastąpienie sekwencji SELEKTOR/STOP jednym joystickiem do nawigacji menu (góra/dół/lewo/prawo + przycisk)
+- **Ekran podsumowania etapu** — po STOP wyświetlanie podsumowania: dystans, powierzchnia, czas, wzorzec, GPS — z opcją "Kontynuuj" lub "Nowy etap"
+- **Podgląd na żywo wzorca na TFT** — wizualizacja kreska/przerwa na wyświetlaczu (obecnie tylko w panelu WWW)
+- **Jasność wyświetlacza** — regulacja z panelu WWW lub menu serwisowego (obecnie stała wartość PWM)
+- **Dźwięki konfigurowalne** — włączanie/wyłączanie poszczególnych sygnałów buzzera z panelu WWW
+
+### Pomiary i precyzja
+- **Podwójny enkoder (kwadraturowy)** — wykorzystanie obu kanałów A+B dla x2/x4 rozdzielczości (lepsza precyzja kresek)
+- **Fuzja GPS + enkoder** — korekcja dryfu enkodera na podstawie dystansu GPS na długich odcinkach
+- **Automatyczna kalibracja z GPS** — kalibracja impulsów/metr na podstawie dystansu GPS (bez taśmy mierniczej)
+- **Zapis trasy GPS (GPX/KML)** — ciągły zapis koordynatów podczas malowania, eksport pliku trasy
+
+### Komunikacja i integracja
+- **Bluetooth Low Energy (BLE)** — komunikacja z tabletem/telefonem bez WiFi (mniejsze zużycie energii)
+- **MQTT / IoT** — wysyłanie danych do chmury (monitoring floty maszyn, dashboard operatora)
+- **Integracja z systemami GIS** — eksport raportów z GPS do formatów GIS (GeoJSON, Shapefile)
+- **REST API v2 z WebSocket** — push notifications zamiast pollingu co 1 s (mniejszy ruch, szybsza reakcja panelu)
+
+### Bezpieczeństwo i niezawodność
+- **Backup NVS na SD** — periodyczny eksport ustawień NVS na kartę SD (odzyskiwanie po awarii Flash)
+- **Podwójny watchdog** — osobny WDT dla Core 0 (serwer WWW) obok istniejącego na Core 1
+- **Szyfrowanie WiFi WPA2-Enterprise** — dla zastosowań komercyjnych z wieloma maszynami
+- **Log zdarzeń na SD** — chronologiczny log startów/stopów/błędów/anomalii (poza raportami CSV)
+
+### Sprzęt
+- **Czujnik poziomu farby** — ultradźwiękowy lub pływakowy, alarm niskiego poziomu w panelu
+- **Czujnik temperatury farby** — kontrola lepkości farby drogowej (ważne dla farb termoplastycznych)
+- **Czujnik ciśnienia w układzie** — monitoring ciśnienia w linii natryskowej
+- **Moduł GSM/LTE (SIM800L / SIM7600)** — zdalna telemetria poza zasięgiem WiFi
 
 ## Licencja
 
