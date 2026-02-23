@@ -200,16 +200,17 @@
 | Funkcja | Element | GPIO | Ekran | Uwagi |
 |---------|---------|------|-------|-------|
 | Start malowania | START | 38 | HOME | Krótkie naciśnięcie |
-| Wybór trybu pracy | START | 38 | HOME | Długie naciśnięcie (1 s) |
+| Ekran przygotowania (SETUP) | START | 38 | HOME | Długie naciśnięcie (1 s) |
 | Start od przerwy | GAP | **7** | HOME | Krótkie naciśnięcie |
 | Pauza / Wznowienie | START | 38 | PAINTING | Krótkie naciśnięcie (AUTO) |
 | Kolejna linia (SEMI) | START | 38 | PAINTING | Krótkie naciśnięcie (SEMI, po kreski) |
 | Pistolety ON (RĘCZNY) | START | 38 | PAINTING | Trzymanie (tryb RĘCZNY) |
-| Przełącz tryb | START | 38 | MODE SELECT | Krótkie naciśnięcie |
-| Zatwierdź tryb | START | 38 | MODE SELECT | Długie naciśnięcie (1 s) |
+| Kursor dalej (SETUP) | SELEKTOR | 40 | SETUP | Krótkie naciśnięcie |
+| Zmień opcję (SETUP) | SELEKTOR | 40 | SETUP | Długie naciśnięcie (1 s) |
+| Maluj z ustawieniami | START | 38 | SETUP | Krótkie naciśnięcie |
 | Zatrzymanie | STOP | 39 | PAINTING | Krótkie naciśnięcie |
 | Odwrócenie wzorca | SELEKTOR | 40 | HOME / PAINTING | Krótkie naciśnięcie, **tylko P-3a/P-3b** |
-| Smart/Instant toggle | SELEKTOR | 40 | HOME | Długie naciśnięcie (1 s) |
+| Smart/Instant toggle | SELEKTOR | 40 | SETUP | Zmiana opcji "Przełączanie" |
 | Menu serwisowe | STOP | 39 | HOME | Długie naciśnięcie (1 s) |
 | Nawigacja → dalej | SELEKTOR | 40 | MENU SERWIS. | Krótkie naciśnięcie |
 | Nawigacja → cofnij | STOP | 39 | MENU SERWIS. | Krótkie naciśnięcie |
@@ -578,12 +579,12 @@ Na fizycznym panelu sterowania (ekran HOME i PAINTING) przycisk SELEKTOR **nie z
        │    STOP (1s na HOME)       START (1s na HOME)
        ▼                              ▼
   ┌──────────┐                ┌──────────────┐
-  │ SERVICE  │                │ MODE SELECT  │
-  │  MENU    │                │ AUTO/SEMI/   │
-  └─────┬────┘                │ RĘCZNY       │
-   → Kalibracja/Pomiar/       └──────────────┘
-     Raporty/Czyszczenie/       → Zapisuje do NVS
-     Reset etapu
+  │ SERVICE  │                │    SETUP     │
+  │  MENU    │                │ Tryb/Smart/  │
+  └─────┬────┘                │ Start        │
+   → Kalibracja/Pomiar/       └──────┬───────┘
+     Raporty/Czyszczenie/       START = maluj
+     Reset etapu                 → PAINTING
         │
         ▼
   ┌──────────────┐

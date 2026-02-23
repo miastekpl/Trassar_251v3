@@ -52,7 +52,7 @@ void MenuSystem::handleEvent(ButtonEvent event) {
         case SCREEN_DISTANCE_METER: handleDistanceMeter(event);   break;
         case SCREEN_REPORTS:        handleReports(event);         break;
         case SCREEN_NOZZLE_CLEAN:   handleNozzleClean(event);     break;
-        case SCREEN_MODE_SELECT:    handleModeSelect(event);      break;
+        case SCREEN_SETUP:          handleSetup(event);           break;
         case SCREEN_SESSION_RESET:  handleSessionReset(event);    break;
     }
 }
@@ -67,10 +67,13 @@ void MenuSystem::handleHomeScreen(ButtonEvent e) {
             break;
 
         case EVT_START_LONG:
-            // Dlugie przytrzymanie START na HOME = wybor trybu pracy
+            // Dlugie przytrzymanie START na HOME = ekran przygotowania (SETUP)
             if (g_state.machineState == STATE_IDLE || g_state.machineState == STATE_STOPPED) {
-                modeSelectIdx = (int)g_state.machineMode;
-                goToScreen(SCREEN_MODE_SELECT);
+                setupCursor = 0;
+                setupMode = (int)g_state.machineMode;
+                setupSmart = paintEngine.isSmartSwitch();
+                setupGapStart = false;
+                goToScreen(SCREEN_SETUP);
             }
             break;
 
@@ -91,17 +94,6 @@ void MenuSystem::handleHomeScreen(ButtonEvent e) {
                 g_state.displayNeedsUpdate = true;
             }
             break;
-
-        case EVT_SELECT_LONG: {
-            // Przelaczanie trybu Smart/Instant bez telefonu
-            bool newSmart = !paintEngine.isSmartSwitch();
-            paintEngine.setSmartSwitch(newSmart);
-            storage.saveSwitchMode(newSmart);
-            buzzer.beep(1500, 80);
-            Serial.printf("[MENU] Tryb przelaczania: %s\n", newSmart ? "SMART" : "INSTANT");
-            g_state.displayNeedsUpdate = true;
-            break;
-        }
 
         default:
             break;
@@ -154,37 +146,79 @@ void MenuSystem::handlePaintingScreen(ButtonEvent e) {
     }
 }
 
-// ============ SCREEN_MODE_SELECT ============
-// START(krotki) = przejdz do nastepnego trybu
-// START(dlugi)  = zatwierdz wybrany tryb
-// STOP(krotki)  = powrot bez zmiany
-// STOP(dlugi)   = powrot bez zmiany
+// ============ SCREEN_SETUP (PRZYGOTOWANIE) ============
+// SEL(krotki)  = kursor w dol (0->1->2->0)
+// STOP(krotki) = kursor w gore (2->1->0->2)
+// SEL(dlugi)   = zmien wartosc wybranej opcji
+// START        = rozpocznij malowanie z biezacymi ustawieniami
+// STOP(dlugi)  = powrot do HOME bez zmian
 
-void MenuSystem::handleModeSelect(ButtonEvent e) {
+void MenuSystem::handleSetup(ButtonEvent e) {
     switch (e) {
-        case EVT_START_SHORT:
-            modeSelectIdx++;
-            if (modeSelectIdx > 2) modeSelectIdx = 0;
+        case EVT_SELECT_SHORT:
+            // Kursor w dol
+            setupCursor++;
+            if (setupCursor > 2) setupCursor = 0;
             g_state.displayNeedsUpdate = true;
             break;
 
+        case EVT_STOP_SHORT:
+            // Kursor w gore
+            setupCursor--;
+            if (setupCursor < 0) setupCursor = 2;
+            g_state.displayNeedsUpdate = true;
+            break;
+
+        case EVT_SELECT_LONG:
+            // Zmien wartosc wybranej opcji
+            switch (setupCursor) {
+                case 0:  // Tryb pracy: AUTO -> SEMI -> RECZNY -> AUTO
+                    setupMode++;
+                    if (setupMode > 2) setupMode = 0;
+                    break;
+                case 1:  // Przelaczanie: Smart <-> Instant
+                    setupSmart = !setupSmart;
+                    break;
+                case 2:  // Start: Normalny <-> Od przerwy
+                    setupGapStart = !setupGapStart;
+                    break;
+            }
+            buzzer.beep(1500, 60);
+            g_state.displayNeedsUpdate = true;
+            break;
+
+        case EVT_START_SHORT:
         case EVT_START_LONG: {
-            // Zatwierdz wybrany tryb
-            MachineMode newMode = (MachineMode)modeSelectIdx;
-            g_state.machineMode = newMode;
-            storage.saveMode(newMode);
-            buzzer.beep(2000, 150);  // Sygnal potwierdzenia
+            // Zapisz ustawienia i rozpocznij malowanie
+            MachineMode newMode = (MachineMode)setupMode;
+            if (newMode != g_state.machineMode) {
+                g_state.machineMode = newMode;
+                storage.saveMode(newMode);
+            }
+            if (setupSmart != paintEngine.isSmartSwitch()) {
+                paintEngine.setSmartSwitch(setupSmart);
+                storage.saveSwitchMode(setupSmart);
+            }
 
             const char* modeNames[] = {"AUTO", "SEMI-AUTO", "RECZNY"};
-            Serial.printf("[MENU] Tryb pracy: %s\n", modeNames[modeSelectIdx]);
+            Serial.printf("[MENU] SETUP -> Tryb: %s, Smart: %s, Start: %s\n",
+                          modeNames[setupMode],
+                          setupSmart ? "TAK" : "NIE",
+                          setupGapStart ? "OD PRZERWY" : "NORMALNY");
 
-            goToScreen(SCREEN_HOME);
+            // Uruchom malowanie
+            if (setupGapStart) {
+                paintEngine.startFromGap();
+            } else {
+                paintEngine.start();
+            }
+            buzzer.beep(2000, 150);
+            goToScreen(SCREEN_PAINTING);
             break;
         }
 
-        case EVT_STOP_SHORT:
         case EVT_STOP_LONG:
-            // Powrot bez zmiany
+            // Powrot do HOME bez zmian
             goToScreen(SCREEN_HOME);
             break;
 
@@ -487,9 +521,10 @@ void MenuSystem::update() {
             break;
         }
 
-        // ---- Wybor trybu pracy ----
-        case SCREEN_MODE_SELECT:
-            display.drawModeSelect(modeSelectIdx, g_state.machineMode);
+        // ---- Ekran przygotowania (SETUP) ----
+        case SCREEN_SETUP:
+            display.drawSetupScreen(setupCursor, (MachineMode)setupMode,
+                                    setupSmart, setupGapStart);
             break;
 
         // ---- Reset etapu ----

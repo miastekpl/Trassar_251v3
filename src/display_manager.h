@@ -35,8 +35,8 @@ public:
     void drawNozzleClean(const char* patCode, const char* patName,
                          const GunPatternCfg guns[6], const bool gunStates[6]);
 
-    // Wybor trybu pracy
-    void drawModeSelect(int selectedMode, MachineMode currentMode);
+    // Ekran przygotowania (SETUP)
+    void drawSetupScreen(int cursor, MachineMode mode, bool smartSwitch, bool gapStart);
 
     // Reset etapu (potwierdzenie)
     void drawSessionResetScreen(float distM, float areaM2, unsigned long timeSec);

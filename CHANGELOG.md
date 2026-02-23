@@ -9,49 +9,49 @@ Wersjonowanie zgodne z [Semantic Versioning](https://semver.org/lang/pl/).
 
 ## [2.13.0] - 2026-02-23
 
-### Dodano - Stałe layoutu wyświetlacza, reset etapu (sesji)
+### Dodano - Ekran przygotowania (SETUP), stałe layoutu, reset etapu
 
-#### 1) Stałe layoutu wyświetlacza (`display_manager.cpp`)
+#### 1) Ekran przygotowania (SETUP) — zastępuje MODE SELECT
+- Nowy ekran `SCREEN_SETUP` (zastępuje `SCREEN_MODE_SELECT`) z nagłówkiem "PRZYGOTOWANIE"
+- 3 konfigurowalne opcje na jednym ekranie:
+  - **Tryb pracy:** AUTO → SEMI-AUTO → RECZNY (cykl)
+  - **Przełączanie:** Smart ↔ Instant (toggle)
+  - **Start:** Normalny ↔ Od przerwy (toggle, jednorazowy)
+- Nawigacja identyczna jak menu serwisowe: SEL=dalej, STOP=cofnij, SEL(1s)=zmień
+- START na ekranie SETUP = rozpocznij malowanie z wybranymi ustawieniami
+- Tryb i Smart/Instant zapisywane do NVS przy starcie malowania
+- Usunięto osobny toggle Smart/Instant z HOME (SEL long) — przeniesiony do SETUP
+
+#### 2) Stałe layoutu wyświetlacza (`display_manager.cpp`)
 - Wyekstrahowano ~40 nazwanych stałych `#define` z "magic numbers" rozsianych po kodzie rysowania ekranów
-- Stałe zorganizowane w kategorie: marginesy, nagłówek, layout 3-kolumnowy, pozycje Y lewej/prawej kolumny, prostokąty pistoletów, wizualizacja wzorca, menu serwisowe, ekran wyboru trybu, splash screen
+- Stałe zorganizowane w kategorie: marginesy, nagłówek, layout 3-kolumnowy, pozycje Y lewej/prawej kolumny, prostokąty pistoletów, wizualizacja wzorca, menu serwisowe, splash screen
 - Ułatwia konserwację i modyfikację layoutu UI bez szukania wartości w kodzie
-- Przykłady: `MARGIN_X`, `HDR_H`, `COL_L_PAD`, `VIZ_X`, `GUN_RECTS_Y`, `SMENU_ITEM_H`, `MODE_ITEM_H`
 
-#### 2) Reset etapu (sesji) — "Reset etapu" w menu serwisowym
+#### 3) Reset etapu (sesji) — "Reset etapu" w menu serwisowym
 - Nowa 5. pozycja w menu serwisowym: **Reset etapu**
 - Nowy ekran `SCREEN_SESSION_RESET` z potwierdzeniem (START=TAK, STOP=NIE)
 - Wyświetla bieżące statystyki sesji przed zerowaniem: dystans [m], powierzchnia [m²], czas [s]
 - Po potwierdzeniu: zerowanie liczników sesji (`stats.resetSession()`), dystansu enkodera, powrót do HOME
 - Sygnał buzzera (2 kHz, 150 ms) potwierdza reset
-- Typowy scenariusz: zakończ etap (STOP → raport na SD) → menu serwisowe → Reset etapu → nowy etap z czystymi licznikami
 
-#### 3) Poprawka const-correctness GpsHandler
+#### 4) Poprawka const-correctness GpsHandler
 - Usunięto kwalifikator `const` z metod getterów `GpsHandler` (`hasFix()`, `getLat()`, `getLng()` itd.)
 - Metody TinyGPSPlus wewnętrznie modyfikują flagę `updated` — nie mogą być wywoływane na obiekcie `const`
 
 ### Zmieniono
-- Wersja firmware: 2.12.0 → **2.13.0**
+- `SCREEN_MODE_SELECT` → **`SCREEN_SETUP`** — ekran przygotowania z 3 opcjami zamiast tylko trybu pracy
+- `drawModeSelect()` → **`drawSetupScreen()`** — nowy layout z etykietami i wartościami
+- `handleModeSelect()` → **`handleSetup()`** — nowa logika z nawigacją SEL/STOP i startem malowania
+- Usunięto `EVT_SELECT_LONG` (toggle Smart/Instant) z handlera HOME — przeniesiony do SETUP
 - `display_manager.cpp`: ~40 stałych `#define` layoutu zamiast magic numbers; nowy ekran `drawSessionResetScreen()`
-- `display_manager.h`: dodano deklarację `drawSessionResetScreen(float, float, unsigned long)`
-- `menu.h`: `SERVICE_MENU_ITEMS` z 4 → 5; dodano `handleSessionReset(ButtonEvent)`
-- `menu.cpp`: handler `SCREEN_SESSION_RESET` z potwierdzeniem; case 4 w menu serwisowym; rendering ekranu resetu
-- `config.h`: dodano `SCREEN_SESSION_RESET` do enum `ScreenID`; wersja → 2.13.0
+- `menu.h`: `SERVICE_MENU_ITEMS` z 4 → 5; nowe zmienne `setupCursor`, `setupMode`, `setupSmart`, `setupGapStart`
+- `config.h`: `SCREEN_SETUP` + `SCREEN_SESSION_RESET` w enum `ScreenID`; wersja → 2.13.0
 - `gps_handler.h`: usunięto `const` z getterów klasy `GpsHandler`
 
-#### Nowe stałe layoutu w display_manager.cpp (wybrane)
-| Stała | Wartość | Opis |
-|-------|---------|------|
-| `MARGIN_X` | 8 | Margines boczny ogólny |
-| `HDR_H` | 30 | Wysokość nagłówka ekranu |
-| `VIZ_X/Y/W/H` | 100/2/120/166 | Pozycja i rozmiar wizualizacji wzorca |
-| `GUN_RECTS_Y` | TFT_SCREEN_H - 66 | Pozycja Y prostokątów pistoletów |
-| `SMENU_ITEM_H` | 34 | Wysokość pozycji menu serwisowego |
-| `SMENU_COUNT` | 5 | Liczba pozycji menu serwisowego |
-| `MODE_COUNT` | 3 | Liczba trybów pracy |
-
-#### Nowy ekran
+#### Nowe ekrany
 | Ekran | ScreenID | Opis |
 |-------|----------|------|
+| Przygotowanie | `SCREEN_SETUP` | Tryb, Smart/Instant, Start normalny/od przerwy |
 | Reset etapu | `SCREEN_SESSION_RESET` | Potwierdzenie zerowania liczników sesji |
 
 ---

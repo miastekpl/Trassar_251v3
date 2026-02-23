@@ -292,10 +292,9 @@ Wyświetla się po uruchomieniu systemu. Ekran w trybie landscape (320×240 px):
 | Przycisk | Akcja |
 |----------|-------|
 | **START (krótko)** | Rozpocznij malowanie od początku wzorca |
-| **START (1 s)** | Wybór trybu pracy (ekran wyboru trybu) |
-| **GAP** (GPIO 7) | Start od przerwy — rozpocznij od przerwy we wzorcu |
+| **START (1 s)** | Ekran przygotowania (SETUP) — tryb, smart/instant, start |
+| **GAP** (GPIO 7) | Start od przerwy — szybki start bez wchodzenia w SETUP |
 | **SELEKTOR** | Odwróć wzorzec (tylko P-3a / P-3b) |
-| **SELEKTOR (1 s)** | Przełącz tryb przełączania wzorców: Smart ↔ Instant |
 | **STOP (1 s)** | Wejdź do menu serwisowego |
 
 Na ekranie wyświetlany jest aktualny tryb pracy: **[AUTO]**, **[SEMI]** lub **[RECZNY]**.
@@ -341,32 +340,44 @@ Na ekranie wyświetlany jest aktualny tryb pracy: **[AUTO]**, **[SEMI]** lub **[
 
 > **Zabezpieczenie:** Pistolety włączają się automatycznie dopiero po osiągnięciu prędkości **3 km/h**. Poniżej tej prędkości pistolety pozostają wyłączone nawet w stanie "Malowanie".
 
-### 7.3 Ekran wyboru trybu pracy (MODE SELECT)
+### 7.3 Ekran przygotowania (SETUP)
 
-Ekran dostępny po przytrzymaniu **START (1 s)** na ekranie HOME (maszyna w bezruchu):
+Ekran dostępny po przytrzymaniu **START (1 s)** na ekranie HOME (maszyna w bezruchu). Pozwala ustawić tryb pracy, tryb przełączania wzorców i rodzaj startu — wszystko w jednym miejscu, bez panelu WWW.
 
 ```
 ┌──────────────────────────────────────────┐
-│         WYBOR TRYBU PRACY                │
+│            PRZYGOTOWANIE                 │
 │                                          │
-│  ► AUTO     - pelna automatyka           │
-│    SEMI     - linia auto, przerwa START  │
-│    RECZNY   - pistolety na START         │
+│  ► Tryb pracy:              AUTO         │
+│    Przelaczanie:            Smart        │
+│    Start:                   Normalny     │
 │                                          │
-│  START=dalej  START(1s)=wybierz          │
-│  STOP=powrot                             │
+│  SEL=dalej SEL(1s)=zmien START=maluj     │
+│  STOP(1s)=wroc                           │
 └──────────────────────────────────────────┘
 ```
 
-**Sterowanie:**
+**Opcje ekranu SETUP:**
+
+| # | Opcja | Wartości (cykl) | Zapis NVS |
+|---|-------|-----------------|-----------|
+| 0 | **Tryb pracy** | AUTO → SEMI-AUTO → RECZNY → AUTO | Tak |
+| 1 | **Przełączanie** | Smart ↔ Instant | Tak |
+| 2 | **Start** | Normalny ↔ Od przerwy | Nie (jednorazowy) |
+
+**Sterowanie (identyczne jak w menu serwisowym):**
 
 | Przycisk | Akcja |
 |----------|-------|
-| **START (krótko)** | Przełącz na następny tryb (AUTO → SEMI → RĘCZNY → AUTO) |
-| **START (1 s)** | Zatwierdź wybrany tryb (buzzer + zapis do NVS) |
-| **STOP** | Anuluj i wróć do ekranu HOME |
+| **SELEKTOR (krótko)** | Kursor w dół (0→1→2→0) |
+| **STOP (krótko)** | Kursor w górę (2→1→0→2) |
+| **SELEKTOR (1 s)** | Zmień wartość wybranej opcji (cyklicznie) |
+| **START** | **Rozpocznij malowanie** z bieżącymi ustawieniami |
+| **STOP (1 s)** | Powrót do HOME bez zmian |
 
-Aktualnie wybrany tryb oznaczony jest kursorem **►**. Bieżący aktywny tryb oznaczony jest gwiazdką **\***.
+Wybrany element oznaczony jest kursorem **►**. Wartości kolorowane: zielony = domyślne/bezpieczne, żółty = zmienione/specjalne.
+
+> **Przykład obsługi:** START (1 s) na HOME → ekran SETUP → SELEKTOR (1 s) zmienia tryb na SEMI → SELEKTOR (krótko) na "Start" → SELEKTOR (1 s) zmienia na "Od przerwy" → START = maszyna rusza w trybie SEMI od przerwy.
 
 ### 7.4 Menu serwisowe
 

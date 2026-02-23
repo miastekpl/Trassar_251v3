@@ -16,7 +16,7 @@ private:
     void handleDistanceMeter(ButtonEvent e);
     void handleReports(ButtonEvent e);
     void handleNozzleClean(ButtonEvent e);
-    void handleModeSelect(ButtonEvent e);
+    void handleSetup(ButtonEvent e);
     void handleSessionReset(ButtonEvent e);
     void goToScreen(ScreenID screen);
 
@@ -30,7 +30,10 @@ private:
     // Czyszczenie dysz - wybrany wzorzec
     int nozzlePatternIdx = 0;
 
-    // Wybor trybu pracy
-    int modeSelectIdx = 0;  // 0=AUTO, 1=SEMI, 2=MANUAL
+    // Ekran przygotowania (SETUP)
+    int setupCursor = 0;       // 0=tryb, 1=przelaczanie, 2=start
+    int setupMode = 0;         // 0=AUTO, 1=SEMI, 2=MANUAL
+    bool setupSmart = true;    // true=Smart, false=Instant
+    bool setupGapStart = false;// true=Od przerwy, false=Normalny
 };
 extern MenuSystem menu;

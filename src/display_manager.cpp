@@ -76,11 +76,6 @@
 #define SMENU_MARKER_X      8       // X wskaznika ">"
 #define SMENU_COUNT         5       // Liczba pozycji menu
 
-// Ekran wyboru trybu pracy
-#define MODE_ITEM_H         48      // Wysokosc pozycji trybu
-#define MODE_START_Y        36      // Y pierwszej pozycji
-#define MODE_COUNT          3       // Liczba trybow (AUTO/SEMI/MANUAL)
-
 // Ekran splasha
 #define SPLASH_TITLE_OFS    (-40)   // Offset Y tytulu od srodka ekranu
 #define SPLASH_SUB_OFS      10      // Offset Y podtytulu
@@ -1037,63 +1032,70 @@ void DisplayManager::fmtTime(unsigned long sec, char* buf, size_t len) {
 }
 
 // ============================================================
-//  EKRAN WYBORU TRYBU PRACY - landscape
-//  3 tryby: Automatyczny, Polautomatyczny, Reczny
-//  START(krotki) = zmiana opcji, START(dlugi) = zatwierdzenie
+//  EKRAN PRZYGOTOWANIA (SETUP) - landscape
+//  3 opcje: Tryb pracy, Przelaczanie, Start
+//  SEL=dalej, STOP=cofnij, SEL(1s)=zmien, START=maluj
 // ============================================================
-void DisplayManager::drawModeSelect(int selectedMode, MachineMode currentMode) {
-    drawHeader("WYBOR TRYBU PRACY");
+void DisplayManager::drawSetupScreen(int cursor, MachineMode mode,
+                                     bool smartSwitch, bool gapStart) {
+    drawHeader("PRZYGOTOWANIE");
 
+    // Etykiety i wartosci
     static const char* labels[3] = {
-        "Automatyczny",
-        "Polautomatyczny",
-        "Reczny"
+        "Tryb pracy:",
+        "Przelaczanie:",
+        "Start:"
     };
-    static const char* descs[3] = {
-        "Pelna automatyka - dystans steruje pistoletami",
-        "Auto linia, reczna przerwa (START = nast. linia)",
-        "Trzymaj START = strzal (jak czyszczenie dysz)"
+    const char* modeVals[3] = { "AUTO", "SEMI-AUTO", "RECZNY" };
+    const char* values[3] = {
+        modeVals[(int)mode],
+        smartSwitch ? "Smart" : "Instant",
+        gapStart    ? "Od przerwy" : "Normalny"
+    };
+    // Kolor wartosci
+    uint16_t valColors[3] = {
+        COLOR_ACCENT,
+        smartSwitch ? COLOR_ACCENT : COLOR_WARNING,
+        gapStart    ? COLOR_WARNING : COLOR_ACCENT
     };
 
-    for (int i = 0; i < MODE_COUNT; i++) {
-        int iy = MODE_START_Y + i * MODE_ITEM_H;
-        bool sel = (i == selectedMode);
-        bool cur = (i == (int)currentMode);
+    const int SETUP_ITEM_H = 48;
+    const int SETUP_START_Y = 36;
+
+    for (int i = 0; i < 3; i++) {
+        int iy = SETUP_START_Y + i * SETUP_ITEM_H;
+        bool sel = (i == cursor);
         uint16_t bg = sel ? COLOR_MENU_SEL : COLOR_BG;
         uint16_t fg = sel ? COLOR_TEXT      : COLOR_MENU_TXT;
 
-        tft.fillRect(0, iy, TFT_SCREEN_W, MODE_ITEM_H, bg);
+        tft.fillRect(0, iy, TFT_SCREEN_W, SETUP_ITEM_H, bg);
 
-        // Wskaznik zaznaczenia
-        tft.setFreeFont(FSB9);
-        tft.setTextColor(fg, bg);
         tft.setTextDatum(ML_DATUM);
-        if (sel) {
-            tft.drawString(">", SMENU_MARKER_X, iy + MODE_ITEM_H / 2 - 6);
-        }
 
-        // Nazwa trybu
+        // Wskaznik ">"
         tft.setFreeFont(FSB9);
         tft.setTextColor(fg, bg);
-        tft.drawString(labels[i], SMENU_INDENT, iy + MODE_ITEM_H / 2 - 6);
-
-        // Aktualny tryb - znacznik
-        if (cur) {
-            tft.setTextColor(COLOR_ACCENT, bg);
-            tft.drawString("*", TFT_SCREEN_W - SMENU_INDENT, iy + MODE_ITEM_H / 2 - 6);
+        if (sel) {
+            tft.drawString(">", SMENU_MARKER_X, iy + SETUP_ITEM_H / 2);
         }
 
-        // Opis
-        tft.setFreeFont(FM9);
-        tft.setTextColor(sel ? COLOR_MENU_TXT : COLOR_DIVIDER, bg);
-        tft.drawString(descs[i], SMENU_INDENT, iy + MODE_ITEM_H / 2 + 10);
+        // Etykieta
+        tft.setFreeFont(FS9);
+        tft.setTextColor(fg, bg);
+        tft.drawString(labels[i], SMENU_INDENT, iy + SETUP_ITEM_H / 2);
+
+        // Wartosc — wyrownana do prawej
+        tft.setFreeFont(FSB12);
+        tft.setTextColor(valColors[i], bg);
+        tft.setTextDatum(MR_DATUM);
+        tft.drawString(values[i], TFT_SCREEN_W - SMENU_INDENT, iy + SETUP_ITEM_H / 2);
 
         tft.setTextDatum(TL_DATUM);
-        tft.drawFastHLine(0, iy + MODE_ITEM_H - 1, TFT_SCREEN_W, COLOR_DIVIDER);
+        tft.drawFastHLine(0, iy + SETUP_ITEM_H - 1, TFT_SCREEN_W, COLOR_DIVIDER);
     }
 
-    // Wyczysc reszte pod menu
-    int bottomY = MODE_START_Y + MODE_COUNT * MODE_ITEM_H;
+    // Wyczysc reszte pod opcjami
+    int bottomY = SETUP_START_Y + 3 * SETUP_ITEM_H;
     if (bottomY < HINT_Y) {
         tft.fillRect(0, bottomY, TFT_SCREEN_W, HINT_Y - bottomY, COLOR_BG);
     }
@@ -1102,6 +1104,6 @@ void DisplayManager::drawModeSelect(int selectedMode, MachineMode currentMode) {
     tft.setFreeFont(FM9);
     tft.setTextColor(COLOR_MENU_TXT, COLOR_BG);
     tft.setTextPadding(TFT_SCREEN_W - 12);
-    tft.drawString("START=zmien  START(1s)=zatwierdz  STOP=powrot", HINT_X, HINT_Y);
+    tft.drawString("SEL=dalej SEL(1s)=zmien START=maluj STOP(1s)=wroc", HINT_X, HINT_Y);
     tft.setTextPadding(0);
 }

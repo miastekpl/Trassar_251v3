@@ -40,7 +40,7 @@ Obsługuje **6 pistoletów natryskowych**, **16 wzorców malowania** (15 normowy
 - **Licznik strzałów pistoletów** - lifetime count per pistolet (planowanie serwisu dysz)
 - **Podgląd wzorca Canvas** - multi-gun wizualizacja kreska/przerwa z szerokościami na panelu WWW
 - **Moduł GPS GY-NEO6MV2** - pozycja, prędkość GPS, satelity, HDOP — dane w WWW, API i raportach CSV
-- **Przełączanie Smart/Instant przyciskiem** - SELEKTOR (1 s) na HOME — bez telefonu
+- **Ekran przygotowania (SETUP)** - tryb pracy + Smart/Instant + start normalny/od przerwy — jeden ekran, bez telefonu
 - **Reset etapu (sesji)** - zerowanie liczników sesji z menu serwisowego po zakończeniu etapu pracy
 - **Stałe layoutu wyświetlacza** - ~40 nazwanych `#define` zamiast magic numbers, łatwiejsza konserwacja UI
 
