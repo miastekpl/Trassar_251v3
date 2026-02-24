@@ -527,7 +527,8 @@ void MenuSystem::update() {
                 paintEngine.isOverspeed(),
                 paintEngine.isLowSpeed(),
                 stats.getSessionTimeSec(),
-                stats.getSessionDistance()
+                stats.getSessionDistance(),
+                paintEngine.getPatternDistance()
             );
             break;
         }

@@ -42,6 +42,9 @@ public:
     void semiNextLine();
     bool isSemiLineComplete() const { return semiLineComplete; }
 
+    // Dystans od startu wzorca (do podgladu na TFT)
+    float getPatternDistance() const;
+
 private:
     float lastEncoderDist = 0;
     float patternStartDist = 0;  // Dystans przy zmianie wzorca

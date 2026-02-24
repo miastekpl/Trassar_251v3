@@ -25,7 +25,8 @@ public:
                             bool reversed, bool gapStart = false,
                             bool overspeed = false, bool lowSpeed = false,
                             unsigned long sessionTimeSec = 0,
-                            float sessionDistM = 0);
+                            float sessionDistM = 0,
+                            float patternPosM = -1.0f);
 
     // Menu serwisowe
     void drawServiceMenu(int selectedIndex);
@@ -62,7 +63,8 @@ private:
     void fmtTime(unsigned long sec, char* buf, size_t len);
     void drawPatternVisualization(int vizX, int vizY, int vizW, int vizH,
                                   const GunPatternCfg gunsCfg[6],
-                                  bool reversed, bool gapStart);
+                                  bool reversed, bool gapStart,
+                                  float positionM = -1.0f);
 };
 
 extern DisplayManager display;

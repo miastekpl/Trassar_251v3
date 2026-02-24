@@ -45,6 +45,7 @@ Obsługuje **6 pistoletów natryskowych**, **16 wzorców malowania** (15 normowy
 - **Stałe layoutu wyświetlacza** - ~40 nazwanych `#define` zamiast magic numbers, łatwiejsza konserwacja UI
 - **Joystick analogowy KY-023** - nawigacja menu góra/dół/lewo/prawo + przycisk, auto-repeat, uzupełnia fizyczne przyciski
 - **Ekran podsumowania etapu** - po zatrzymaniu malowania wyświetla statystyki (dystans, powierzchnia, czas, śr. prędkość, GPS) z opcjami: kontynuuj / nowy etap / HOME
+- **Podgląd na żywo wzorca** - animowany wskaźnik pozycji (czerwona linia + trójkąt) na wizualizacji wzorca podczas malowania, śledzi pozycję w cyklu kreska/przerwa
 
 ## Pistolety i ich zastosowanie
 
@@ -164,7 +165,7 @@ TrassarV3/
 
 ## Wersja
 
-Aktualna wersja firmware: **v2.15.0**
+Aktualna wersja firmware: **v2.16.0**
 
 ## Rekomendacje rozwoju
 

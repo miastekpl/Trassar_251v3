@@ -7,6 +7,22 @@ Wersjonowanie zgodne z [Semantic Versioning](https://semver.org/lang/pl/).
 
 ---
 
+## [2.16.0] - 2026-02-24
+
+### Dodano - Podgląd na żywo wzorca na TFT
+
+- **Wskaźnik pozycji** na wizualizacji wzorca podczas malowania:
+  - Czerwona linia pozioma przesuwająca się po kolumnach wizualizacji
+  - Trójkątny marker po lewej stronie wskazujący dokładną pozycję
+  - Pozycja zawijana w cyklu wzorca (cykliczny podgląd kreska/przerwa)
+- Nowa metoda `getPatternDistance()` w `PaintingEngine` — zwraca dystans od startu wzorca
+- Parametr `positionM` dodany do `drawPatternVisualization()` i `drawPaintingScreen()`
+- Na ekranie HOME wizualizacja bez markera (statyczny podgląd)
+- Na ekranie PAINTING marker porusza się w czasie rzeczywistym z ruchem maszyny
+- Pozwala operatorowi wizualnie śledzić, w którym miejscu cyklu kreska/przerwa aktualnie się znajduje
+
+---
+
 ## [2.15.0] - 2026-02-24
 
 ### Dodano - Ekran podsumowania etapu (SCREEN_SUMMARY)

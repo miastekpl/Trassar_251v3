@@ -310,7 +310,8 @@ void DisplayManager::drawHomeScreen(const char* patCode, const char* patName,
 // ============================================================
 void DisplayManager::drawPatternVisualization(int vizX, int vizY, int vizW, int vizH,
                                               const GunPatternCfg gunsCfg[6],
-                                              bool reversed, bool gapStart) {
+                                              bool reversed, bool gapStart,
+                                              float positionM) {
     // Efektywna konfiguracja (uwzglednia odwrocenie P1<->P3)
     GunPatternCfg cfg[NUM_GUNS];
     for (int i = 0; i < NUM_GUNS; i++) cfg[i] = gunsCfg[i];
@@ -405,6 +406,38 @@ void DisplayManager::drawPatternVisualization(int vizX, int vizY, int vizW, int 
         cx += cw + VIZ_COL_GAP;
     }
 
+    // --- Wskaznik pozycji na zywo (pozioma linia) ---
+    if (positionM >= 0 && activeCount > 0) {
+        // Znajdz najdluzszy cykl wsrod aktywnych pistoletow DASHED
+        float maxCycle = 0;
+        for (int a = 0; a < activeCount; a++) {
+            int gi = activeIdx[a];
+            if (cfg[gi].mode == GUN_DASHED) {
+                float c = cfg[gi].lineLen + cfg[gi].gapLen;
+                if (c > maxCycle) maxCycle = c;
+            }
+        }
+        if (maxCycle > 0) {
+            int numCycles = 2;
+            if (maxCycle <= 3.0f) numCycles = 3;
+            if (maxCycle <= 1.5f) numCycles = 4;
+            float totalLen = maxCycle * numCycles;
+            float scale = (float)colH / totalLen;
+
+            // Pozycja w cyklu (zawijanie)
+            float posInViz = fmodf(positionM, totalLen);
+            int markerY = colY + (int)(posInViz * scale);
+
+            // Rysuj poziomy marker na calej szerokosci wizualizacji
+            if (markerY >= colY && markerY < colY + colH - 1) {
+                tft.drawFastHLine(vizX + 2, markerY, vizW - 4, COLOR_ERROR);
+                tft.drawFastHLine(vizX + 2, markerY + 1, vizW - 4, COLOR_ERROR);
+                // Maly trojkat po lewej jako wskaznik
+                tft.fillTriangle(vizX, markerY - 3, vizX, markerY + 3, vizX + 5, markerY, COLOR_ERROR);
+            }
+        }
+    }
+
     tft.setTextDatum(TL_DATUM);
 }
 
@@ -424,7 +457,8 @@ void DisplayManager::drawPaintingScreen(MachineState state, const char* patCode,
                                         bool reversed, bool gapStart,
                                         bool overspeed, bool lowSpeed,
                                         unsigned long sessionTimeSec,
-                                        float sessionDistM) {
+                                        float sessionDistM,
+                                        float patternPosM) {
     char buf[48];
     bool paused = (state == STATE_PAUSED);
 
@@ -436,8 +470,8 @@ void DisplayManager::drawPaintingScreen(MachineState state, const char* patCode,
     //   Dol (y=174..240):    6 prostokatow pistoletow
     // ============================================================
 
-    // ---- SRODEK: Wizualizacja pionowa wzorca (rysuj NAJPIERW) ----
-    drawPatternVisualization(VIZ_X, VIZ_Y, VIZ_W, VIZ_H, gunsCfg, reversed, gapStart);
+    // ---- SRODEK: Wizualizacja pionowa wzorca z podgladem pozycji ----
+    drawPatternVisualization(VIZ_X, VIZ_Y, VIZ_W, VIZ_H, gunsCfg, reversed, gapStart, patternPosM);
 
     // ---- LEWY GORNY: Wzorzec (duzy, FSB24) ----
     tft.setFreeFont(FSB24);

@@ -420,6 +420,13 @@ void PaintingEngine::semiNextLine() {
     Serial.println("[ENGINE] Semi-auto: rozpoczynam kolejna linie");
 }
 
+float PaintingEngine::getPatternDistance() const {
+    if (g_state.machineState != STATE_PAINTING &&
+        g_state.machineState != STATE_PAUSED) return 0;
+    float totalDist = encoderDist.getDistanceMeters();
+    return totalDist - patternStartDist;
+}
+
 // ============================================================
 // Gun keepalive - awaryjne wylaczenie pistoletow
 // Wywolywane w loop() niezaleznie od update()

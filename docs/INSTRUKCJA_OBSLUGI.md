@@ -1,4 +1,4 @@
-# TrassarV3 - Instrukcja obsługi v2.15.0
+# TrassarV3 - Instrukcja obsługi v2.16.0
 
 ## Spis treści
 
@@ -47,7 +47,7 @@ System zapewnia:
 | Parametr | Wartość |
 |----------|---------|
 | Mikrokontroler | ESP32-S3 N16R8 (16 MB Flash, 8 MB PSRAM) |
-| Firmware | v2.15.0 |
+| Firmware | v2.16.0 |
 | Wyświetlacz | ILI9341 2.8" TFT, 320×240 px, tryb landscape |
 | Interfejs SPI | HSPI (SPI3), 27 MHz |
 | Zegar RTC | DS1307 z baterią CR2032 |
@@ -833,7 +833,7 @@ System wyposażony jest w pasywny buzzer (GPIO 8) generujący sygnały dźwięko
 
 ## 14. Architektura wielordzeniowa
 
-TrassarV3 v2.15.0 wykorzystuje oba rdzenie procesora ESP32-S3 i obsługuje 10 ekranów interfejsu:
+TrassarV3 v2.16.0 wykorzystuje oba rdzenie procesora ESP32-S3 i obsługuje 10 ekranów interfejsu:
 
 | Rdzeń | Zadania |
 |-------|---------|
@@ -1357,4 +1357,4 @@ data,godzina,wzorzec,dystans_m,powierzchnia_m2,lat,lon
 ---
 
 *TrassarV3 — Komputer pokładowy malowarki pasów drogowych*
-*Firmware v2.15.0 | ESP32-S3 N16R8 | GPS NEO-6M | 6 pistoletów, 16 wzorców, 3 tryby pracy, Smart/Instant, reset etapu, buzzer, watchdog, anomaly detect*
+*Firmware v2.16.0 | ESP32-S3 N16R8 | GPS NEO-6M | 6 pistoletów, 16 wzorców, 3 tryby pracy, Smart/Instant, reset etapu, buzzer, watchdog, anomaly detect*
