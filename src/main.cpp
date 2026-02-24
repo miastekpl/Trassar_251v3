@@ -1,6 +1,6 @@
 // ============================================================
 // TrassarV3 - Komputer pokładowy malowarki pasów drogowych
-// Firmware v2.18.0
+// Firmware v2.19.0
 //
 // Platforma:    ESP32-S3 N16R8 (dual-core)
 // Wyświetlacz:  ILI9341 2.8" 240x320 SPI

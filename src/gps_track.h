@@ -1,7 +1,7 @@
 #pragma once
 // ============================================================
 // TrassarV3 - Zapis trasy GPS (GPX) podczas malowania
-// v2.18.0 - Bufor punktow w PSRAM, eksport do pliku .gpx na SD
+// v2.19.0 - Bufor punktow w PSRAM, eksport .gpx + .geojson na SD
 // ============================================================
 
 #include "config.h"
@@ -40,10 +40,11 @@ private:
     bool psramOk = false;
 
     void addPoint();
-    bool writeGpxFile();
+    bool writeGpxFile(const char* path);
     void writeGpxHeader(File& f);
     void writeGpxPoint(File& f, const GpxPoint& pt);
     void writeGpxFooter(File& f);
+    bool writeGeoJsonFile(const char* path);
 
     // Konwersja DateTime do unix timestamp
     static uint32_t dateTimeToUnix(int year, int month, int day,

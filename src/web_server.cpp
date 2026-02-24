@@ -1,6 +1,6 @@
 // ============================================================
-// TrassarV3 - Implementacja serwera WWW (WiFi AP)
-// Komputer pokladowy malowarki pasow drogowych
+// TrassarV3 - Implementacja serwera WWW (WiFi AP) + WebSocket
+// v2.19.0 - WebSocket push, GeoJSON, GPS tracks API
 // ============================================================
 
 #include "web_server.h"
@@ -14,6 +14,8 @@
 #include "storage.h"
 #include "report_logger.h"
 #include "gps_handler.h"
+#include "gps_track.h"
+#include <SD.h>
 
 TrassarWebServer webServer;
 
@@ -32,11 +34,22 @@ void TrassarWebServer::begin() {
     server.begin();
     Serial.println("[WWW] Serwer HTTP uruchomiony na porcie 80");
 
+    // WebSocket server na porcie 81 (push status updates)
+    wsServer.begin();
+    wsServer.onEvent([](uint8_t num, WStype_t type, uint8_t* payload, size_t length) {
+        if (type == WStype_CONNECTED) {
+            Serial.printf("[WS] Klient #%u polaczony\n", num);
+        } else if (type == WStype_DISCONNECTED) {
+            Serial.printf("[WS] Klient #%u rozlaczony\n", num);
+        }
+    });
+    Serial.printf("[WWW] WebSocket na porcie %d\n", WS_PORT);
+
     // Uruchom task WWW na Core 0 (Arduino loop() dziala na Core 1)
     xTaskCreatePinnedToCore(
         webTaskFunc,        // Funkcja tasku
         "WebServer",        // Nazwa (debug)
-        12288,              // Stack size [bytes]
+        16384,              // Stack size [bytes] (zwiekszone: WS + GeoJSON)
         this,               // Parametr -> wskaznik na obiekt
         1,                  // Priorytet (1 = niski, nie blokuje krytycznych taskow)
         &webTaskHandle,     // Uchwyt tasku
@@ -45,11 +58,23 @@ void TrassarWebServer::begin() {
     Serial.println("[WWW] Task WWW uruchomiony na Core 0");
 }
 
-// Task FreeRTOS na Core 0 - obsluga klientow HTTP
+// Task FreeRTOS na Core 0 - obsluga HTTP + WebSocket
 void TrassarWebServer::webTaskFunc(void* param) {
     TrassarWebServer* self = static_cast<TrassarWebServer*>(param);
     for (;;) {
         self->server.handleClient();
+        self->wsServer.loop();
+
+        // Broadcast statusu do klientow WebSocket co WS_BROADCAST_MS
+        unsigned long now = millis();
+        if (now - self->lastWsBroadcast >= WS_BROADCAST_MS) {
+            self->lastWsBroadcast = now;
+            if (self->wsServer.connectedClients() > 0) {
+                String json = self->getStateJson();
+                self->wsServer.broadcastTXT(json);
+            }
+        }
+
         vTaskDelay(pdMS_TO_TICKS(2));  // 2ms yield - nie blokuj innych taskow
     }
 }
@@ -83,6 +108,9 @@ void TrassarWebServer::setupRoutes() {
     server.on("/api/stats", HTTP_GET, [this]() { handleStats(); });
     server.on("/api/reports", HTTP_GET, [this]() { handleReports(); });
     server.on("/api/reports/download", HTTP_GET, [this]() { handleReportDownload(); });
+    server.on("/api/reports/geojson", HTTP_GET, [this]() { handleGeoJson(); });
+    server.on("/api/tracks", HTTP_GET, [this]() { handleTrackList(); });
+    server.on("/api/tracks/download", HTTP_GET, [this]() { handleTrackDownload(); });
     server.on("/api/control", HTTP_POST, [this]() { handleControl(); });
     server.onNotFound([this]() { handleNotFound(); });
 }
@@ -329,6 +357,8 @@ String TrassarWebServer::getStateJson() {
     doc["gpsSat"] = gpsHandler.getSatellites();
     doc["gpsSpeed"] = serialized(String(gpsHandler.getGpsSpeed(), 1));
     doc["gpsHdop"] = serialized(String(gpsHandler.getHdop(), 1));
+    doc["gpxRec"] = gpsTrack.isRecording();
+    doc["gpxPts"] = gpsTrack.getPointCount();
 
     // Anomalia pistoletow
     doc["gunAnomalyDetected"] = gunAnomaly.detected;
@@ -752,7 +782,8 @@ body{
             Firmware: <span id="sFw">---</span><br>
             Wolna RAM: <span id="sRam">---</span><br>
             Uptime: <span id="sUp">---</span><br>
-            Klienci WiFi: <span id="sCli">---</span>
+            Klienci WiFi: <span id="sCli">---</span><br>
+            WebSocket: <span id="sWs" style="color:#e64040;">---</span>
         </div>
     </div>
 
@@ -762,6 +793,7 @@ body{
         <div class="svc-tabs">
             <button class="svc-tab act" onclick="svcTab(0)">Statystyki</button>
             <button class="svc-tab" onclick="svcTab(1)">Raporty SD</button>
+            <button class="svc-tab" onclick="svcTab(2)">Trasy GPS</button>
         </div>
         <div id="svcP0">
             <div class="info-grid two">
@@ -780,6 +812,10 @@ body{
         <div id="svcP1" style="display:none;">
             <div id="repList" style="font-size:12px;color:#6b7d9a;">Ladowanie...</div>
             <button class="cal-btn" style="margin-top:8px;" onclick="loadReports()">Odswiez</button>
+        </div>
+        <div id="svcP2" style="display:none;">
+            <div id="trkList" style="font-size:12px;color:#6b7d9a;">Ladowanie...</div>
+            <button class="cal-btn" style="margin-top:8px;" onclick="loadTracks()">Odswiez</button>
         </div>
     </div>
 
@@ -1008,9 +1044,8 @@ function fmtTime(sec){
     return String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
 }
 
-/* ------- Fetch & Update UI ------- */
-function fetchStatus(){
-    fetch('/api/status').then(r=>r.json()).then(d=>{
+/* ------- Apply status data to UI ------- */
+function applyStatus(d){
         /* State */
         let w=document.getElementById('stWrap');
         let labels={idle:'Gotowy',painting:'Malowanie',paused:'Pauza',stopped:'Zatrzymany'};
@@ -1147,6 +1182,8 @@ function fetchStatus(){
         let uh=Math.floor(u/3600),um=Math.floor((u%3600)/60),us=u%60;
         document.getElementById('sUp').textContent=uh+'h '+um+'m '+us+'s';
         document.getElementById('sCli').textContent=d.clients;
+        let wsEl=document.getElementById('sWs');
+        if(wsEl){wsEl.textContent=wsOk?'Polaczony':'Polling';wsEl.style.color=wsOk?'#2ae67a':'#f0c040';}
 
         /* Pattern preview canvas */
         drawPatPreview(d.patternIdx);
@@ -1184,8 +1221,23 @@ function fetchStatus(){
         let gpsHdEl=document.getElementById('gpsHdop');
         if(gpsHdEl) gpsHdEl.textContent=d.gpsHdop;
 
-    }).catch(e=>console.error('Status error:',e));
 }
+/* ------- Fetch (REST fallback) ------- */
+function fetchStatus(){
+    fetch('/api/status').then(r=>r.json()).then(d=>applyStatus(d)).catch(e=>console.error('Status:',e));
+}
+/* ------- WebSocket (push updates co 500ms) ------- */
+let ws=null,wsOk=false;
+function wsConnect(){
+    try{
+        ws=new WebSocket('ws://'+location.hostname+':81/');
+        ws.onopen=function(){wsOk=true;console.log('WS connected');};
+        ws.onclose=function(){wsOk=false;setTimeout(wsConnect,2000);};
+        ws.onerror=function(){};
+        ws.onmessage=function(e){try{applyStatus(JSON.parse(e.data));}catch(x){}};
+    }catch(x){setTimeout(wsConnect,3000);}
+}
+wsConnect();
 
 /* ------- Service Menu Tabs ------- */
 let activeTab=0;
@@ -1194,9 +1246,11 @@ function svcTab(n){
     document.querySelectorAll('.svc-tab').forEach(function(t,i){t.classList.toggle('act',i===n);});
     document.getElementById('svcP0').style.display=n===0?'block':'none';
     document.getElementById('svcP1').style.display=n===1?'block':'none';
+    document.getElementById('svcP2').style.display=n===2?'block':'none';
     activeTab=n;
     if(n===0)loadStats();
     if(n===1)loadReports();
+    if(n===2)loadTracks();
 }
 function loadStats(){
     fetch('/api/stats').then(function(r){return r.json();}).then(function(d){
@@ -1232,20 +1286,36 @@ function loadReports(){
         d.forEach(function(r){
             let sz=r.size>1024?(r.size/1024).toFixed(1)+' KB':r.size+' B';
             h+='<tr><td>'+r.file+'</td><td>'+sz+'</td>';
-            h+='<td style="text-align:right"><a href="/api/reports/download?file='+encodeURIComponent(r.file)+'" style="color:#2ae67a;text-decoration:none;font-weight:bold;">CSV</a></td></tr>';
+            h+='<td style="text-align:right"><a href="/api/reports/download?file='+encodeURIComponent(r.file)+'" style="color:#2ae67a;text-decoration:none;font-weight:bold;">CSV</a> <a href="/api/reports/geojson?file='+encodeURIComponent(r.file)+'" style="color:#e6a02a;text-decoration:none;font-weight:bold;">GeoJSON</a></td></tr>';
         });
         h+='</table>';
         el.innerHTML=h;
     }).catch(function(){el.innerHTML='Blad ladowania raportow.';});
 }
+function loadTracks(){
+    let el=document.getElementById('trkList');
+    el.innerHTML='<span style="color:#6b7d9a;">Ladowanie...</span>';
+    fetch('/api/tracks').then(function(r){return r.json();}).then(function(d){
+        if(d.length===0){el.innerHTML='Brak tras GPS na karcie SD.';return;}
+        let h='<table class="rep-tbl"><tr><th>Plik</th><th>Rozmiar</th><th style="text-align:right">Pobierz</th></tr>';
+        d.forEach(function(r){
+            let sz=r.size>1024?(r.size/1024).toFixed(1)+' KB':r.size+' B';
+            let ext=r.file.split('.').pop().toUpperCase();
+            h+='<tr><td>'+r.file+'</td><td>'+sz+'</td>';
+            h+='<td style="text-align:right"><a href="/api/tracks/download?file='+encodeURIComponent(r.file)+'" style="color:#2ae67a;text-decoration:none;font-weight:bold;">'+ext+'</a></td></tr>';
+        });
+        h+='</table>';
+        el.innerHTML=h;
+    }).catch(function(){el.innerHTML='Blad ladowania tras.';});
+}
 loadStats();
 
-/* Auto-refresh every 1 second + stats every 10s */
+/* Auto-refresh: WebSocket push (500ms) + fallback polling (2s gdy WS down) */
 setInterval(function(){
-    fetchStatus();
+    if(!wsOk)fetchStatus();
     svcTick++;
     if(svcTick%10===0&&activeTab===0)loadStats();
-},1000);
+},2000);
 fetchStatus();
 </script>
 </body>
@@ -1360,6 +1430,165 @@ void TrassarWebServer::handleReportDownload() {
     }
     f.close();
     Serial.printf("[WWW] Pobranie raportu: %s\n", fname.c_str());
+}
+
+// ============================================================
+// GET /api/reports/geojson?file=RRRRMMDD.csv - CSV -> GeoJSON
+// Konwersja raportow sesji do GeoJSON FeatureCollection (Points)
+// Strumieniowe wysylanie (chunked) — niskie zuzycie RAM
+// ============================================================
+void TrassarWebServer::handleGeoJson() {
+    if (!server.hasArg("file")) {
+        server.send(400, "application/json", "{\"error\":\"brak parametru file\"}");
+        return;
+    }
+    String fname = server.arg("file");
+    for (unsigned int i = 0; i < fname.length(); i++) {
+        char c = fname.charAt(i);
+        if (!isalnum(c) && c != '.' && c != '_' && c != '-') {
+            server.send(400, "application/json", "{\"error\":\"nieprawidlowa nazwa\"}");
+            return;
+        }
+    }
+
+    String path = "/reports/" + fname;
+    if (!reportLogger.isReady() || !SD.exists(path.c_str())) {
+        server.send(404, "application/json", "{\"error\":\"plik nie znaleziony\"}");
+        return;
+    }
+
+    File f = SD.open(path.c_str(), FILE_READ);
+    if (!f) {
+        server.send(500, "application/json", "{\"error\":\"blad otwarcia\"}");
+        return;
+    }
+
+    // Chunked GeoJSON FeatureCollection
+    server.setContentLength(CONTENT_LENGTH_UNKNOWN);
+    server.send(200, "application/geo+json", "");
+    server.sendContent("{\"type\":\"FeatureCollection\",\"features\":[");
+
+    // Pomin naglowek CSV
+    char line[200];
+    if (f.available()) {
+        f.readBytesUntil('\n', line, sizeof(line) - 1);
+    }
+
+    bool first = true;
+    while (f.available()) {
+        int r = f.readBytesUntil('\n', line, sizeof(line) - 1);
+        line[r] = 0;
+
+        // Format: data,godzina,wzorzec,dystans_m,powierzchnia_m2,lat,lon
+        char date[16], timeStr[16], pat[16];
+        float dist, area;
+        double lat, lon;
+
+        if (sscanf(line, "%15[^,],%15[^,],%15[^,],%f,%f,%lf,%lf",
+                   date, timeStr, pat, &dist, &area, &lat, &lon) >= 7) {
+            if (lat != 0 || lon != 0) {
+                char feat[400];
+                snprintf(feat, sizeof(feat),
+                    "%s{\"type\":\"Feature\",\"geometry\":{\"type\":\"Point\","
+                    "\"coordinates\":[%.7f,%.7f]},\"properties\":{"
+                    "\"date\":\"%s\",\"time\":\"%s\",\"pattern\":\"%s\","
+                    "\"distance_m\":%.1f,\"area_m2\":%.2f}}",
+                    first ? "" : ",",
+                    lon, lat, date, timeStr, pat, dist, area);
+                server.sendContent(feat);
+                first = false;
+            }
+        }
+    }
+
+    f.close();
+    server.sendContent("]}");
+    server.sendContent("");  // End chunked
+    Serial.printf("[WWW] GeoJSON: %s\n", fname.c_str());
+}
+
+// ============================================================
+// GET /api/tracks - Lista plikow GPS track (GPX + GeoJSON)
+// ============================================================
+void TrassarWebServer::handleTrackList() {
+    if (!reportLogger.isReady() || !SD.exists("/tracks")) {
+        server.send(200, "application/json", "[]");
+        return;
+    }
+
+    File dir = SD.open("/tracks");
+    if (!dir) {
+        server.send(200, "application/json", "[]");
+        return;
+    }
+
+    String json = "[";
+    bool first = true;
+    while (true) {
+        File entry = dir.openNextFile();
+        if (!entry) break;
+        if (!entry.isDirectory()) {
+            if (!first) json += ",";
+            json += "{\"file\":\"";
+            json += entry.name();
+            json += "\",\"size\":";
+            json += String(entry.size());
+            json += "}";
+            first = false;
+        }
+        entry.close();
+    }
+    dir.close();
+    json += "]";
+
+    server.send(200, "application/json", json);
+}
+
+// ============================================================
+// GET /api/tracks/download?file=FILENAME - Pobierz GPX/GeoJSON
+// ============================================================
+void TrassarWebServer::handleTrackDownload() {
+    if (!server.hasArg("file")) {
+        server.send(400, "text/plain", "Brak parametru file");
+        return;
+    }
+    String fname = server.arg("file");
+    for (unsigned int i = 0; i < fname.length(); i++) {
+        char c = fname.charAt(i);
+        if (!isalnum(c) && c != '.' && c != '_' && c != '-') {
+            server.send(400, "text/plain", "Nieprawidlowa nazwa pliku");
+            return;
+        }
+    }
+
+    String path = "/tracks/" + fname;
+    if (!reportLogger.isReady() || !SD.exists(path.c_str())) {
+        server.send(404, "text/plain", "Plik nie znaleziony");
+        return;
+    }
+
+    File f = SD.open(path.c_str(), FILE_READ);
+    if (!f) {
+        server.send(500, "text/plain", "Blad otwarcia pliku");
+        return;
+    }
+
+    // Content type wedlug rozszerzenia
+    const char* ct = "application/octet-stream";
+    if (fname.endsWith(".gpx")) ct = "application/gpx+xml";
+    else if (fname.endsWith(".geojson")) ct = "application/geo+json";
+
+    server.sendHeader("Content-Disposition", "attachment; filename=\"" + fname + "\"");
+    server.setContentLength(f.size());
+    server.send(200, ct, "");
+
+    uint8_t buf[512];
+    while (f.available()) {
+        int r = f.read(buf, sizeof(buf));
+        if (r > 0) server.sendContent((const char*)buf, r);
+    }
+    f.close();
+    Serial.printf("[WWW] Track download: %s\n", fname.c_str());
 }
 
 // buildHtmlPage() - nie uzywane, HTML wysylany chunkami z handleRoot()

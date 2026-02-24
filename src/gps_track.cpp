@@ -1,11 +1,12 @@
 // ============================================================
 // TrassarV3 - Zapis trasy GPS (GPX) podczas malowania
-// v2.18.0 - Bufor punktow w PSRAM, eksport .gpx na karte SD
+// v2.19.0 - Bufor punktow w PSRAM, eksport .gpx + .geojson na SD
 //
 // Podczas malowania co GPX_RECORD_INTERVAL_MS (5s) zapisuje punkt
 // {lat, lng, alt, speed, time} do bufora w PSRAM.
-// Po STOP: zapis calej trasy jako /tracks/RRRRMMDD_HHMMSS.gpx na SD.
-// Format GPX 1.1 — kompatybilny z Google Earth, QGIS, Strava itp.
+// Po STOP: zapis calej trasy jako .gpx i .geojson do /tracks/ na SD.
+// GPX 1.1 — Google Earth, QGIS, Strava
+// GeoJSON — systemy GIS, Leaflet, Mapbox, geojson.io
 // ============================================================
 
 #include "gps_track.h"
@@ -63,13 +64,32 @@ void GpsTrack::stopRecording() {
     recording = false;
 
     if (pointCount > 0) {
-        if (writeGpxFile()) {
-            Serial.printf("[GPX] Trasa zapisana: %u punktow\n", pointCount);
-        } else {
-            Serial.println("[GPX] BLAD zapisu pliku GPX!");
+        if (!reportLogger.isReady()) {
+            Serial.println("[GPX] Karta SD niedostepna");
+            pointCount = 0;
+            return;
         }
+        // Utworz katalog /tracks jesli nie istnieje
+        if (!SD.exists("/tracks")) {
+            SD.mkdir("/tracks");
+        }
+
+        // Generuj spolna nazwe pliku (ten sam timestamp dla obu formatow)
+        DateTime now = rtcModule.now();
+        char gpxPath[48], geoPath[52];
+        snprintf(gpxPath, sizeof(gpxPath), "/tracks/%04d%02d%02d_%02d%02d%02d.gpx",
+                 now.year(), now.month(), now.day(),
+                 now.hour(), now.minute(), now.second());
+        snprintf(geoPath, sizeof(geoPath), "/tracks/%04d%02d%02d_%02d%02d%02d.geojson",
+                 now.year(), now.month(), now.day(),
+                 now.hour(), now.minute(), now.second());
+
+        bool gpxOk = writeGpxFile(gpxPath);
+        bool geoOk = writeGeoJsonFile(geoPath);
+        Serial.printf("[GPX] Trasa: %u pkt (GPX:%s GeoJSON:%s)\n",
+                      pointCount, gpxOk ? "OK" : "BLAD", geoOk ? "OK" : "BLAD");
     } else {
-        Serial.println("[GPX] Brak punktow — plik GPX nie utworzony");
+        Serial.println("[GPX] Brak punktow — pliki nie utworzone");
     }
     pointCount = 0;
 }
@@ -118,27 +138,10 @@ void GpsTrack::addPoint() {
 // ============================================================
 // Zapis pliku GPX na karte SD
 // ============================================================
-bool GpsTrack::writeGpxFile() {
-    if (!reportLogger.isReady()) {
-        Serial.println("[GPX] Karta SD niedostepna");
-        return false;
-    }
-
-    // Utworz katalog /tracks jesli nie istnieje
-    if (!SD.exists("/tracks")) {
-        SD.mkdir("/tracks");
-    }
-
-    // Nazwa pliku: /tracks/RRRRMMDD_HHMMSS.gpx
-    DateTime now = rtcModule.now();
-    char fname[40];
-    snprintf(fname, sizeof(fname), "/tracks/%04d%02d%02d_%02d%02d%02d.gpx",
-             now.year(), now.month(), now.day(),
-             now.hour(), now.minute(), now.second());
-
-    File f = SD.open(fname, FILE_WRITE);
+bool GpsTrack::writeGpxFile(const char* path) {
+    File f = SD.open(path, FILE_WRITE);
     if (!f) {
-        Serial.printf("[GPX] Nie mozna otworzyc: %s\n", fname);
+        Serial.printf("[GPX] Nie mozna otworzyc: %s\n", path);
         return false;
     }
 
@@ -154,7 +157,47 @@ bool GpsTrack::writeGpxFile() {
     writeGpxFooter(f);
     f.close();
 
-    Serial.printf("[GPX] Zapisano: %s (%u punktow)\n", fname, pointCount);
+    Serial.printf("[GPX] Zapisano: %s (%u pkt)\n", path, pointCount);
+    return true;
+}
+
+// ============================================================
+// Zapis pliku GeoJSON na karte SD (LineString)
+// Kompatybilny z Leaflet, Mapbox, QGIS, geojson.io
+// ============================================================
+bool GpsTrack::writeGeoJsonFile(const char* path) {
+    File f = SD.open(path, FILE_WRITE);
+    if (!f) {
+        Serial.printf("[GPX] GeoJSON: nie mozna otworzyc: %s\n", path);
+        return false;
+    }
+
+    f.print(F("{\"type\":\"FeatureCollection\",\"features\":[{\"type\":\"Feature\","));
+    f.print(F("\"geometry\":{\"type\":\"LineString\",\"coordinates\":["));
+
+    for (uint16_t i = 0; i < pointCount; i++) {
+        char coord[48];
+        snprintf(coord, sizeof(coord), "%s[%.7f,%.7f,%.1f]",
+                 i > 0 ? "," : "",
+                 buffer[i].lng, buffer[i].lat, buffer[i].alt);
+        f.print(coord);
+        if (i % 100 == 99) f.flush();
+    }
+
+    f.print(F("]},\"properties\":{\"name\":\"Trassar "));
+
+    if (pointCount > 0) {
+        char timeBuf[24];
+        unixToISO8601(buffer[0].timeUtc, timeBuf, sizeof(timeBuf));
+        f.print(timeBuf);
+    }
+
+    f.print(F("\",\"creator\":\"TrassarV3\",\"points\":"));
+    f.print(pointCount);
+    f.println(F("}}]}"));
+
+    f.close();
+    Serial.printf("[GPX] GeoJSON: %s (%u pkt)\n", path, pointCount);
     return true;
 }
 

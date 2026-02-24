@@ -7,7 +7,7 @@
 #include <Arduino.h>
 
 // ============ WERSJA FIRMWARE ============
-#define FW_VERSION      "2.18.0"
+#define FW_VERSION      "2.19.0"
 #define FW_NAME         "TrassarV3"
 #define FW_DATE         __DATE__
 
@@ -17,6 +17,8 @@
 #define WIFI_AP_CHANNEL 6
 #define WIFI_AP_MAX_CON 4
 #define WEB_SERVER_PORT 80
+#define WS_PORT         81       // WebSocket port (push status updates)
+#define WS_BROADCAST_MS 500      // Interwał broadcastu WebSocket [ms]
 
 // ============ ILI9341 Display (SPI) ============
 // Piny SPI zdefiniowane w platformio.ini (build_flags TFT_eSPI)
