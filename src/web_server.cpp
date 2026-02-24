@@ -1,10 +1,11 @@
 // ============================================================
 // TrassarV3 - Implementacja serwera WWW (WiFi AP) + WebSocket
-// v2.19.0 - WebSocket push, GeoJSON, GPS tracks API
+// v2.20.0 - WebSocket push, GeoJSON, GPS tracks API, WDT Core 0
 // ============================================================
 
 #include "web_server.h"
 #include <ArduinoJson.h>
+#include <esp_task_wdt.h>
 #include "painting_engine.h"
 #include "encoder_distance.h"
 #include "statistics.h"
@@ -58,10 +59,18 @@ void TrassarWebServer::begin() {
     Serial.println("[WWW] Task WWW uruchomiony na Core 0");
 }
 
-// Task FreeRTOS na Core 0 - obsluga HTTP + WebSocket
+// Task FreeRTOS na Core 0 - obsluga HTTP + WebSocket + watchdog
 void TrassarWebServer::webTaskFunc(void* param) {
     TrassarWebServer* self = static_cast<TrassarWebServer*>(param);
+
+    // Poczekaj az setup() zainicjalizuje WDT, potem dodaj ten task
+    vTaskDelay(pdMS_TO_TICKS(5000));
+    esp_task_wdt_add(NULL);
+    Serial.println("[WDT] Core 0 WebServer task dodany do watchdoga");
+
     for (;;) {
+        esp_task_wdt_reset();  // Podwojny watchdog: Core 0
+
         self->server.handleClient();
         self->wsServer.loop();
 

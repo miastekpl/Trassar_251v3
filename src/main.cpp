@@ -1,6 +1,6 @@
 // ============================================================
 // TrassarV3 - Komputer pokładowy malowarki pasów drogowych
-// Firmware v2.19.0
+// Firmware v2.20.0
 //
 // Platforma:    ESP32-S3 N16R8 (dual-core)
 // Wyświetlacz:  ILI9341 2.8" 240x320 SPI
@@ -28,6 +28,8 @@
 #include "gps_handler.h"
 #include "gps_track.h"
 #include "joystick.h"
+#include "event_log.h"
+#include "nvs_backup.h"
 #include <esp_task_wdt.h>
 #include <esp_heap_caps.h>
 
@@ -44,6 +46,7 @@ unsigned long lastDynamicUpdate = 0;
 unsigned long lastDiagPrint = 0;
 unsigned long lastLifetimeSave = 0;
 unsigned long lastReportCacheRefresh = 0;
+unsigned long lastNvsBackup = 0;
 const unsigned long DISPLAY_REFRESH_MS = 100;
 const unsigned long DYNAMIC_UPDATE_MS  = 500;
 const unsigned long DIAG_PRINT_MS      = 30000;  // Diagnostyka co 30s
@@ -126,6 +129,14 @@ void setup() {
         buzzer.play(BUZ_ERROR);
     }
 
+    // 10b. Event log na SD (musi byc po reportLogger)
+    Serial.println("[INIT] Event log...");
+    eventLog.begin();
+
+    // 10c. NVS backup/restore (musi byc po SD + event_log)
+    Serial.println("[INIT] NVS backup...");
+    nvsBackup.begin();
+
     // 11. GPS (UART2)
     Serial.println("[INIT] GPS modul...");
     gpsHandler.begin();
@@ -138,7 +149,7 @@ void setup() {
     Serial.println("[INIT] System menu...");
     menu.begin();
 
-    // 12. WiFi AP + serwer WWW
+    // 13. WiFi AP + serwer WWW
     Serial.println("[INIT] WiFi AP + serwer WWW...");
     webServer.begin();
 
@@ -176,6 +187,18 @@ void setup() {
     Serial.printf("[INIT] WiFi: %s  http://%s\n",
                   WIFI_AP_SSID, webServer.getIPAddress().c_str());
     Serial.println();
+
+    // Log startu systemu
+    eventLog.logf("SYSTEM", "Start v%s | %s | wzorzec=%s tryb=%s spd=%.0f",
+                  FW_VERSION, rtcModule.getDateTimeStr(),
+                  patternMgr.getCurrent().code,
+                  modeNames[(int)g_state.machineMode], maxSpd);
+
+    // Pierwszy backup NVS (jesli SD dostepna)
+    if (reportLogger.isReady()) {
+        nvsBackup.backupToSD();
+    }
+    lastNvsBackup = millis();
 }
 
 void loop() {
@@ -284,11 +307,17 @@ void loop() {
                 if (anyAnomaly && !gunAnomaly.alerted) {
                     gunAnomaly.alerted = true;
                     buzzer.play(BUZ_GUN_ANOMALY);
-                    Serial.print("[ANOMALY] Pistolety bez aktywnosci:");
+
+                    // Buduj liste pistoletow z anomalia
+                    char anomList[32] = "";
+                    int pos = 0;
                     for (int i = 0; i < NUM_GUNS; i++) {
-                        if (gunAnomaly.alert[i]) Serial.printf(" P%d", i + 1);
+                        if (gunAnomaly.alert[i]) {
+                            pos += snprintf(anomList + pos, sizeof(anomList) - pos, " P%d", i + 1);
+                        }
                     }
-                    Serial.printf(" (dystans sesji: %.1fm)\n", sessionDist);
+                    eventLog.logf("ANOMALY", "Pistolety bez aktywnosci:%s (dist=%.1fm)",
+                                  anomList, sessionDist);
                 }
             }
         }
@@ -305,6 +334,14 @@ void loop() {
     if (now - lastReportCacheRefresh >= REPORT_CACHE_MS) {
         lastReportCacheRefresh = now;
         reportLogger.refreshReportCache();
+    }
+
+    // 12. Okresowy backup NVS na SD (co 30 min)
+    if (now - lastNvsBackup >= NVS_BACKUP_INTERVAL_MS) {
+        lastNvsBackup = now;
+        if (nvsBackup.backupToSD()) {
+            eventLog.log("NVS", "Okresowy backup NVS na SD");
+        }
     }
 
     delay(1);

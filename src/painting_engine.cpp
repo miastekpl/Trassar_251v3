@@ -14,6 +14,7 @@
 #include "gps_track.h"
 #include "buzzer.h"
 #include "button_handler.h"
+#include "event_log.h"
 #include <math.h>
 
 PaintingEngine paintEngine;
@@ -178,7 +179,7 @@ void PaintingEngine::update() {
     if (overspeedActive && !wasOver) {
         buzzer.play(BUZ_OVERSPEED);
         lastOverspeedBuzMs = now;
-        Serial.printf("[ENGINE] UWAGA: predkosc %.1f km/h > %.1f km/h!\n",
+        eventLog.logf("ENGINE", "PRZEKROCZENIE predkosci: %.1f > %.1f km/h",
                       speedKmh, maxSpeedKmh);
     } else if (overspeedActive && (now - lastOverspeedBuzMs >= 2000)) {
         // Powtarzaj co 2s
@@ -209,8 +210,8 @@ void PaintingEngine::start() {
         const char* modeStr = "AUTO";
         if (g_state.machineMode == MODE_SEMI_AUTO) modeStr = "SEMI";
         else if (g_state.machineMode == MODE_MANUAL) modeStr = "MANUAL";
-        Serial.printf("[ENGINE] Start malowania [%s] - wzorzec %s\n",
-                      modeStr, patternMgr.getCurrent().code);
+        eventLog.logf("ENGINE", "START malowania | wzorzec=%s tryb=%s",
+                      patternMgr.getCurrent().code, modeStr);
     }
 }
 
@@ -279,7 +280,7 @@ void PaintingEngine::pause() {
         stats.pauseSessionTimer();
         buzzer.play(BUZ_PAINT_STOP);
         g_state.displayNeedsUpdate = true;
-        Serial.println("[ENGINE] Pauza");
+        eventLog.log("ENGINE", "PAUZA");
     }
 }
 
@@ -290,7 +291,7 @@ void PaintingEngine::resume() {
         stats.resumeSessionTimer();
         buzzer.play(BUZ_PAINT_START);
         g_state.displayNeedsUpdate = true;
-        Serial.println("[ENGINE] Wznowienie");
+        eventLog.log("ENGINE", "WZNOWIENIE");
     }
 }
 
@@ -326,8 +327,9 @@ void PaintingEngine::stop() {
         g_state.currentScreen = SCREEN_HOME;
         g_state.displayNeedsUpdate = true;
         g_state.forceFullRedraw = true;
-        Serial.printf("[ENGINE] Stop - dystans: %.1fm  powierzchnia: %.2fm2\n",
-                      stats.getSessionDistance(), stats.getSessionArea());
+        eventLog.logf("ENGINE", "STOP | dist=%.1fm area=%.2fm2 czas=%us",
+                      stats.getSessionDistance(), stats.getSessionArea(),
+                      stats.getSessionTimeSec());
     }
 }
 
@@ -445,7 +447,7 @@ void PaintingEngine::checkGunKeepAlive() {
     if (now - lastGunUpdateMs > GUN_KEEPALIVE_TIMEOUT_MS) {
         // Awaryjne wylaczenie wszystkich pistoletow
         guns.allOff();
-        Serial.printf("[ENGINE] KEEPALIVE: awaryjne guns.allOff() (brak update od %lu ms)\n",
+        eventLog.logf("ENGINE", "KEEPALIVE: awaryjne guns.allOff() (brak update %lu ms)",
                       now - lastGunUpdateMs);
     }
 }
