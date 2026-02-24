@@ -1,6 +1,9 @@
 // ============================================================
-// TrassarV3 - Enkoder: dystans, prędkość, kalibracja
-// v2.12.0 - Bezposredni odczyt rejestru GPIO w ISR (~50ns vs ~2us digitalRead)
+// TrassarV3 - Enkoder kwadraturowy: dystans, prędkość, kalibracja
+// v2.17.0 - Pelne dekodowanie kwadraturowe x4 (oba kanaly A+B)
+//           ISR na CLK(A) i DT(B) CHANGE — 4x rozdzielczosc
+//           Tablica stanow (4x4) do niezawodnego dekodowania kierunku
+//           Bezposredni odczyt rejestru GPIO (~50ns)
 // ============================================================
 
 #include "encoder_distance.h"
@@ -10,10 +13,27 @@
 EncoderDistance encoderDist;
 EncoderDistance* EncoderDistance::instance = nullptr;
 volatile long EncoderDistance::totalPulses = 0;
+volatile uint8_t EncoderDistance::quadState = 0;
 
 // Makra do szybkiego odczytu GPIO (piny 0-31 -> GPIO.in, piny 32-39 -> GPIO.in1.val)
 #define FAST_GPIO_READ(pin) \
     (((pin) < 32) ? ((GPIO.in >> (pin)) & 1) : ((GPIO.in1.val >> ((pin) - 32)) & 1))
+
+// ============================================================
+// Tablica dekodowania kwadraturowego x4
+// Stan = (A << 1) | B  →  wartosci 0..3
+// Przejscia stanow:
+//   Do przodu (CW):  00→01→11→10→00  (+1 na kazde przejscie)
+//   Do tylu  (CCW):  00→10→11→01→00  (-1 na kazde przejscie)
+//   Brak zmiany lub nieprawidlowe: 0
+// ============================================================
+const int8_t EncoderDistance::QUAD_TABLE[4][4] = {
+    //  00  01  10  11   ← nowy stan
+    {  0, +1, -1,  0 }, // prev = 00
+    { -1,  0,  0, +1 }, // prev = 01
+    { +1,  0,  0, -1 }, // prev = 10
+    {  0, -1, +1,  0 }  // prev = 11
+};
 
 void IRAM_ATTR EncoderDistance::encoderISR() {
     if (!instance) return;
@@ -24,16 +44,16 @@ void IRAM_ATTR EncoderDistance::encoderISR() {
     instance->lastISRMicros = nowUs;
 
     // Bezposredni odczyt rejestru GPIO - ~50ns zamiast ~2-3us (digitalRead)
-    int clk = FAST_GPIO_READ(PIN_ENC_CLK);
-    int dt  = FAST_GPIO_READ(PIN_ENC_DT);
-    if (clk != instance->lastClkState) {
-        if (dt != clk) {
-            totalPulses++;
-        } else {
-            totalPulses--;
-        }
-        instance->lastClkState = clk;
+    uint8_t a = FAST_GPIO_READ(PIN_ENC_CLK);
+    uint8_t b = FAST_GPIO_READ(PIN_ENC_DT);
+    uint8_t newState = (a << 1) | b;
+
+    // Dekodowanie kierunku z tablicy stanow
+    int8_t delta = QUAD_TABLE[quadState][newState];
+    if (delta != 0) {
+        totalPulses += delta;
     }
+    quadState = newState;
 }
 
 void EncoderDistance::begin() {
@@ -45,12 +65,18 @@ void EncoderDistance::begin() {
 
     pinMode(PIN_ENC_CLK, INPUT_PULLUP);
     pinMode(PIN_ENC_DT, INPUT_PULLUP);
-    lastClkState = digitalRead(PIN_ENC_CLK);
 
+    // Inicjalizacja stanu kwadraturowego
+    uint8_t a = digitalRead(PIN_ENC_CLK);
+    uint8_t b = digitalRead(PIN_ENC_DT);
+    quadState = (a << 1) | b;
+
+    // ISR na obu kanalach — x4 rozdzielczosc
     attachInterrupt(digitalPinToInterrupt(PIN_ENC_CLK), encoderISR, CHANGE);
+    attachInterrupt(digitalPinToInterrupt(PIN_ENC_DT),  encoderISR, CHANGE);
 
     loadCalibration();
-    Serial.printf("[ENC] Impulsy/metr: %.1f  Skalibrowany: %s\n",
+    Serial.printf("[ENC] Kwadraturowy x4 | Impulsy/metr: %.1f  Skalibrowany: %s\n",
                   pulsesPerMeter, calibrated ? "TAK" : "NIE");
 }
 

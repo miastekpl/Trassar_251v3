@@ -1,6 +1,7 @@
 #pragma once
 // ============================================================
-// TrassarV3 - Enkoder: dystans, prędkość, kalibracja
+// TrassarV3 - Enkoder kwadraturowy: dystans, prędkość, kalibracja
+// x4 dekodowanie — ISR na obu kanalach A+B (CLK+DT)
 // ============================================================
 
 #include "config.h"
@@ -48,8 +49,12 @@ private:
     long  lastSpeedPulses = 0;
     unsigned long lastSpeedTime = 0;
 
-    int lastClkState = 0;
+    // Stan kwadraturowy (2-bit: bit1=A, bit0=B)
+    static volatile uint8_t quadState;
     volatile unsigned long lastISRMicros = 0;
+
+    // Tablica dekodowania kwadraturowego x4
+    static const int8_t QUAD_TABLE[4][4];
 };
 
 extern EncoderDistance encoderDist;
