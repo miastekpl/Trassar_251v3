@@ -7,7 +7,7 @@
 #include <Arduino.h>
 
 // ============ WERSJA FIRMWARE ============
-#define FW_VERSION      "2.16.0"
+#define FW_VERSION      "2.18.0"
 #define FW_NAME         "TrassarV3"
 #define FW_DATE         __DATE__
 
@@ -98,6 +98,11 @@
 // ============ Pomiar prędkości ============
 #define SPEED_CALC_INTERVAL_MS    250
 #define SPEED_FILTER_ALPHA       0.3f
+
+// ============ Zapis trasy GPS (GPX) ============
+#define GPX_RECORD_INTERVAL_MS  5000     // Interwał zapisu punktu GPS [ms]
+#define GPX_MAX_POINTS          4320     // Max punktów w buforze PSRAM (~6h przy 5s)
+                                         // 4320 * 32B = ~135 KB w PSRAM
 
 // ============ Detekcja anomalii pistoletów ============
 #define GUN_ANOMALY_DISTANCE_M   50.0f   // Min dystans sesji do uruchomienia detekcji [m]

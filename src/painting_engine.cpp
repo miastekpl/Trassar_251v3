@@ -11,6 +11,7 @@
 #include "storage.h"
 #include "report_logger.h"
 #include "gps_handler.h"
+#include "gps_track.h"
 #include "buzzer.h"
 #include "button_handler.h"
 #include <math.h>
@@ -203,6 +204,7 @@ void PaintingEngine::start() {
         g_state.forceFullRedraw = true;
         lastGunUpdateMs = millis();
         buzzer.play(BUZ_PAINT_START);
+        gpsTrack.startRecording();
 
         const char* modeStr = "AUTO";
         if (g_state.machineMode == MODE_SEMI_AUTO) modeStr = "SEMI";
@@ -265,6 +267,7 @@ void PaintingEngine::startFromGap() {
     g_state.forceFullRedraw = true;
     lastGunUpdateMs = millis();
     buzzer.play(BUZ_PAINT_START);
+    gpsTrack.startRecording();
     Serial.printf("[ENGINE] Start OD PRZERWY - wzorzec %s, offset %.1fm\n",
                   pat.code, lineLen);
 }
@@ -307,6 +310,9 @@ void PaintingEngine::stop() {
         stats.pauseSessionTimer();
         stats.saveLifetime();
         buzzer.play(BUZ_PAINT_STOP);
+
+        // Zapis trasy GPS jako plik .gpx na karte SD
+        gpsTrack.stopRecording();
 
         // Zapis raportu na karte SD (z koordynatami GPS jesli dostepne)
         reportLogger.logSession(

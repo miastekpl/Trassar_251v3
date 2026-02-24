@@ -17,6 +17,7 @@ public:
     double getLng()     { return gps.location.lng(); }
     int getSatellites() { return gps.satellites.isValid() ? (int)gps.satellites.value() : 0; }
     float getGpsSpeed() { return gps.speed.isValid() ? (float)gps.speed.kmph() : 0; }
+    double getAltitude() { return gps.altitude.isValid() ? gps.altitude.meters() : 0; }
     double getHdop()    { return gps.hdop.isValid() ? gps.hdop.hdop() : 99.9; }
     uint32_t getCharsProcessed() { return gps.charsProcessed(); }
 

@@ -1,6 +1,6 @@
 // ============================================================
 // TrassarV3 - Komputer pokładowy malowarki pasów drogowych
-// Firmware v2.16.0
+// Firmware v2.18.0
 //
 // Platforma:    ESP32-S3 N16R8 (dual-core)
 // Wyświetlacz:  ILI9341 2.8" 240x320 SPI
@@ -26,6 +26,7 @@
 #include "report_logger.h"
 #include "buzzer.h"
 #include "gps_handler.h"
+#include "gps_track.h"
 #include "joystick.h"
 #include <esp_task_wdt.h>
 #include <esp_heap_caps.h>
@@ -129,6 +130,10 @@ void setup() {
     Serial.println("[INIT] GPS modul...");
     gpsHandler.begin();
 
+    // 11b. GPS Track recorder (bufor PSRAM + zapis GPX)
+    Serial.println("[INIT] GPS Track (GPX)...");
+    gpsTrack.begin();
+
     // 12. System menu
     Serial.println("[INIT] System menu...");
     menu.begin();
@@ -201,6 +206,9 @@ void loop() {
 
     // 3b. Odczyt GPS (UART2)
     gpsHandler.update();
+
+    // 3c. Zapis trasy GPS (co 5s podczas malowania)
+    gpsTrack.update();
 
     // 4. Silnik malowania (sterowanie pistoletami)
     paintEngine.update();
