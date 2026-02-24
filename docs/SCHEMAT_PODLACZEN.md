@@ -1,4 +1,4 @@
-# TrassarV3 - Dokumentacja techniczna i schemat podłączeń v2.13.0
+# TrassarV3 - Dokumentacja techniczna i schemat podłączeń v2.14.0
 
 ## Spis treści
 
@@ -41,13 +41,14 @@
 | 6 | Moduł przekaźników | **SRD-05VDC-SL-C 6-kanałowy** (moduł z optoisolacją) | Digital (HIGH = ON) | 6× przekaźnik 5V/10A, opto-izolacja, diody flyback |
 | 7 | Buzzer | **Buzzer pasywny 5V** (np. TMB12A05 lub odpowiednik) | LEDC PWM (kanał 1) | Pasywny — wymaga sygnału PWM, zakres 100 Hz – 5 kHz |
 | 8 | GPS | **GY-NEO6MV2** (chip u-blox NEO-6M + antena ceramiczna) | UART2 (9600 baud) | Antena 25×25 mm, 50 kanałów, NMEA 0183, cold start <35 s |
-| 9 | Bateria RTC | **CR2032** 3V litowa | — | Podtrzymanie zegara DS1307 po odłączeniu zasilania |
+| 9 | Joystick | **KY-023** (moduł joysticka analogowego 2-osiowego) | ADC2 (GPIO 19/20) + Digital (GPIO 46) | 2 potencjometry 10kΩ + przycisk tact |
+| 10 | Bateria RTC | **CR2032** 3V litowa | — | Podtrzymanie zegara DS1307 po odłączeniu zasilania |
 
 ### 1.3 Firmware
 
 | Parametr | Wartość |
 |----------|---------|
-| Wersja | 2.13.0 |
+| Wersja | 2.14.0 |
 | Platforma | ESP32-S3 (PlatformIO) |
 | Biblioteki | TFT_eSPI v2.5.43, ArduinoJson v7.0.4, RTClib v2.1.4, TinyGPSPlus v1.0.3, SD, Wire, WiFi, esp_task_wdt |
 | Orientacja ekranu | Landscape (setRotation 1) |
@@ -65,12 +66,13 @@
 | 6 | Przycisk BS-33B (NO, monostabilny) | 3 | START, STOP, SELEKTOR |
 | 7 | Moduł przekaźników 6-kanałowy 5V | 1 | Z opto-izolacją, wejścia aktywne HIGH |
 | 8 | Moduł GPS GY-NEO6MV2 NEO-6M | 1 | Z anteną ceramiczną na kablu |
-| 9 | Buzzer pasywny 5V | 1 | 2-pin (+/−), montaż panelowy |
-| 10 | Karta MicroSD | 1 | FAT32, min. 1 GB, klasa 4+ |
-| 11 | Przewody połączeniowe Dupont | ~40 | Żeńsko-żeński i żeńsko-męski |
-| 12 | Zasilacz USB-C 5V/2A | 1 | Minimum 1.5A przy pełnym obciążeniu |
-| 13 | Koło pomiarowe + uchwyt enkodera | 1 | Obwód dopasowany do kalibracji |
-| 14 | Zawory elektromagnetyczne pistoletów | 6 | Podłączenie do wyjść NO przekaźników |
+| 9 | Joystick analogowy KY-023 | 1 | 5-pin: VRx, VRy, SW, +5V, GND |
+| 10 | Buzzer pasywny 5V | 1 | 2-pin (+/−), montaż panelowy |
+| 11 | Karta MicroSD | 1 | FAT32, min. 1 GB, klasa 4+ |
+| 12 | Przewody połączeniowe Dupont | ~45 | Żeńsko-żeński i żeńsko-męski |
+| 13 | Zasilacz USB-C 5V/2A | 1 | Minimum 1.5A przy pełnym obciążeniu |
+| 14 | Koło pomiarowe + uchwyt enkodera | 1 | Obwód dopasowany do kalibracji |
+| 15 | Zawory elektromagnetyczne pistoletów | 6 | Podłączenie do wyjść NO przekaźników |
 
 ---
 
@@ -131,7 +133,19 @@
 
 > **Uwaga:** Piny CLK i DT mają włączone wewnętrzne rezystory pull-up ESP32-S3. Enkoder służy wyłącznie do pomiaru dystansu i prędkości (ISR na CLK/CHANGE). Debouncing ISR: 200 μs (ENC_ISR_DEBOUNCE_US). Obliczanie prędkości: co 250 ms z filtrem wykładniczym (alpha = 0.3).
 
-### 2.5 Przyciski sterujące (BS-33B monostabilne)
+### 2.5 Joystick analogowy KY-023
+
+| Pin KY-023 | Pin ESP32-S3 | GPIO | Kierunek | Opis |
+|------------|-------------|------|----------|------|
+| GND | GND | — | — | Masa |
+| +5V | 3V3 | — | — | Zasilanie 3.3V |
+| VRx | GPIO 19 | 19 | ANALOG (ADC2) | Oś pozioma (lewo/prawo) |
+| VRy | GPIO 20 | 20 | ANALOG (ADC2) | Oś pionowa (góra/dół) |
+| SW | GPIO 46 | 46 | INPUT_PULLUP | Przycisk wciskany (aktywny LOW) |
+
+> **Uwaga:** GPIO 46 jest pinem strapping (ROM boot select). Z wewnętrznym pull-up jest HIGH podczas startu (normalny boot z Flash). **Nie wciskać joysticka podczas włączania urządzenia** — może spowodować wejście w tryb download.
+
+### 2.6 Przyciski sterujące (BS-33B monostabilne)
 
 | Przycisk | Pin ESP32-S3 | GPIO | Kierunek | Funkcja |
 |----------|-------------|------|----------|---------|
@@ -174,6 +188,8 @@
 | **9** | TFT DC | OUTPUT | Data/Command |
 | **10** | TFT CS | OUTPUT | Chip Select wyświetlacza |
 | **11** | SPI MOSI | OUTPUT | Wspólny TFT + SD |
+| **10** | TFT CS | OUTPUT | Chip Select wyświetlacza |
+| **11** | SPI MOSI | OUTPUT | Wspólny TFT + SD |
 | **12** | SPI SCK | OUTPUT | Wspólny TFT + SD + Touch |
 | **13** | SPI MISO | INPUT | Wspólny TFT + SD + Touch |
 | **14** | TFT RST | OUTPUT | Reset wyświetlacza |
@@ -181,6 +197,8 @@
 | **16** | SD Card CS | OUTPUT | Chip Select karty SD |
 | **17** | RTC SDA | I/O | I2C Data (DS1307) |
 | **18** | RTC SCL | OUTPUT | I2C Clock (DS1307) |
+| **19** | Joystick VRx | ADC2_CH8 | KY-023 oś pozioma (lewo/prawo) |
+| **20** | Joystick VRy | ADC2_CH9 | KY-023 oś pionowa (góra/dół) |
 | **21** | TFT LED | PWM | Podświetlenie LEDC kanał 0 |
 | **26–37** | **ZAJĘTE** | — | **Flash + Octal PSRAM — nie podłączać!** |
 | **38** | Przycisk START | INPUT_PULLUP | Start / Pauza / Wznów |
@@ -188,6 +206,7 @@
 | **40** | Przycisk SELECT | INPUT_PULLUP | Odwróć (P-3a/P-3b) / Menu nawigacja |
 | **41** | Przekaźnik P1 | OUTPUT | Pistolet oś L, 12 cm |
 | **42** | Przekaźnik P2 | OUTPUT | Pistolet oś C, 12 cm |
+| **46** | Joystick SW | INPUT_PULLUP | KY-023 przycisk (strap pin) |
 | **47** | GPS RX (UART2) | INPUT | ESP32 RX ← GPS TX |
 | **48** | GPS TX (UART2) | OUTPUT | ESP32 TX → GPS RX |
 
@@ -272,6 +291,15 @@ Na fizycznym panelu sterowania (ekran HOME i PAINTING) przycisk SELEKTOR **nie z
     │ [START]───│── GND ──│── GPIO 38                         │
     │ [STOP]────│── GND ──│── GPIO 39                         │
     │ [SELECT]──│── GND ──│── GPIO 40                         │
+    └───────────┘         │                                   │
+                          │  --- JOYSTICK ---                │
+    ┌───────────┐         │                                   │
+    │  KY-023   │         │                                   │
+    │ joystick  │         │                                   │
+    │           │         │                                   │
+    │  VRx ─────├─────────│── GPIO 19  (ADC2)                │
+    │  VRy ─────├─────────│── GPIO 20  (ADC2)                │
+    │  SW  ─────├─────────│── GPIO 46  (INPUT_PULLUP)        │
     └───────────┘         │                                   │
                           │  --- BUZZER ---                   │
     ┌───────────┐         │                                   │
@@ -382,7 +410,29 @@ Na fizycznym panelu sterowania (ekran HOME i PAINTING) przycisk SELEKTOR **nie z
     Logika: HIGH na GPIO = przekaźnik włączony = pistolet maluje
 ```
 
-### 6.5 Podłączenie modułu GPS GY-NEO6MV2
+### 6.5 Podłączenie joysticka KY-023
+
+```
+    ESP32-S3               Joystick KY-023
+    ┌──────────┐           ┌───────────────┐
+    │          │           │               │
+    │ GPIO 19  ├───────────┤ VRx (oś X)    │
+    │ (ADC2)   │           │               │
+    │          │           │               │
+    │ GPIO 20  ├───────────┤ VRy (oś Y)    │
+    │ (ADC2)   │           │               │
+    │          │           │               │
+    │ GPIO 46  ├───────────┤ SW (przycisk)  │
+    │ (pullup) │           │               │
+    │          │           │               │
+    │    3V3   ├───────────┤ +5V           │
+    │    GND   ├───────────┤ GND           │
+    └──────────┘           └───────────────┘
+```
+
+> **Uwaga:** KY-023 zasilany z 3.3V (zakres ADC 0–3.3V). Centrum joysticka = ~1.65V (ADC ~2048). GPIO 46 jest pinem strapping — z pullup HIGH podczas bootu (poprawne). **Nie wciskać SW podczas włączania ESP32!**
+
+### 6.6 Podłączenie modułu GPS GY-NEO6MV2
 
 ```
     ESP32-S3               Moduł GPS GY-NEO6MV2
@@ -402,7 +452,7 @@ Na fizycznym panelu sterowania (ekran HOME i PAINTING) przycisk SELEKTOR **nie z
 
 > **Uwaga:** Moduł NEO-6M komunikuje się na 9600 baud (domyślnie). Antena ceramiczna musi mieć widoczność nieba. Pin TX modułu GPS podłączamy do GPIO 47 (UART2 RX), pin RX do GPIO 48 (UART2 TX).
 
-### 6.6 Podłączenie wyświetlacza i karty SD (wspólna magistrala SPI)
+### 6.7 Podłączenie wyświetlacza i karty SD (wspólna magistrala SPI)
 
 
 ```
@@ -432,7 +482,7 @@ Na fizycznym panelu sterowania (ekran HOME i PAINTING) przycisk SELEKTOR **nie z
       GPIO 15 = LOW → komunikacja z Touch
 ```
 
-### 6.7 Podłączenie zegara RTC DS1307
+### 6.8 Podłączenie zegara RTC DS1307
 
 ```
     ESP32-S3               Moduł DS1307
@@ -508,6 +558,7 @@ Na fizycznym panelu sterowania (ekran HOME i PAINTING) przycisk SELEKTOR **nie z
 | **report_logger** | report_logger.cpp/h | Zapis raportów CSV na kartę SD |
 | **buzzer** | buzzer.cpp/h | Sygnalizacja dźwiękowa (LEDC PWM, non-blocking) |
 | **gps_handler** | gps_handler.cpp/h | Obsługa GPS NEO-6M (UART2, TinyGPS++) |
+| **joystick** | joystick.cpp/h | Joystick analogowy KY-023 (ADC + przycisk, nawigacja menu) |
 | **web_server** | web_server.cpp/h | WiFi AP + serwer HTTP + API REST |
 
 ### 8.2 Architektura dual-core (v2.6.0)
@@ -518,7 +569,8 @@ Na fizycznym panelu sterowania (ekran HOME i PAINTING) przycisk SELEKTOR **nie z
 ║                                  ║  ║                              ║
 ║  0. esp_task_wdt_reset()         ║  ║  webTaskFunc() {             ║
 ║  1. buttons.update()             ║  ║      for(;;) {               ║
-║  2. menu.handleEvent()           ║  ║          server.handleClient()║
+║  1b. joystick.update()           ║  ║          server.handleClient()║
+║  2. menu.handleEvent()           ║  ║
 ║  3. encoderDist.update()         ║  ║          vTaskDelay(2ms)     ║
 ║  4. rtcModule.update()           ║  ║      }                       ║
 ║  5. paintEngine.update()         ║  ║  }                           ║
@@ -643,7 +695,7 @@ Szczegółowa dokumentacja API → [API_WWW.md](API_WWW.md)
 
 | Parametr | Wartość | Opis |
 |----------|---------|------|
-| FW_VERSION | "2.13.0" | Wersja firmware |
+| FW_VERSION | "2.14.0" | Wersja firmware |
 | FW_NAME | "TrassarV3" | Nazwa systemu |
 | WIFI_AP_SSID | "TrassarV3" | Nazwa sieci WiFi |
 | WIFI_AP_PASS | "12345678" | Hasło WiFi |
@@ -672,6 +724,12 @@ Szczegółowa dokumentacja API → [API_WWW.md](API_WWW.md)
 | PIN_GPS_RX | 47 | ESP32 RX ← GPS TX (UART2) |
 | PIN_GPS_TX | 48 | ESP32 TX → GPS RX (UART2) |
 | GPS_BAUD | 9600 | Domyślny baudrate NEO-6M |
+| PIN_JOY_VRX | 19 | Joystick oś X (ADC2_CH8) |
+| PIN_JOY_VRY | 20 | Joystick oś Y (ADC2_CH9) |
+| PIN_JOY_SW | 46 | Joystick przycisk (strap pin) |
+| JOY_DEAD_ZONE | 500 | Strefa martwa ±500 z centrum 2048 |
+| JOY_INITIAL_DELAY_MS | 400 | Opóźnienie przed auto-repeat [ms] |
+| JOY_REPEAT_MS | 200 | Interwał auto-repeat [ms] |
 
 ### 9.2 Kolory UI (format RGB565)
 
@@ -742,5 +800,5 @@ Szczegółowa dokumentacja API → [API_WWW.md](API_WWW.md)
 
 ---
 
-*TrassarV3 — Dokumentacja techniczna v2.13.0*
+*TrassarV3 — Dokumentacja techniczna v2.14.0*
 *ESP32-S3 N16R8 | ILI9341 320×240 | GPS NEO-6M | 6 pistoletów | 16 wzorców | 3 tryby pracy | WiFi AP*

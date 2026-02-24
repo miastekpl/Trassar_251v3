@@ -1,11 +1,11 @@
 // ============================================================
 // TrassarV3 - Komputer pokładowy malowarki pasów drogowych
-// Firmware v2.12.0
+// Firmware v2.14.0
 //
 // Platforma:    ESP32-S3 N16R8 (dual-core)
 // Wyświetlacz:  ILI9341 2.8" 240x320 SPI
 // RTC:          DS1307
-// Wejścia:      3x BS-33B + enkoder obrotowy
+// Wejścia:      3x BS-33B + enkoder + joystick KY-023
 // Wyjścia:      6x przekaźnik (pistolety P1-P6)
 // Sieć:         WiFi AP + serwer HTTP (Core 0)
 // Krytyczna pętla:  Core 1 (enkoder, pistolety, buzzer)
@@ -26,6 +26,7 @@
 #include "report_logger.h"
 #include "buzzer.h"
 #include "gps_handler.h"
+#include "joystick.h"
 #include <esp_task_wdt.h>
 #include <esp_heap_caps.h>
 
@@ -94,6 +95,10 @@ void setup() {
     // 5. Przyciski
     Serial.println("[INIT] Przyciski...");
     buttons.begin();
+
+    // 5b. Joystick KY-023
+    Serial.println("[INIT] Joystick KY-023...");
+    joystick.begin();
 
     // 6. Pistolety (przekaźniki)
     Serial.println("[INIT] Pistolety P1-P6...");
@@ -179,6 +184,13 @@ void loop() {
     ButtonEvent event = buttons.getEvent();
     if (event != EVT_NONE) {
         menu.handleEvent(event);
+    }
+
+    // 1b. Odczyt joysticka KY-023
+    joystick.update();
+    ButtonEvent joyEvent = joystick.getEvent();
+    if (joyEvent != EVT_NONE) {
+        menu.handleEvent(joyEvent);
     }
 
     // 2. Aktualizacja enkodera (prędkość)

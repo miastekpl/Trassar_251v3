@@ -43,6 +43,7 @@ Obsługuje **6 pistoletów natryskowych**, **16 wzorców malowania** (15 normowy
 - **Ekran przygotowania (SETUP)** - tryb pracy + Smart/Instant + start normalny/od przerwy — jeden ekran, bez telefonu
 - **Reset etapu (sesji)** - zerowanie liczników sesji z menu serwisowego po zakończeniu etapu pracy
 - **Stałe layoutu wyświetlacza** - ~40 nazwanych `#define` zamiast magic numbers, łatwiejsza konserwacja UI
+- **Joystick analogowy KY-023** - nawigacja menu góra/dół/lewo/prawo + przycisk, auto-repeat, uzupełnia fizyczne przyciski
 
 ## Pistolety i ich zastosowanie
 
@@ -96,6 +97,7 @@ Obsługuje **6 pistoletów natryskowych**, **16 wzorców malowania** (15 normowy
 | Moduły przekaźnikowe x6 | Sterowanie pistoletami P1-P6 |
 | Buzzer pasywny | Sygnalizacja dźwiękowa (GPIO 8) |
 | GPS GY-NEO6MV2 | Moduł GPS NEO-6M z anteną (UART2) |
+| Joystick KY-023 | Joystick analogowy 2-osiowy + przycisk (ADC1) |
 
 ## Podłączenie WiFi
 
@@ -142,7 +144,8 @@ TrassarV3/
 │   ├── web_server.h/cpp        # Serwer WWW (WiFi AP + REST API)
 │   ├── menu.h/cpp              # System menu (nawigacja 10 ekranów)
 │   ├── buzzer.h/cpp            # Sygnalizacja dźwiękowa (LEDC PWM)
-│   └── gps_handler.h/cpp      # Obsługa GPS NEO-6M (UART2, TinyGPS++)
+│   ├── gps_handler.h/cpp      # Obsługa GPS NEO-6M (UART2, TinyGPS++)
+│   └── joystick.h/cpp         # Joystick analogowy KY-023 (ADC + przycisk)
 ├── docs/
 │   ├── INSTRUKCJA_OBSLUGI.md   # Instrukcja obsługi
 │   ├── SCHEMAT_PODLACZEN.md    # Schemat podłączeń
@@ -160,7 +163,7 @@ TrassarV3/
 
 ## Wersja
 
-Aktualna wersja firmware: **v2.13.0**
+Aktualna wersja firmware: **v2.14.0**
 
 ## Rekomendacje rozwoju
 

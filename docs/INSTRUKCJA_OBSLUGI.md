@@ -1,4 +1,4 @@
-# TrassarV3 - Instrukcja obsługi v2.13.0
+# TrassarV3 - Instrukcja obsługi v2.14.0
 
 ## Spis treści
 
@@ -47,12 +47,13 @@ System zapewnia:
 | Parametr | Wartość |
 |----------|---------|
 | Mikrokontroler | ESP32-S3 N16R8 (16 MB Flash, 8 MB PSRAM) |
-| Firmware | v2.13.0 |
+| Firmware | v2.14.0 |
 | Wyświetlacz | ILI9341 2.8" TFT, 320×240 px, tryb landscape |
 | Interfejs SPI | HSPI (SPI3), 27 MHz |
 | Zegar RTC | DS1307 z baterią CR2032 |
 | Enkoder | Obrotowy, ISR na pinie CLK (CHANGE) |
 | Przyciski | 4 szt. monostabilne (START, STOP, SELEKTOR, GAP) |
+| Joystick | KY-023 analogowy 2-osiowy + przycisk (ADC1, GPIO 9/10/11) |
 | Przekaźniki | 6 szt. (pistolety P1–P6), logika HIGH = ON |
 | Buzzer | Pasywny, GPIO 8, LEDC PWM kanał 1 |
 | Karta SD | Slot zintegrowany w module wyświetlacza, FAT32 |
@@ -99,6 +100,29 @@ Przycisk **SELEKTOR** pełni różne funkcje w zależności od aktualnie wyświe
 Enkoder obrotowy (piny CLK = GPIO 5, DT = GPIO 6) służy **wyłącznie** do pomiaru dystansu i prędkości. **Nie jest używany do nawigacji ani sterowania interfejsem.** Obrót enkodera jest rejestrowany przez przerwanie sprzętowe (ISR) na pinie CLK.
 
 Wbudowany przycisk enkodera (pin SW = GPIO 7) pełni funkcję dedykowanego przycisku **"Start od przerwy"**.
+
+### 3.4 Joystick analogowy KY-023
+
+System posiada joystick analogowy **KY-023** (piny VRx = GPIO 19, VRy = GPIO 20, SW = GPIO 46) umożliwiający intuicyjną nawigację po menu i ekranach bez użycia przycisków.
+
+**Mapowanie joysticka na zdarzenia przycisków:**
+
+| Ruch joysticka | Odpowiednik przycisku | Funkcja |
+|----------------|----------------------|---------|
+| **Góra** | STOP (krótko) | Poprzednia pozycja w menu |
+| **Dół** | SELEKTOR (krótko) | Następna pozycja w menu |
+| **Prawo** | SELEKTOR (1 s) | Wejdź / zmień wartość |
+| **Lewo** | STOP (1 s) | Cofnij / powrót |
+| **Przycisk SW (krótko)** | SELEKTOR (1 s) | Wejdź / potwierdź |
+| **Przycisk SW (1 s)** | START (1 s) | Np. otwórz ekran SETUP z HOME |
+
+**Cechy:**
+- **Auto-repeat** — przytrzymanie góra/dół automatycznie powtarza zdarzenie (opóźnienie 400 ms, powtarzanie co 200 ms)
+- **Bez auto-repeat** — ruch lewo/prawo generuje zdarzenie jednorazowo (zapobieganie przypadkowemu wielokrotnemu cofaniu/wchodzeniu)
+- **Strefa martwa** — ±500 z centrum ADC (2048) eliminuje przypadkowe ruchy
+- **Współpraca z przyciskami** — joystick uzupełnia fizyczne przyciski, nie zastępuje ich
+
+> **Wskazówka:** Joystick jest szczególnie wygodny do szybkiej nawigacji po menu serwisowym i ekranie SETUP. Przyciski fizyczne nadal działają normalnie.
 
 ---
 
@@ -769,7 +793,7 @@ System wyposażony jest w pasywny buzzer (GPIO 8) generujący sygnały dźwięko
 
 ## 14. Architektura wielordzeniowa
 
-TrassarV3 v2.13.0 wykorzystuje oba rdzenie procesora ESP32-S3 i obsługuje 10 ekranów interfejsu:
+TrassarV3 v2.14.0 wykorzystuje oba rdzenie procesora ESP32-S3 i obsługuje 10 ekranów interfejsu:
 
 | Rdzeń | Zadania |
 |-------|---------|
@@ -1293,4 +1317,4 @@ data,godzina,wzorzec,dystans_m,powierzchnia_m2,lat,lon
 ---
 
 *TrassarV3 — Komputer pokładowy malowarki pasów drogowych*
-*Firmware v2.13.0 | ESP32-S3 N16R8 | GPS NEO-6M | 6 pistoletów, 16 wzorców, 3 tryby pracy, Smart/Instant, reset etapu, buzzer, watchdog, anomaly detect*
+*Firmware v2.14.0 | ESP32-S3 N16R8 | GPS NEO-6M | 6 pistoletów, 16 wzorców, 3 tryby pracy, Smart/Instant, reset etapu, buzzer, watchdog, anomaly detect*

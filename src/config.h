@@ -7,7 +7,7 @@
 #include <Arduino.h>
 
 // ============ WERSJA FIRMWARE ============
-#define FW_VERSION      "2.13.0"
+#define FW_VERSION      "2.14.0"
 #define FW_NAME         "TrassarV3"
 #define FW_DATE         __DATE__
 
@@ -80,6 +80,15 @@
 // ============ Kalibracja ============
 #define DEFAULT_PULSES_PER_METER  100.0f
 #define CALIBRATION_DISTANCE_M     10.0f
+
+// ============ Joystick analogowy KY-023 ============
+#define PIN_JOY_VRX      19   // Os pozioma (lewo/prawo) — ADC2_CH8
+#define PIN_JOY_VRY      20   // Os pionowa (gora/dol)   — ADC2_CH9
+#define PIN_JOY_SW       46   // Przycisk wciskany — INPUT_PULLUP (strap pin: nie wciskac przy wlaczaniu!)
+
+#define JOY_DEAD_ZONE        500   // Strefa martwa ±500 z centrum (12-bit ADC, centrum=2048)
+#define JOY_INITIAL_DELAY_MS 400   // Opoznienie przed auto-repeat [ms]
+#define JOY_REPEAT_MS        200   // Interwał auto-repeat [ms]
 
 // ============ GPS NEO-6M (UART2) ============
 #define PIN_GPS_RX       47   // ESP32 RX <- GPS TX

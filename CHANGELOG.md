@@ -7,6 +7,29 @@ Wersjonowanie zgodne z [Semantic Versioning](https://semver.org/lang/pl/).
 
 ---
 
+## [2.14.0] - 2026-02-24
+
+### Dodano - Joystick analogowy KY-023
+
+- Nowy moduł `joystick.h/cpp` — driver joysticka analogowego KY-023
+- **Piny:** VRx = GPIO 19 (ADC2_CH8), VRy = GPIO 20 (ADC2_CH9), SW = GPIO 46 (strap pin)
+- **Mapowanie osi na zdarzenia menu:**
+  - Góra → `EVT_STOP_SHORT` (poprzednia pozycja)
+  - Dół → `EVT_SELECT_SHORT` (następna pozycja)
+  - Prawo → `EVT_SELECT_LONG` (wejdź / zmień wartość)
+  - Lewo → `EVT_STOP_LONG` (cofnij / powrót)
+- **Mapowanie przycisku SW:**
+  - Krótkie naciśnięcie → `EVT_SELECT_LONG` (potwierdź)
+  - Długie naciśnięcie (1 s) → `EVT_START_LONG` (np. SETUP z HOME)
+- **Auto-repeat:** góra/dół z opóźnieniem 400 ms i powtarzaniem co 200 ms
+- **Bez auto-repeat:** lewo/prawo — jednorazowe zdarzenie na wychylenie (zapobieganie przypadkowemu wielokrotnemu wchodzeniu/cofaniu)
+- **Strefa martwa:** ±500 z centrum ADC (2048), eliminuje szum i mikro-ruchy
+- Joystick uzupełnia fizyczne przyciski — nie zastępuje ich
+- Integracja w `main.cpp`: `joystick.begin()` w setup, `joystick.update()` + `getEvent()` w loop
+- Dodano joystick do BOM, schematu podłączeń, mapy GPIO, instrukcji obsługi
+
+---
+
 ## [2.13.0] - 2026-02-23
 
 ### Dodano - Ekran przygotowania (SETUP), stałe layoutu, reset etapu
