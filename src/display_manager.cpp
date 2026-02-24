@@ -987,6 +987,105 @@ void DisplayManager::drawSessionResetScreen(float distM, float areaM2, unsigned 
 }
 
 // ============================================================
+//  Ekran podsumowania etapu (SCREEN_SUMMARY)
+// ============================================================
+
+void DisplayManager::drawSummaryScreen(const char* patCode, float distM, float areaM2,
+                                        unsigned long timeSec, float speedAvg,
+                                        bool hasGps, float lat, float lon) {
+    drawHeader("PODSUMOWANIE ETAPU");
+
+    char buf[64];
+    int y = SMENU_START_Y + 2;
+
+    // Wzorzec
+    tft.setFreeFont(FSB12);
+    tft.setTextColor(COLOR_ACCENT, COLOR_BG);
+    tft.setTextDatum(MC_DATUM);
+    tft.drawString(patCode, TFT_SCREEN_W / 2, y + 10);
+    tft.setTextDatum(TL_DATUM);
+    y += 28;
+
+    tft.drawFastHLine(12, y, TFT_SCREEN_W - 24, COLOR_DIVIDER);
+    y += 6;
+
+    // Tabela statystyk
+    tft.setFreeFont(FS9);
+
+    // Dystans
+    tft.setTextColor(COLOR_MENU_TXT, COLOR_BG);
+    tft.drawString("Dystans:", MARGIN_X + 4, y);
+    if (distM >= 1000.0f) {
+        snprintf(buf, sizeof(buf), "%.2f km", distM / 1000.0f);
+    } else {
+        snprintf(buf, sizeof(buf), "%.1f m", distM);
+    }
+    tft.setTextColor(COLOR_TEXT, COLOR_BG);
+    tft.setTextPadding(140);
+    tft.setTextDatum(TR_DATUM);
+    tft.drawString(buf, TFT_SCREEN_W - MARGIN_X, y);
+    tft.setTextPadding(0);
+    tft.setTextDatum(TL_DATUM);
+    y += 18;
+
+    // Powierzchnia
+    tft.setTextColor(COLOR_MENU_TXT, COLOR_BG);
+    tft.drawString("Powierzchnia:", MARGIN_X + 4, y);
+    snprintf(buf, sizeof(buf), "%.2f m2", areaM2);
+    tft.setTextColor(COLOR_TEXT, COLOR_BG);
+    tft.setTextPadding(140);
+    tft.setTextDatum(TR_DATUM);
+    tft.drawString(buf, TFT_SCREEN_W - MARGIN_X, y);
+    tft.setTextPadding(0);
+    tft.setTextDatum(TL_DATUM);
+    y += 18;
+
+    // Czas
+    tft.setTextColor(COLOR_MENU_TXT, COLOR_BG);
+    tft.drawString("Czas:", MARGIN_X + 4, y);
+    fmtTime(timeSec, buf, sizeof(buf));
+    tft.setTextColor(COLOR_TEXT, COLOR_BG);
+    tft.setTextPadding(140);
+    tft.setTextDatum(TR_DATUM);
+    tft.drawString(buf, TFT_SCREEN_W - MARGIN_X, y);
+    tft.setTextPadding(0);
+    tft.setTextDatum(TL_DATUM);
+    y += 18;
+
+    // Srednia predkosc
+    tft.setTextColor(COLOR_MENU_TXT, COLOR_BG);
+    tft.drawString("Sred. predkosc:", MARGIN_X + 4, y);
+    snprintf(buf, sizeof(buf), "%.1f km/h", speedAvg);
+    tft.setTextColor(COLOR_TEXT, COLOR_BG);
+    tft.setTextPadding(140);
+    tft.setTextDatum(TR_DATUM);
+    tft.drawString(buf, TFT_SCREEN_W - MARGIN_X, y);
+    tft.setTextPadding(0);
+    tft.setTextDatum(TL_DATUM);
+    y += 18;
+
+    // GPS (jesli dostepny)
+    if (hasGps) {
+        tft.setTextColor(COLOR_MENU_TXT, COLOR_BG);
+        tft.drawString("GPS:", MARGIN_X + 4, y);
+        snprintf(buf, sizeof(buf), "%.6f, %.6f", lat, lon);
+        tft.setTextColor(COLOR_ACCENT, COLOR_BG);
+        tft.setTextPadding(200);
+        tft.setTextDatum(TR_DATUM);
+        tft.drawString(buf, TFT_SCREEN_W - MARGIN_X, y);
+        tft.setTextPadding(0);
+        tft.setTextDatum(TL_DATUM);
+    }
+
+    // --- Podpowiedzi ---
+    tft.setFreeFont(FM9);
+    tft.setTextColor(COLOR_MENU_TXT, COLOR_BG);
+    tft.setTextPadding(TFT_SCREEN_W - 12);
+    tft.drawString("START=kontynuuj  STOP=nowy etap  STOP(1s)=HOME", HINT_X, HINT_Y);
+    tft.setTextPadding(0);
+}
+
+// ============================================================
 //  Funkcje pomocnicze prywatne
 // ============================================================
 

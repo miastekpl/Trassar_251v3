@@ -14,6 +14,7 @@
 #include "report_logger.h"
 #include "storage.h"
 #include "buzzer.h"
+#include "gps_handler.h"
 
 MenuSystem menu;
 
@@ -54,6 +55,7 @@ void MenuSystem::handleEvent(ButtonEvent event) {
         case SCREEN_NOZZLE_CLEAN:   handleNozzleClean(event);     break;
         case SCREEN_SETUP:          handleSetup(event);           break;
         case SCREEN_SESSION_RESET:  handleSessionReset(event);    break;
+        case SCREEN_SUMMARY:        handleSummary(event);         break;
     }
 }
 
@@ -128,10 +130,27 @@ void MenuSystem::handlePaintingScreen(ButtonEvent e) {
             g_state.displayNeedsUpdate = true;
             break;
 
-        case EVT_STOP_SHORT:
+        case EVT_STOP_SHORT: {
+            // Zachowaj dane podsumowania PRZED zatrzymaniem
+            summaryDist = stats.getSessionDistance();
+            summaryArea = stats.getSessionArea();
+            summaryTime = stats.getSessionTimeSec();
+            if (summaryTime > 0) {
+                float distKm = summaryDist / 1000.0f;
+                float timeH = (float)summaryTime / 3600.0f;
+                summaryAvgSpeed = (timeH > 0) ? (distKm / timeH) : 0;
+            } else {
+                summaryAvgSpeed = 0;
+            }
+            strncpy(summaryPatCode, patternMgr.getCurrent().code, sizeof(summaryPatCode) - 1);
+            summaryHasGps = gpsHandler.hasFix();
+            summaryLat = summaryHasGps ? gpsHandler.getLatitude() : 0;
+            summaryLon = summaryHasGps ? gpsHandler.getLongitude() : 0;
+
             paintEngine.stop();
-            goToScreen(SCREEN_HOME);
+            goToScreen(SCREEN_SUMMARY);
             break;
+        }
 
         case EVT_SELECT_SHORT:
             // Odwracanie wzorca (tylko P-3a, P-3b)
@@ -402,6 +421,41 @@ void MenuSystem::handleSessionReset(ButtonEvent e) {
     }
 }
 
+// ============ SCREEN_SUMMARY ============
+// START         = kontynuuj malowanie (wznow z biezacymi licznikami)
+// STOP (krotki) = nowy etap (reset licznikow, powrot do HOME)
+// STOP (dlugi)  = powrot do HOME bez resetu
+
+void MenuSystem::handleSummary(ButtonEvent e) {
+    switch (e) {
+        case EVT_START_SHORT:
+        case EVT_START_LONG:
+            // Kontynuuj malowanie — zachowaj liczniki sesji
+            paintEngine.start();
+            goToScreen(SCREEN_PAINTING);
+            break;
+
+        case EVT_STOP_SHORT: {
+            // Nowy etap — zeruj liczniki sesji
+            stats.resetSession();
+            encoderDist.resetDistance();
+            g_state.machineState = STATE_IDLE;
+            buzzer.beep(2000, 100);
+            Serial.println("[MENU] Podsumowanie -> Nowy etap (reset sesji)");
+            goToScreen(SCREEN_HOME);
+            break;
+        }
+
+        case EVT_STOP_LONG:
+            // Powrot do HOME bez resetu (zachowaj liczniki)
+            goToScreen(SCREEN_HOME);
+            break;
+
+        default:
+            break;
+    }
+}
+
 // ============ Renderowanie + logika ciagla ============
 
 void MenuSystem::update() {
@@ -533,6 +587,15 @@ void MenuSystem::update() {
                 stats.getSessionDistance(),
                 stats.getSessionArea(),
                 stats.getSessionTimeSec()
+            );
+            break;
+
+        // ---- Podsumowanie etapu ----
+        case SCREEN_SUMMARY:
+            display.drawSummaryScreen(
+                summaryPatCode, summaryDist, summaryArea,
+                summaryTime, summaryAvgSpeed,
+                summaryHasGps, summaryLat, summaryLon
             );
             break;
     }

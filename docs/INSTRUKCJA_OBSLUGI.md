@@ -1,4 +1,4 @@
-# TrassarV3 - Instrukcja obsługi v2.14.0
+# TrassarV3 - Instrukcja obsługi v2.15.0
 
 ## Spis treści
 
@@ -47,7 +47,7 @@ System zapewnia:
 | Parametr | Wartość |
 |----------|---------|
 | Mikrokontroler | ESP32-S3 N16R8 (16 MB Flash, 8 MB PSRAM) |
-| Firmware | v2.14.0 |
+| Firmware | v2.15.0 |
 | Wyświetlacz | ILI9341 2.8" TFT, 320×240 px, tryb landscape |
 | Interfejs SPI | HSPI (SPI3), 27 MHz |
 | Zegar RTC | DS1307 z baterią CR2032 |
@@ -474,7 +474,47 @@ Na ekranie: Nagłówek "CZYSZCZENIE DYSZ", kod i nazwa wzorca, legenda kolorów,
 
 Powrót: **STOP (1 s)**
 
-### 7.9 Reset etapu (sesji)
+### 7.9 Podsumowanie etapu (SUMMARY)
+
+Po naciśnięciu **STOP** podczas malowania, zamiast bezpośredniego powrotu do ekranu HOME, wyświetlany jest ekran podsumowania z wynikami bieżącego etapu.
+
+```
+┌──────────────────────────────────────────┐
+│       PODSUMOWANIE ETAPU                 │
+│                                          │
+│              P-1a                        │
+│  ─────────────────────────────────       │
+│  Dystans:             1250.5 m           │
+│  Powierzchnia:        150.06 m2          │
+│  Czas:                0:30:45            │
+│  Sred. predkosc:      2.5 km/h          │
+│  GPS:  52.229676, 21.012229             │
+│                                          │
+│  START=kontynuuj STOP=nowy STOP(1s)=HOME│
+└──────────────────────────────────────────┘
+```
+
+**Sterowanie:**
+
+| Przycisk | Akcja |
+|----------|-------|
+| **START** | Kontynuuj malowanie — wznów z zachowaniem liczników sesji |
+| **STOP** (krótki) | Nowy etap — zeruje liczniki sesji (dystans, powierzchnia, czas), powrót do HOME |
+| **STOP** (1 s) | Powrót do HOME bez zerowania liczników |
+
+**Wyświetlane dane:**
+- Kod wzorca użytego podczas etapu
+- Dystans sesji w metrach (lub km gdy > 1000 m)
+- Powierzchnia sesji w m²
+- Czas malowania w formacie HH:MM:SS
+- Średnia prędkość w km/h
+- Pozycja GPS (jeśli fix dostępny)
+
+> **Wskazówka:** Ekran podsumowania pozwala szybko zdecydować, czy kontynuować bieżący etap (START), czy rozpocząć nowy z wyzerowanymi licznikami (STOP). Długie STOP wraca do HOME zachowując statystyki do dalszej analizy.
+
+---
+
+### 7.10 Reset etapu (sesji)
 
 Ekran dostępny z menu serwisowego → pozycja 5 "Reset etapu". Służy do zerowania liczników sesji między etapami pracy bez wyłączania urządzenia.
 
@@ -793,7 +833,7 @@ System wyposażony jest w pasywny buzzer (GPIO 8) generujący sygnały dźwięko
 
 ## 14. Architektura wielordzeniowa
 
-TrassarV3 v2.14.0 wykorzystuje oba rdzenie procesora ESP32-S3 i obsługuje 10 ekranów interfejsu:
+TrassarV3 v2.15.0 wykorzystuje oba rdzenie procesora ESP32-S3 i obsługuje 10 ekranów interfejsu:
 
 | Rdzeń | Zadania |
 |-------|---------|
@@ -1317,4 +1357,4 @@ data,godzina,wzorzec,dystans_m,powierzchnia_m2,lat,lon
 ---
 
 *TrassarV3 — Komputer pokładowy malowarki pasów drogowych*
-*Firmware v2.14.0 | ESP32-S3 N16R8 | GPS NEO-6M | 6 pistoletów, 16 wzorców, 3 tryby pracy, Smart/Instant, reset etapu, buzzer, watchdog, anomaly detect*
+*Firmware v2.15.0 | ESP32-S3 N16R8 | GPS NEO-6M | 6 pistoletów, 16 wzorców, 3 tryby pracy, Smart/Instant, reset etapu, buzzer, watchdog, anomaly detect*

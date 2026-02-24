@@ -13,7 +13,7 @@ Obsługuje **6 pistoletów natryskowych**, **16 wzorców malowania** (15 normowy
 - **Obliczanie powierzchni** - na podstawie dystansu i szerokości pistoletów
 - **Przełączanie wzorców Smart/Instant** - wybór: dokończ cykl (Smart) lub zmień natychmiast (Instant)
 - **Odwracanie wzorców P-3a/P-3b** (zamiana ciągła ↔ przerywana)
-- **Wyświetlacz TFT 2.8" ILI9341** (240x320, SPI) - 10 ekranów interfejsu
+- **Wyświetlacz TFT 2.8" ILI9341** (240x320, SPI) - 11 ekranów interfejsu
 - **Serwer WWW na Core 0** - panel sterowania przez WiFi AP (nie blokuje krytycznej pętli)
 - **Menu serwisowe WWW** - statystyki lifetime, lista raportów SD, wskaźniki anomalii pistoletów
 - **Wybór trybu pracy z WWW i z urządzenia** - selektor trybu AUTO/SEMI/RĘCZNY
@@ -44,6 +44,7 @@ Obsługuje **6 pistoletów natryskowych**, **16 wzorców malowania** (15 normowy
 - **Reset etapu (sesji)** - zerowanie liczników sesji z menu serwisowego po zakończeniu etapu pracy
 - **Stałe layoutu wyświetlacza** - ~40 nazwanych `#define` zamiast magic numbers, łatwiejsza konserwacja UI
 - **Joystick analogowy KY-023** - nawigacja menu góra/dół/lewo/prawo + przycisk, auto-repeat, uzupełnia fizyczne przyciski
+- **Ekran podsumowania etapu** - po zatrzymaniu malowania wyświetla statystyki (dystans, powierzchnia, czas, śr. prędkość, GPS) z opcjami: kontynuuj / nowy etap / HOME
 
 ## Pistolety i ich zastosowanie
 
@@ -138,11 +139,11 @@ TrassarV3/
 │   ├── painting_engine.h/cpp   # Silnik malowania (maszyna stanów)
 │   ├── statistics.h/cpp        # Statystyki (sesja + lifetime)
 │   ├── storage.h/cpp           # Pamięć trwała NVS (Preferences)
-│   ├── display_manager.h/cpp   # Obsługa wyświetlacza (10 ekranów, stałe layoutu)
+│   ├── display_manager.h/cpp   # Obsługa wyświetlacza (11 ekranów, stałe layoutu)
 │   ├── button_handler.h/cpp    # Obsługa przycisków BS-33B
 │   ├── rtc_handler.h/cpp       # Obsługa zegara RTC DS1307
 │   ├── web_server.h/cpp        # Serwer WWW (WiFi AP + REST API)
-│   ├── menu.h/cpp              # System menu (nawigacja 10 ekranów)
+│   ├── menu.h/cpp              # System menu (nawigacja 11 ekranów)
 │   ├── buzzer.h/cpp            # Sygnalizacja dźwiękowa (LEDC PWM)
 │   ├── gps_handler.h/cpp      # Obsługa GPS NEO-6M (UART2, TinyGPS++)
 │   └── joystick.h/cpp         # Joystick analogowy KY-023 (ADC + przycisk)
@@ -163,7 +164,7 @@ TrassarV3/
 
 ## Wersja
 
-Aktualna wersja firmware: **v2.14.0**
+Aktualna wersja firmware: **v2.15.0**
 
 ## Rekomendacje rozwoju
 

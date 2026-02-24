@@ -7,7 +7,7 @@
 #include <Arduino.h>
 
 // ============ WERSJA FIRMWARE ============
-#define FW_VERSION      "2.14.0"
+#define FW_VERSION      "2.15.0"
 #define FW_NAME         "TrassarV3"
 #define FW_DATE         __DATE__
 
@@ -142,7 +142,8 @@ enum ScreenID : uint8_t {
     SCREEN_REPORTS,
     SCREEN_NOZZLE_CLEAN,
     SCREEN_SETUP,
-    SCREEN_SESSION_RESET
+    SCREEN_SESSION_RESET,
+    SCREEN_SUMMARY          // Podsumowanie etapu po STOP
 };
 
 // ============ Identyfikatory wzorców ============

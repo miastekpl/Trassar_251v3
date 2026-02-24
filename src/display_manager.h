@@ -41,6 +41,11 @@ public:
     // Reset etapu (potwierdzenie)
     void drawSessionResetScreen(float distM, float areaM2, unsigned long timeSec);
 
+    // Podsumowanie etapu (po STOP)
+    void drawSummaryScreen(const char* patCode, float distM, float areaM2,
+                           unsigned long timeSec, float speedAvg,
+                           bool hasGps, float lat, float lon);
+
     // ---- Elementy pomocnicze ----
     void drawHeader(const char* title);
     void drawGunRects(int y, const GunPatternCfg gunsCfg[6],

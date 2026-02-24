@@ -7,6 +7,27 @@ Wersjonowanie zgodne z [Semantic Versioning](https://semver.org/lang/pl/).
 
 ---
 
+## [2.15.0] - 2026-02-24
+
+### Dodano - Ekran podsumowania etapu (SCREEN_SUMMARY)
+
+- Nowy ekran `SCREEN_SUMMARY` wyświetlany po naciśnięciu STOP podczas malowania
+- Zamiast bezpośredniego powrotu do HOME, operator widzi podsumowanie:
+  - Kod wzorca użytego podczas etapu
+  - Dystans sesji (m / km)
+  - Powierzchnia sesji (m²)
+  - Czas malowania (HH:MM:SS)
+  - Średnia prędkość (km/h)
+  - Pozycja GPS (jeśli fix dostępny)
+- **Opcje na ekranie podsumowania:**
+  - `START` = kontynuuj malowanie (wznów z zachowaniem liczników sesji)
+  - `STOP` (krótki) = nowy etap (reset liczników, powrót do HOME)
+  - `STOP` (1 s) = powrót do HOME bez resetu liczników
+- Nowa metoda `drawSummaryScreen()` w display_manager
+- Nowa metoda `handleSummary()` w menu z zachowaniem danych sesji
+
+---
+
 ## [2.14.0] - 2026-02-24
 
 ### Dodano - Joystick analogowy KY-023

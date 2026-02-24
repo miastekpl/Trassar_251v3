@@ -18,6 +18,7 @@ private:
     void handleNozzleClean(ButtonEvent e);
     void handleSetup(ButtonEvent e);
     void handleSessionReset(ButtonEvent e);
+    void handleSummary(ButtonEvent e);
     void goToScreen(ScreenID screen);
 
     static const int SERVICE_MENU_ITEMS = 5;
@@ -35,5 +36,15 @@ private:
     int setupMode = 0;         // 0=AUTO, 1=SEMI, 2=MANUAL
     bool setupSmart = true;    // true=Smart, false=Instant
     bool setupGapStart = false;// true=Od przerwy, false=Normalny
+
+    // Podsumowanie etapu (SUMMARY)
+    float summaryDist = 0;
+    float summaryArea = 0;
+    unsigned long summaryTime = 0;
+    float summaryAvgSpeed = 0;
+    bool summaryHasGps = false;
+    float summaryLat = 0;
+    float summaryLon = 0;
+    char summaryPatCode[16] = {};
 };
 extern MenuSystem menu;
