@@ -1,13 +1,13 @@
 #pragma once
 // ============================================================
-// TrassarV3 - Konfiguracja sprzętowa v2.12.0
+// TrassarV3 - Konfiguracja sprzętowa v2.21.0
 // Komputer pokładowy malowarki pasów drogowych
 // ============================================================
 
 #include <Arduino.h>
 
 // ============ WERSJA FIRMWARE ============
-#define FW_VERSION      "2.20.0"
+#define FW_VERSION      "2.21.0"
 #define FW_NAME         "TrassarV3"
 #define FW_DATE         __DATE__
 
@@ -70,7 +70,7 @@
 #define BUZZER_LEDC_CH        1    // Kanal LEDC (0 = podswietlenie TFT)
 
 // ============ Bezpieczeństwo malowania ============
-#define MIN_PAINT_SPEED_KMH  3.0f
+#define DEFAULT_MIN_PAINT_SPEED_KMH   3.0f  // Prog niskiej predkosci (pistolety OFF ponizej)
 #define DEFAULT_MAX_PAINT_SPEED_KMH  15.0f  // Prog alarmu przekroczenia predkosci
 
 // ============ Watchdog ============

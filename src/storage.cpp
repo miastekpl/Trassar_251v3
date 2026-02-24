@@ -98,6 +98,20 @@ float StorageManager::loadMaxSpeed() {
     return val;
 }
 
+void StorageManager::saveMinSpeed(float kmh) {
+    prefs.begin("trassar", false);
+    prefs.putFloat("min_spd", kmh);
+    prefs.end();
+    Serial.printf("[NVS] Zapisano min predkosc: %.1f km/h\n", kmh);
+}
+
+float StorageManager::loadMinSpeed() {
+    prefs.begin("trassar", true);
+    float val = prefs.getFloat("min_spd", DEFAULT_MIN_PAINT_SPEED_KMH);
+    prefs.end();
+    return val;
+}
+
 void StorageManager::saveMode(MachineMode mode) {
     prefs.begin("trassar", false);
     prefs.putUChar("mode", (uint8_t)mode);

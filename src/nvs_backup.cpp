@@ -1,6 +1,6 @@
 // ============================================================
 // TrassarV3 - Backup NVS na karte SD
-// v2.20.0 - Serializacja wszystkich ustawien NVS do JSON
+// v2.21.0 - Serializacja wszystkich ustawien NVS do JSON
 //
 // Plik: /backup/nvs_backup.json
 // Zawartosc: kalibracja, statystyki lifetime, wzorce wlasne,
@@ -102,6 +102,7 @@ bool NvsBackup::backupToSD() {
     // Ustawienia
     doc["pat"] = (uint8_t)storage.loadLastPattern();
     doc["spd"] = serialized(String(storage.loadMaxSpeed(), 1));
+    doc["minspd"] = serialized(String(storage.loadMinSpeed(), 1));
     doc["mode"] = (uint8_t)storage.loadMode();
     doc["sw"] = storage.loadSwitchMode();
 
@@ -206,6 +207,11 @@ bool NvsBackup::restoreFromSD() {
     float spd = doc["spd"].as<float>();
     if (spd >= 5.0f && spd <= 30.0f) {
         storage.saveMaxSpeed(spd);
+    }
+
+    float minspd = doc["minspd"].as<float>();
+    if (minspd >= 0.0f && minspd <= 10.0f) {
+        storage.saveMinSpeed(minspd);
     }
 
     uint8_t mode = doc["mode"] | 0;

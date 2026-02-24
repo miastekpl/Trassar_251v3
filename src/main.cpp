@@ -1,6 +1,6 @@
 // ============================================================
 // TrassarV3 - Komputer pokładowy malowarki pasów drogowych
-// Firmware v2.20.0
+// Firmware v2.21.0
 //
 // Platforma:    ESP32-S3 N16R8 (dual-core)
 // Wyświetlacz:  ILI9341 2.8" 240x320 SPI
@@ -163,9 +163,11 @@ void setup() {
     g_state.displayNeedsUpdate = true;
     g_state.forceFullRedraw = true;
 
-    // Wczytaj prog predkosci maks. z NVS
+    // Wczytaj progi predkosci z NVS
     float maxSpd = storage.loadMaxSpeed();
     paintEngine.setMaxSpeed(maxSpd);
+    float minSpd = storage.loadMinSpeed();
+    paintEngine.setMinSpeed(minSpd);
 
     // Wczytaj tryb pracy z NVS
     g_state.machineMode = storage.loadMode();
@@ -183,16 +185,16 @@ void setup() {
     Serial.println("[INIT] System gotowy!");
     Serial.printf("[INIT] Wzorzec: %s\n", patternMgr.getCurrent().code);
     Serial.printf("[INIT] Tryb: %s\n", modeNames[(int)g_state.machineMode]);
-    Serial.printf("[INIT] Max predkosc: %.1f km/h\n", maxSpd);
+    Serial.printf("[INIT] Predkosc: min=%.1f max=%.1f km/h\n", minSpd, maxSpd);
     Serial.printf("[INIT] WiFi: %s  http://%s\n",
                   WIFI_AP_SSID, webServer.getIPAddress().c_str());
     Serial.println();
 
     // Log startu systemu
-    eventLog.logf("SYSTEM", "Start v%s | %s | wzorzec=%s tryb=%s spd=%.0f",
+    eventLog.logf("SYSTEM", "Start v%s | %s | wzorzec=%s tryb=%s min=%.1f max=%.1f",
                   FW_VERSION, rtcModule.getDateTimeStr(),
                   patternMgr.getCurrent().code,
-                  modeNames[(int)g_state.machineMode], maxSpd);
+                  modeNames[(int)g_state.machineMode], minSpd, maxSpd);
 
     // Pierwszy backup NVS (jesli SD dostepna)
     if (reportLogger.isReady()) {

@@ -190,6 +190,18 @@ void TrassarWebServer::handleControl() {
         } else {
             result = "brak parametru value";
         }
+    } else if (action == "set_min_speed") {
+        if (server.hasArg("value")) {
+            float val = server.arg("value").toFloat();
+            if (val >= 0.0f && val <= 10.0f) {
+                paintEngine.setMinSpeed(val);
+                storage.saveMinSpeed(val);
+            } else {
+                result = "zakres 0-10 km/h";
+            }
+        } else {
+            result = "brak parametru value";
+        }
     } else if (action == "set_mode") {
         if (server.hasArg("value")) {
             int val = server.arg("value").toInt();
@@ -343,6 +355,7 @@ String TrassarWebServer::getStateJson() {
 
     // Alarmy predkosci
     doc["maxSpeed"] = serialized(String(paintEngine.getMaxSpeed(), 1));
+    doc["minSpeed"] = serialized(String(paintEngine.getMinSpeed(), 1));
     doc["overspeed"] = paintEngine.isOverspeed();
     doc["lowSpeed"] = paintEngine.isLowSpeed();
 
@@ -744,14 +757,24 @@ body{
 
     <!-- ========== SPEED ALARM ========== -->
     <div class="card">
-        <h3>Alarm predkosci</h3>
+        <h3>Progi predkosci</h3>
         <div class="cal-row">
             <div class="cal-info">
-                Maks. predkosc: <span id="spdMax">15.0</span> km/h<br>
+                Min: <span id="spdMin" style="color:#f0c040;">3.0</span> km/h &nbsp;|&nbsp;
+                Maks: <span id="spdMax" style="color:#e64040;">15.0</span> km/h<br>
                 <span id="spdWarn" style="display:none;color:#e64040;font-weight:bold;">PRZEKROCZENIE!</span>
+                <span id="spdLowWarn" style="display:none;color:#f0c040;font-weight:bold;">NISKA PREDKOSC</span>
             </div>
         </div>
-        <div style="margin-top:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <div style="margin-top:8px;font-size:11px;color:#6b7d9a;">Min. predkosc (pistolety OFF ponizej):</div>
+        <div style="margin-top:4px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <input type="range" id="minSpdSlider" min="0" max="10" step="0.5" value="3"
+                style="flex:1;min-width:120px;accent-color:#f0c040;">
+            <span id="minSpdSliderVal" style="font-size:14px;font-weight:bold;color:#f0c040;min-width:60px;">3.0 km/h</span>
+            <button class="cal-btn" onclick="setMinSpeed()">Zapisz</button>
+        </div>
+        <div style="margin-top:8px;font-size:11px;color:#6b7d9a;">Maks. predkosc (alarm przekroczenia):</div>
+        <div style="margin-top:4px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
             <input type="range" id="spdSlider" min="5" max="30" step="0.5" value="15"
                 style="flex:1;min-width:120px;accent-color:#2ae67a;">
             <span id="spdSliderVal" style="font-size:14px;font-weight:bold;color:#2ae67a;min-width:60px;">15.0 km/h</span>
@@ -907,6 +930,14 @@ function setMaxSpeed(){
         body:'action=set_max_speed&value='+val
     }).then(r=>r.json()).then(()=>fetchStatus());
 }
+function setMinSpeed(){
+    let val=document.getElementById('minSpdSlider').value;
+    fetch('/api/control',{
+        method:'POST',
+        headers:{'Content-Type':'application/x-www-form-urlencoded'},
+        body:'action=set_min_speed&value='+val
+    }).then(r=>r.json()).then(()=>fetchStatus());
+}
 /* ------- Mode select ------- */
 function setMode(m){
     fetch('/api/control',{
@@ -1035,11 +1066,15 @@ function drawPatPreview(patIdx){
         }
     }
 }
-/* Speed slider live update */
+/* Speed sliders live update */
 document.addEventListener('DOMContentLoaded',function(){
     let sl=document.getElementById('spdSlider');
     if(sl) sl.addEventListener('input',function(){
         document.getElementById('spdSliderVal').textContent=parseFloat(this.value).toFixed(1)+' km/h';
+    });
+    let msl=document.getElementById('minSpdSlider');
+    if(msl) msl.addEventListener('input',function(){
+        document.getElementById('minSpdSliderVal').textContent=parseFloat(this.value).toFixed(1)+' km/h';
     });
     initCustomGuns();
 });
@@ -1155,14 +1190,20 @@ function applyStatus(d){
 
         /* Speed alarm section */
         document.getElementById('spdMax').textContent=d.maxSpeed;
+        document.getElementById('spdMin').textContent=d.minSpeed;
         if(!spdSliderLoaded){
             document.getElementById('spdSlider').value=parseFloat(d.maxSpeed);
             document.getElementById('spdSliderVal').textContent=d.maxSpeed+' km/h';
+            document.getElementById('minSpdSlider').value=parseFloat(d.minSpeed);
+            document.getElementById('minSpdSliderVal').textContent=d.minSpeed+' km/h';
             spdSliderLoaded=true;
         }
         let spdWarnEl=document.getElementById('spdWarn');
         if(d.overspeed){spdWarnEl.style.display='inline';}
         else{spdWarnEl.style.display='none';}
+        let spdLowEl=document.getElementById('spdLowWarn');
+        if(d.lowSpeed&&d.state==='painting'){spdLowEl.style.display='inline';}
+        else{spdLowEl.style.display='none';}
 
         /* Mode selector */
         let modes=['mAuto','mSemi','mManual'];

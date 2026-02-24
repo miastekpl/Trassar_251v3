@@ -1,7 +1,7 @@
 #pragma once
 // ============================================================
 // TrassarV3 - Modul serwera WWW (WiFi AP) + WebSocket
-// v2.19.0 - WebSocket push, GeoJSON endpoint, GPS track API
+// v2.21.0 - WebSocket push, GeoJSON endpoint, GPS track API
 // Dziala na Core 0 jako osobny task FreeRTOS
 // ============================================================
 

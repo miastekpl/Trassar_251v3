@@ -1,7 +1,7 @@
 #pragma once
 // ============================================================
 // TrassarV3 - Log zdarzen na karte SD
-// v2.20.0 - Plik dziennie: /logs/RRRRMMDD.log
+// v2.21.0 - Plik dziennie: /logs/RRRRMMDD.log
 // Format: HH:MM:SS [KATEGORIA] tresc
 // ============================================================
 

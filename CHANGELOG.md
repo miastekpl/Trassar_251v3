@@ -7,6 +7,138 @@ Wersjonowanie zgodne z [Semantic Versioning](https://semver.org/lang/pl/).
 
 ---
 
+## [2.21.0] - 2026-02-24
+
+### Dodano - Konfigurowalna prędkość minimalna
+
+- **Prędkość minimalna** — konfigurowalny próg poniżej którego pistolety wyłączają się automatycznie
+  - Nowe pole `minSpeedKmh` w `PaintingEngine` z setterem `setMinSpeed()` i getterem `getMinSpeed()`
+  - Zapis/odczyt z NVS: `storage.saveMinSpeed()` / `loadMinSpeed()` (klucz `min_spd`)
+  - Panel WWW: drugi suwak (0–10 km/h, krok 0.5) w karcie "Alarm prędkości"
+  - Ostrzeżenie niskiej prędkości aktualizowane dynamicznie z wartości minSpeed
+  - Status JSON: nowe pole `minSpeed`
+  - Nowa akcja API: `set_min_speed` (value: 0.0–10.0)
+  - Backup/restore prędkości minimalnej w `nvs_backup.cpp` (klucz `minspd`)
+  - Ładowanie z NVS przy starcie w `main.cpp`
+
+### Zmieniono
+- `MIN_PAINT_SPEED_KMH` → `DEFAULT_MIN_PAINT_SPEED_KMH` (wartość runtime zamiast stałej kompilacji)
+- `PaintingEngine::update()` — warunek prędkości używa `minSpeedKmh` z instancji zamiast `#define`
+- Wersja firmware: 2.20.0 → **2.21.0** (zaktualizowana we wszystkich plikach źródłowych)
+
+#### Nowe metody API
+| Akcja | Parametry | Opis |
+|-------|-----------|------|
+| `set_min_speed` | value=0.0–10.0 | Ustawienie progu minimalnej prędkości [km/h] |
+
+---
+
+## [2.20.0] - 2026-02-24
+
+### Dodano - Backup NVS, podwójny watchdog, log zdarzeń
+
+#### 1) Backup NVS na kartę SD (`nvs_backup.h/cpp`)
+- Serializacja wszystkich ustawień NVS do `/backup/nvs_backup.json` co 30 min
+- Pełny backup JSON: kalibracja, statystyki lifetime, wzorce własne (3 sloty), liczniki strzałów, prędkość max, tryb pracy, tryb przełączania
+- Auto-restore przy starcie jeśli NVS pusty/wyczyszczony a backup istnieje na SD
+- Flaga `nvs_init` w NVS do detekcji świeżego urządzenia vs dane obecne
+- Walidacja wersji backupu (`NVS_DATA_VERSION`) — niekompatybilne backupy ignorowane
+
+#### 2) Podwójny watchdog — Core 0 (dual watchdog)
+- Task WebServer na Core 0 subskrybuje Task WDT (`esp_task_wdt_add`)
+- Opóźnienie 5 s na starcie tasku (czeka na inicjalizację WDT w `setup()`)
+- `esp_task_wdt_reset()` w każdej iteracji task loop
+- Oba rdzenie nadzorowane: Core 1 (`loop()`) + Core 0 (WebServer)
+- Timeout 3 s → auto-reset przy zawieszeniu dowolnego rdzenia
+
+#### 3) Log zdarzeń na SD (`event_log.h/cpp`)
+- Zapis zdarzeń systemowych do `/logs/RRRRMMDD.log` (jeden plik na dzień)
+- Format: `HH:MM:SS [KATEGORIA] treść zdarzenia`
+- Limit 64 KB na plik dzienny (potem stop do następnego dnia)
+- Zintegrowane punkty logowania:
+  - `[SYSTEM]` — start firmware z podsumowaniem konfiguracji
+  - `[ENGINE]` — start/stop/pauza/resume z danymi sesji, overspeed, keepalive
+  - `[ANOMALY]` — detekcja anomalii pistoletów z listą dotkniętych
+  - `[BACKUP]` — okresowy backup NVS, auto-restore
+
+#### Nowe pliki
+| Plik | Opis |
+|------|------|
+| `src/event_log.h/cpp` | Moduł logowania zdarzeń na SD |
+| `src/nvs_backup.h/cpp` | Backup/restore NVS na kartę SD (JSON) |
+
+---
+
+## [2.19.0] - 2026-02-24
+
+### Dodano - WebSocket push, integracja GIS/GeoJSON
+
+#### 1) WebSocket push (port 81)
+- Zastąpienie pollingu `setInterval(fetch, 1000)` przez WebSocket push co 500 ms
+- `WebSocketsServer` na porcie 81 (biblioteka `links2004/WebSockets@^2.4.1`)
+- Broadcast pełnego status JSON do wszystkich podłączonych klientów
+- Frontend: auto-connect z fallback na REST polling 2 s przy braku WS
+- Współdzielona funkcja `applyStatus(d)` między WS push a REST fetch
+- Wskaźnik statusu WS w panelu informacji systemowych
+- Stack tasku WebServer: 12 KB → 16 KB (overhead WS + GeoJSON)
+
+#### 2) Integracja GIS / GeoJSON
+- `GET /api/reports/geojson?file=RRRRMMDD.csv` — konwersja CSV sesji → GeoJSON Points
+  - Chunked HTTP streaming: pamięciooszczędny (brak bufora całego pliku)
+  - GeoJSON FeatureCollection z Point geometry per sesja
+- Eksport trasy GPS w dwóch formatach: `.gpx` + `.geojson` do `/tracks/`
+  - Wspólny timestamp w nazwie obu plików
+  - GeoJSON LineString z koordynatami [lng, lat, alt]
+- `GET /api/tracks` — lista plików tras GPS (JSON)
+- `GET /api/tracks/download?file=...` — pobieranie plików tras (GPX/GeoJSON)
+- Nowa zakładka "Trasy GPS" w menu serwisowym WWW z listą tras i linkami pobierania
+- Link do GeoJSON obok CSV w tabeli raportów
+
+#### Nowe endpointy API
+| Endpoint | Metoda | Opis |
+|----------|--------|------|
+| `/api/reports/geojson` | GET | CSV → GeoJSON Points (chunked) |
+| `/api/tracks` | GET | Lista plików tras GPS |
+| `/api/tracks/download` | GET | Pobierz plik trasy (GPX/GeoJSON) |
+
+---
+
+## [2.18.0] - 2026-02-24
+
+### Dodano - Zapis trasy GPS (GPX) na SD
+
+- **Nagrywanie trasy GPS** podczas malowania (`gps_track.h/cpp`)
+  - Bufor punktów w PSRAM: do 4320 punktów (32 B × 4320 = ~135 KB, ~6 h przy 5 s interwale)
+  - Fallback na RAM: 300 punktów (~9.6 KB, ~25 min) gdy brak PSRAM
+  - Punkt trasy: `lat`, `lng`, `alt`, `speed`, Unix timestamp (z RTC)
+  - Zapis GPX 1.1 XML do `/tracks/` na SD — kompatybilny z Google Earth, QGIS, Strava
+  - Flush co 100 punktów (ochrona przed utratą danych)
+- Stałe konfiguracji: `GPX_RECORD_INTERVAL_MS` (5000 ms), `GPX_MAX_POINTS` (4320)
+- Nowy getter `gps_handler.h`: `getAltitude()`
+- Automatyczne nagrywanie: START → `startRecording()`, STOP → `stopRecording()` + zapis na SD
+- Konwersja czasu: `dateTimeToUnix()` i `unixToISO8601()` (prosty UTC, lata 2000–2099)
+
+#### Nowe pliki
+| Plik | Opis |
+|------|------|
+| `src/gps_track.h/cpp` | Klasa GpsTrack — bufor PSRAM, writer GPX 1.1 |
+
+---
+
+## [2.17.0] - 2026-02-24
+
+### Zmieniono - Enkoder kwadraturowy x4
+
+- **Pełne dekodowanie kwadraturowe x4** obu kanałów A (CLK) + B (DT)
+  - Tablica stanów 4×4 (Gray code) do niezawodnego dekodowania kierunku
+  - ISR `CHANGE` na obu pinach CLK i DT — 4× wyższa rozdzielczość
+  - Bezpośredni odczyt rejestru GPIO (`GPIO.in` / `GPIO.in1.val`) — ~50 ns
+  - Debounce ISR: min 200 μs między impulsami (`ENC_ISR_DEBOUNCE_US`)
+  - Przejścia stanów: CW `00→01→11→10→00` (+1), CCW `00→10→11→01→00` (−1)
+- Zamiana poprzedniego odczytu jednokierunkowego (tylko CLK) na pełny kwadraturowy
+
+---
+
 ## [2.16.0] - 2026-02-24
 
 ### Dodano - Podgląd na żywo wzorca na TFT

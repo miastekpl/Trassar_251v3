@@ -1,7 +1,7 @@
 #pragma once
 // ============================================================
 // TrassarV3 - Backup NVS na karte SD
-// v2.20.0 - Serializacja ustawien do JSON, auto-restore
+// v2.21.0 - Serializacja ustawien do JSON, auto-restore
 //
 // Co 30 min: zapis /backup/nvs_backup.json
 // Przy starcie: jesli NVS pusty → auto-restore z SD

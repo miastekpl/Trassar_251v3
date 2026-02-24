@@ -1,6 +1,6 @@
 // ============================================================
 // TrassarV3 - Enkoder kwadraturowy: dystans, prędkość, kalibracja
-// v2.17.0 - Pelne dekodowanie kwadraturowe x4 (oba kanaly A+B)
+// v2.21.0 - Pelne dekodowanie kwadraturowe x4 (oba kanaly A+B)
 //           ISR na CLK(A) i DT(B) CHANGE — 4x rozdzielczosc
 //           Tablica stanow (4x4) do niezawodnego dekodowania kierunku
 //           Bezposredni odczyt rejestru GPIO (~50ns)

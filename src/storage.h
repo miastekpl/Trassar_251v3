@@ -27,9 +27,11 @@ public:
     void saveLastPattern(PatternID pat);
     PatternID loadLastPattern();
 
-    // Prog predkosci maks.
+    // Progi predkosci (min / maks)
     void saveMaxSpeed(float kmh);
     float loadMaxSpeed();
+    void saveMinSpeed(float kmh);
+    float loadMinSpeed();
 
     // Tryb pracy
     void saveMode(MachineMode mode);

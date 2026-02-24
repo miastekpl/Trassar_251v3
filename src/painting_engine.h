@@ -26,9 +26,11 @@ public:
     void checkGunKeepAlive();
     unsigned long getLastGunUpdateMs() const { return lastGunUpdateMs; }
 
-    // Prog predkosci maks. (konfigurowalny z WWW)
+    // Progi predkosci (konfigurowalne z WWW)
     void setMaxSpeed(float kmh) { maxSpeedKmh = kmh; }
     float getMaxSpeed() const { return maxSpeedKmh; }
+    void setMinSpeed(float kmh) { minSpeedKmh = kmh; }
+    float getMinSpeed() const { return minSpeedKmh; }
     bool isOverspeed() const { return overspeedActive; }
     bool isLowSpeed() const { return lowSpeedActive; }
 
@@ -67,6 +69,7 @@ private:
 
     // Alarm predkosci
     float maxSpeedKmh = DEFAULT_MAX_PAINT_SPEED_KMH;
+    float minSpeedKmh = DEFAULT_MIN_PAINT_SPEED_KMH;
     bool overspeedActive = false;
     bool lowSpeedActive = false;
     bool smartSwitch = true;  // true=inteligentne, false=natychmiastowe

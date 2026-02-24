@@ -1,6 +1,6 @@
 // ============================================================
 // TrassarV3 - Log zdarzen na karte SD
-// v2.20.0 - Zapis zdarzen systemowych do /logs/RRRRMMDD.log
+// v2.21.0 - Zapis zdarzen systemowych do /logs/RRRRMMDD.log
 //
 // Format linii:  HH:MM:SS [KATEGORIA] tresc zdarzenia
 // Jeden plik na dzien, max 64KB (potem stop do nastepnego dnia)

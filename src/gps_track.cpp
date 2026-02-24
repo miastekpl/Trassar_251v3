@@ -1,6 +1,6 @@
 // ============================================================
 // TrassarV3 - Zapis trasy GPS (GPX) podczas malowania
-// v2.19.0 - Bufor punktow w PSRAM, eksport .gpx + .geojson na SD
+// v2.21.0 - Bufor punktow w PSRAM, eksport .gpx + .geojson na SD
 //
 // Podczas malowania co GPX_RECORD_INTERVAL_MS (5s) zapisuje punkt
 // {lat, lng, alt, speed, time} do bufora w PSRAM.

@@ -89,8 +89,8 @@ void PaintingEngine::update() {
 
     float speedKmh = encoderDist.getSpeedKmh();
 
-    // Bezpieczenstwo: pistolety tylko przy >= 3 km/h
-    bool speedOK = (speedKmh >= MIN_PAINT_SPEED_KMH);
+    // Bezpieczenstwo: pistolety tylko przy >= prog minimalny
+    bool speedOK = (speedKmh >= minSpeedKmh);
 
     // ============================================================
     // Sterowanie pistoletami zaleznie od trybu
