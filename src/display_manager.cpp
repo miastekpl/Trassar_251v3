@@ -37,17 +37,17 @@
 #define VIZ_X               100     // X poczatek obszaru wizualizacji
 #define VIZ_Y               2       // Y poczatek
 #define VIZ_W               120     // Szerokosc
-#define VIZ_H               166     // Wysokosc
+#define VIZ_H               200     // Wysokosc (rozszerzone po obnizeniu prostokatow)
 
 // Pozycje Y elementow — lewa kolumna
 #define ROW_PAT_Y           2       // Kod wzorca (FSB24)
 #define ROW_NAME_Y          38      // Nazwa wzorca / flaga [GAP]
 #define ROW_FLAG_Y          54      // Flaga [ODW]
-#define ROW_STATUS_Y        72      // Status "Gotowy" / "Malowanie"
-#define ROW_MODE_Y          92      // Tryb pracy na ekranie HOME
-#define ROW_TIME_Y          94      // Czas sesji (PAINTING)
-#define ROW_DIST_Y          112     // Dystans sesji (PAINTING)
-#define ROW_MODE2_Y         132     // Tryb pracy na ekranie PAINTING
+#define ROW_STATUS_Y        72      // Status "Gotowy" / "Malowanie" (FSB12)
+#define ROW_MODE_Y          96      // Tryb pracy na ekranie HOME (przesunieto: FSB12 status jest wyzszy)
+#define ROW_TIME_Y          98      // Czas sesji (PAINTING)
+#define ROW_DIST_Y          116     // Dystans sesji (PAINTING)
+#define ROW_MODE2_Y         136     // Tryb pracy na ekranie PAINTING
 
 // Pozycje Y elementow — prawa kolumna
 #define ROW_SPEED_Y         2       // Predkosc (FSB24)
@@ -55,13 +55,13 @@
 #define ROW_AREA_Y          56      // Powierzchnia (FSB12)
 
 // Dol ekranu
-#define GUN_RECTS_Y         (TFT_SCREEN_H - 66)    // Y prostokatow pistoletow
+#define GUN_RECTS_Y         (TFT_SCREEN_H - 34)    // Y prostokatow pistoletow (przy dolnej krawedzi)
 #define HINT_Y              (TFT_SCREEN_H - 22)     // Y paska podpowiedzi
 
-// Prostokaty pistoletow
-#define GUN_W               42      // Szerokosc prostokata
-#define GUN_H               50      // Wysokosc prostokata
-#define GUN_GAP             6       // Odstep miedzy prostokatami
+// Prostokaty pistoletow — od krawedzi do krawedzi, wysokosc zmniejszona o 1/3
+#define GUN_W               51      // Szerokosc prostokata (edge-to-edge)
+#define GUN_H               34      // Wysokosc prostokata (bylo 50, -1/3)
+#define GUN_GAP             2       // Minimalny odstep miedzy prostokatami
 
 // Wizualizacja wzorca — parametry kolumn
 #define VIZ_COL_GAP         16      // Odstep miedzy kolumnami
@@ -259,8 +259,8 @@ void DisplayManager::drawHomeScreen(const char* patCode, const char* patName,
     }
     tft.setTextPadding(0);
 
-    // Status "Gotowy"
-    tft.setFreeFont(FSB9);
+    // Status "Gotowy" (FSB12 — wieksza czcionka statusu)
+    tft.setFreeFont(FSB12);
     tft.setTextColor(COLOR_ACCENT, COLOR_BG);
     tft.setTextPadding(COL_L_PAD);
     tft.drawString("Gotowy", MARGIN_X, ROW_STATUS_Y);
@@ -505,9 +505,9 @@ void DisplayManager::drawPaintingScreen(MachineState state, const char* patCode,
     }
     tft.setTextPadding(0);
 
-    // Status pracy (Malowanie / Pauza / Zatrzymany)
+    // Status pracy (Malowanie / Pauza / Zatrzymany) — FSB12
     uint16_t sc = stateColor(state);
-    tft.setFreeFont(FSB9);
+    tft.setFreeFont(FSB12);
     tft.setTextColor(sc, COLOR_BG);
     tft.setTextPadding(COL_L_PAD);
     tft.drawString(stateStr(state), MARGIN_X, ROW_STATUS_Y);

@@ -310,21 +310,21 @@ Wyświetla się po uruchomieniu systemu. Ekran w trybie landscape (320×240 px):
 │ P-1a              (duży)    12.5 (duży)  │  ← wzorzec / prędkość
 │ Przerywana dluga            km/h         │  ← nazwa / jednostka
 │ [ODW]                       45.2 m2      │  ← flaga / powierzchnia
-│──────────────────────────────────────────│
 │                                          │
-│               Gotowy                     │  ← status (duży, zielony)
+│  Gotowy                                  │  ← status (duży, zielony)
+│  [AUTO]                                  │  ← tryb pracy
 │                                          │
-│  ┌─P1─┐ ┌─P2─┐ ┌─P3─┐ ┌─P4─┐ ┌─P5─┐ ┌─P6─┐ │
-│  │    │ │████│ │    │ │    │ │    │ │    │ │  ← prostokąty pistoletów
-│  └────┘ └────┘ └────┘ └────┘ └────┘ └────┘ │
+│  ┌──P1──┐┌──P2──┐┌──P3──┐┌──P4──┐┌──P5──┐┌──P6──┐│
+│  │      ││██████││      ││      ││      ││      ││ ← od krawędzi do krawędzi
+│  └──────┘└──────┘└──────┘└──────┘└──────┘└──────┘│
 └──────────────────────────────────────────┘
 ```
 
 **Elementy ekranu:**
 - **Lewy górny róg:** Kod wzorca (duża czcionka 24 pt), nazwa wzorca pod spodem, znacznik [ODW] jeśli wzorzec odwrócony
 - **Prawy górny róg:** Prędkość w km/h (duża czcionka 24 pt), etykieta "km/h", powierzchnia malowania w m²
-- **Środek:** Status systemu "Gotowy" (duża czcionka 18 pt, kolor zielony)
-- **Dół:** 6 prostokątów pistoletów P1–P6 z kolorami wg stanu
+- **Środek-lewo:** Status systemu "Gotowy" (czcionka 12 pt bold, kolor zielony), tryb pracy pod spodem
+- **Dół (przy krawędzi):** 6 prostokątów pistoletów P1–P6, rozciągnięte od krawędzi do krawędzi ekranu, obniżona wysokość (ok. 34 px)
 
 **Dostępne akcje na ekranie HOME:**
 
@@ -346,16 +346,14 @@ Wyświetla się automatycznie po rozpoczęciu malowania. Układ identyczny jak H
 ┌──────────────────────────────────────────┐
 │ P-3a              (duży)    8.3  (duży)  │
 │ [ODW] [GAP]                 km/h         │  ← flagi stanu
-│                             122.4 m2     │
-│──────────────────────────────────────────│
+│  Malowanie                  122.4 m2     │  ← status (zielony)
+│  04:32                                   │  ← czas sesji
+│  1.24 km                                 │  ← dystans sesji
+│  [AUTO]                                  │  ← tryb pracy
 │                                          │
-│             Malowanie                    │  ← status (zielony)
-│               lub                        │
-│              Pauza                       │  ← status (żółty)
-│                                          │
-│  ┌─P1─┐ ┌─P2─┐ ┌─P3─┐ ┌─P4─┐ ┌─P5─┐ ┌─P6─┐ │
-│  │████│ │    │ │████│ │    │ │    │ │    │ │
-│  └────┘ └────┘ └────┘ └────┘ └────┘ └────┘ │
+│  ┌──P1──┐┌──P2──┐┌──P3──┐┌──P4──┐┌──P5──┐┌──P6──┐│
+│  │██████││      ││██████││      ││      ││      ││ ← od krawędzi do krawędzi
+│  └──────┘└──────┘└──────┘└──────┘└──────┘└──────┘│
 └──────────────────────────────────────────┘
 ```
 
@@ -364,8 +362,9 @@ Wyświetla się automatycznie po rozpoczęciu malowania. Układ identyczny jak H
 - **Flagi:** [ODW] — wzorzec odwrócony, [GAP] — start od przerwy
 - **Prędkość:** Aktualna prędkość maszyny (24 pt)
 - **Powierzchnia:** Namalowana powierzchnia w m²
-- **Status:** "Malowanie" (zielony) lub "Pauza" (żółty) — duża czcionka 18 pt w środku ekranu
-- **Prostokąty pistoletów:** Zielone gdy malują, żółte migające na pauzie, szare gdy nieużywane
+- **Status:** "Malowanie" (zielony) lub "Pauza" (żółty) — czcionka 12 pt bold
+- **Czas/dystans:** Czas i dystans bieżącej sesji
+- **Prostokąty pistoletów:** Od krawędzi do krawędzi, obniżone; zielone gdy malują, żółte migające na pauzie, szare gdy nieużywane
 
 Na ekranie wyświetlany jest aktualny tryb pracy: **[AUTO]**, **[SEMI]** lub **[RECZNY]**.
 
