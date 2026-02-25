@@ -120,7 +120,13 @@ void JoystickHandler::update() {
     unsigned long now = millis();
 
     // --- Przycisk SW (cyfrowy, aktywny LOW) --- zawsze aktywny
+    // GPIO 46 to strap pin — wymaga debounce (2 identyczne odczyty)
     bool reading = digitalRead(PIN_JOY_SW);
+
+    if (reading != swLastReading) {
+        swLastReading = reading;
+        return;  // Czekaj na stabilny odczyt
+    }
 
     if (reading == LOW && !swPressed) {
         swPressed = true;
@@ -174,18 +180,22 @@ ButtonEvent JoystickHandler::getEvent() {
     // Priorytet: przycisk SW > osie
     if (swPendingLong) {
         swPendingLong = false;
+        lastEventFromAxis = false;
         return EVT_START_LONG;      // Dlugie SW = START long (np. otwarcie SETUP)
     }
     if (swPendingShort) {
         swPendingShort = false;
+        lastEventFromAxis = false;
         return EVT_SELECT_LONG;     // Krotkie SW = wejdz/potwierdz
     }
 
     if (pendingEvent != EVT_NONE) {
         ButtonEvent evt = pendingEvent;
         pendingEvent = EVT_NONE;
+        lastEventFromAxis = true;   // Zdarzenie z osi analogowej
         return evt;
     }
 
+    lastEventFromAxis = false;
     return EVT_NONE;
 }

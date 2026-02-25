@@ -217,10 +217,20 @@ void loop() {
     }
 
     // 1b. Odczyt joysticka KY-023
+    // Osie joysticka (gora/dol/lewo/prawo) aktywne TYLKO na ekranach nawigacji.
+    // Na ekranach operacyjnych (HOME, PAINTING, SUMMARY) szum ADC generuje
+    // falszywe zdarzenia EVT_STOP_LONG / EVT_STOP_SHORT, ktore wchodza w menu
+    // serwisowe lub zatrzymuja malowanie. Przycisk SW dziala zawsze.
     joystick.update();
     ButtonEvent joyEvent = joystick.getEvent();
     if (joyEvent != EVT_NONE) {
-        menu.handleEvent(joyEvent);
+        bool isOperational = (g_state.currentScreen == SCREEN_HOME ||
+                              g_state.currentScreen == SCREEN_PAINTING ||
+                              g_state.currentScreen == SCREEN_SUMMARY);
+        // Na ekranach operacyjnych ignoruj zdarzenia z osi, przepusc SW
+        if (!isOperational || !joystick.wasAxisEvent()) {
+            menu.handleEvent(joyEvent);
+        }
     }
 
     // 2. Aktualizacja enkodera (prędkość)
