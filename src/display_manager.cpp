@@ -1188,8 +1188,8 @@ void DisplayManager::drawSetupScreen(int cursor, MachineMode mode,
     // Kolor wartosci
     uint16_t valColors[3] = {
         COLOR_ACCENT,
-        smartSwitch ? COLOR_ACCENT : COLOR_WARNING,
-        gapStart    ? COLOR_WARNING : COLOR_ACCENT
+        (uint16_t)(smartSwitch ? COLOR_ACCENT : COLOR_WARNING),
+        (uint16_t)(gapStart    ? COLOR_WARNING : COLOR_ACCENT)
     };
 
     const int SETUP_ITEM_H = 48;

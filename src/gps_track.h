@@ -5,6 +5,7 @@
 // ============================================================
 
 #include "config.h"
+#include <SD.h>
 
 // Punkt trasy GPS (32 bajty — kompaktowy dla PSRAM)
 struct GpxPoint {
