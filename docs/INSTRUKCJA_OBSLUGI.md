@@ -1,4 +1,4 @@
-# TrassarV3 - Instrukcja obsługi v2.16.0
+# TrassarV3 - Instrukcja obsługi v2.21.0
 
 ## Spis treści
 
@@ -21,8 +21,11 @@
 17. [API statystyk i raportów SD](#17-api-statystyk-i-raportów-sd)
 18. [Menu serwisowe w panelu WWW](#18-menu-serwisowe-w-panelu-www)
 19. [Moduł GPS](#19-moduł-gps)
-20. [Przykłady zastosowania](#20-przykłady-zastosowania)
-21. [Rozwiązywanie problemów](#21-rozwiązywanie-problemów)
+20. [Zapis trasy GPS (GPX + GeoJSON)](#20-zapis-trasy-gps-gpx--geojson)
+21. [Backup NVS na kartę SD](#21-backup-nvs-na-kartę-sd)
+22. [Log zdarzeń na kartę SD](#22-log-zdarzeń-na-kartę-sd)
+23. [Przykłady zastosowania](#23-przykłady-zastosowania)
+24. [Rozwiązywanie problemów](#24-rozwiązywanie-problemów)
 
 ---
 
@@ -36,9 +39,13 @@ System zapewnia:
 - Wzorzec własny — definiowany przez operatora z panelu WWW, z dowolną konfiguracją pistoletów
 - Odwracanie wzorców przekraczalnych P-3a i P-3b jednym naciśnięciem przycisku
 - Start od przerwy — kontynuację istniejącego oznakowania od punktu, w którym powinna być przerwa
-- Zabezpieczenie prędkości minimalnej 3 km/h (pistolety nie włączą się na postoju)
-- Rejestrację raportów CSV na karcie SD z datą, wzorcem, dystansem i powierzchnią
-- Zdalny panel sterowania WWW dostępny przez WiFi z telefonu lub laptopa
+- Konfigurowalna prędkość minimalna (domyślnie 3 km/h, zakres 0–10 km/h) i alarm prędkości maksymalnej
+- Rejestrację raportów CSV na karcie SD z datą, wzorcem, dystansem, powierzchnią i koordynatami GPS
+- Zapis trasy GPS podczas malowania — eksport GPX + GeoJSON kompatybilny z Google Earth, QGIS, Mapbox
+- Zdalny panel sterowania WWW z komunikacją WebSocket (push co 500 ms) — bez opóźnień
+- Backup ustawień NVS na kartę SD co 30 min z automatycznym przywracaniem po awarii
+- Log zdarzeń systemowych na kartę SD — dzienne pliki z historią start/stop/pauza/anomalie
+- Podwójny watchdog (oba rdzenie procesora) — auto-reset przy zawieszeniu dowolnego rdzenia
 
 ---
 
@@ -47,21 +54,25 @@ System zapewnia:
 | Parametr | Wartość |
 |----------|---------|
 | Mikrokontroler | ESP32-S3 N16R8 (16 MB Flash, 8 MB PSRAM) |
-| Firmware | v2.16.0 |
+| Firmware | v2.21.0 |
 | Wyświetlacz | ILI9341 2.8" TFT, 320×240 px, tryb landscape |
 | Interfejs SPI | HSPI (SPI3), 27 MHz |
 | Zegar RTC | DS1307 z baterią CR2032 |
-| Enkoder | Obrotowy, ISR na pinie CLK (CHANGE) |
+| Enkoder | Obrotowy kwadraturowy x4, ISR CHANGE na CLK+DT |
 | Przyciski | 4 szt. monostabilne (START, STOP, SELEKTOR, GAP) |
 | Joystick | KY-023 analogowy 2-osiowy + przycisk (ADC1, GPIO 9/10/11) |
 | Przekaźniki | 6 szt. (pistolety P1–P6), logika HIGH = ON |
 | Buzzer | Pasywny, GPIO 8, LEDC PWM kanał 1 |
 | Karta SD | Slot zintegrowany w module wyświetlacza, FAT32 |
 | WiFi | Access Point, SSID: TrassarV3, hasło: 12345678 |
-| Serwer WWW | HTTP port 80, max 4 klientów, auto-refresh 1 s |
-| Prędkość min. | 3 km/h (zabezpieczenie pistoletów) |
-| Prędkość maks. | Domyślnie 15 km/h (alarm, konfigurowalny z WWW) |
-| Watchdog | 3 s timeout, auto-reset ESP32 |
+| Serwer WWW | HTTP port 80 + WebSocket port 81, max 4 klientów |
+| WebSocket | Push statusu co 500 ms, auto-reconnect, fallback REST 2 s |
+| Prędkość min. | Domyślnie 3 km/h (konfigurowalna 0–10 km/h z WWW, zapis NVS) |
+| Prędkość maks. | Domyślnie 15 km/h (alarm, konfigurowalna 5–30 km/h z WWW) |
+| Watchdog | 3 s timeout, dual watchdog (Core 0 + Core 1), auto-reset |
+| Zapis trasy GPS | GPX + GeoJSON, bufor PSRAM do 4320 pkt (~6h) |
+| Backup NVS | Automatyczny na SD co 30 min, auto-restore przy pustym NVS |
+| Log zdarzeń | Dzienne pliki /logs/RRRRMMDD.log, max 64 KB/dzień |
 | Gun keepalive | 300 ms — awaryjne wyłączenie pistoletów |
 | Kalibracja | Odcinek 10 m, zapis do NVS |
 | GPS | GY-NEO6MV2 (NEO-6M), UART2, 9600 baud |
@@ -97,7 +108,7 @@ Przycisk **SELEKTOR** pełni różne funkcje w zależności od aktualnie wyświe
 
 ### 3.3 Enkoder obrotowy
 
-Enkoder obrotowy (piny CLK = GPIO 5, DT = GPIO 6) służy **wyłącznie** do pomiaru dystansu i prędkości. **Nie jest używany do nawigacji ani sterowania interfejsem.** Obrót enkodera jest rejestrowany przez przerwanie sprzętowe (ISR) na pinie CLK.
+Enkoder obrotowy (piny CLK = GPIO 5, DT = GPIO 6) służy **wyłącznie** do pomiaru dystansu i prędkości. **Nie jest używany do nawigacji ani sterowania interfejsem.** Enkoder pracuje w trybie **kwadraturowym x4** — przerwania ISR CHANGE na obu kanałach A i B z tablicą stanów 4×4 (Gray code), bezpośredni odczyt rejestrów GPIO (~50 ns). Rozdzielczość 4× wyższa niż standardowy odczyt jednokierunkowy.
 
 Wbudowany przycisk enkodera (pin SW = GPIO 7) pełni funkcję dedykowanego przycisku **"Start od przerwy"**.
 
@@ -117,9 +128,13 @@ System posiada joystick analogowy **KY-023** (piny VRx = GPIO 19, VRy = GPIO 20,
 | **Przycisk SW (1 s)** | START (1 s) | Np. otwórz ekran SETUP z HOME |
 
 **Cechy:**
+- **Auto-detekcja przy starcie** — system sprawdza stabilność ADC (16 próbek). Jeśli piny floating (brak joysticka) lub wartości skrajne — osie analogowe wyłączone automatycznie
+- **Auto-kalibracja centrum** — centrum joysticka kalibrowane do rzeczywistej pozycji spoczynkowej (zamiast stałej 2048)
+- **Anti-bounce 200 ms** — minimum 200 ms między zmianami kierunku (filtr oscylacji ADC)
+- **Średnia z 4 próbek** — redukcja szumu ADC (szczególnie ADC2 + WiFi AP)
 - **Auto-repeat** — przytrzymanie góra/dół automatycznie powtarza zdarzenie (opóźnienie 400 ms, powtarzanie co 200 ms)
-- **Bez auto-repeat** — ruch lewo/prawo generuje zdarzenie jednorazowo (zapobieganie przypadkowemu wielokrotnemu cofaniu/wchodzeniu)
-- **Strefa martwa** — ±500 z centrum ADC (2048) eliminuje przypadkowe ruchy
+- **Bez auto-repeat** — ruch lewo/prawo generuje zdarzenie jednorazowo
+- **Strefa martwa** — ±500 z skalibrowanego centrum eliminuje przypadkowe ruchy
 - **Współpraca z przyciskami** — joystick uzupełnia fizyczne przyciski, nie zastępuje ich
 
 > **Wskazówka:** Joystick jest szczególnie wygodny do szybkiej nawigacji po menu serwisowym i ekranie SETUP. Przyciski fizyczne nadal działają normalnie.
@@ -362,7 +377,7 @@ Na ekranie wyświetlany jest aktualny tryb pracy: **[AUTO]**, **[SEMI]** lub **[
 | **STOP** | Zatrzymanie, zapis raportu | Zatrzymanie, zapis raportu | Zatrzymanie, zapis raportu |
 | **SELEKTOR** | Odwróć (P-3a/P-3b) | Odwróć (P-3a/P-3b) | Odwróć (P-3a/P-3b) |
 
-> **Zabezpieczenie:** Pistolety włączają się automatycznie dopiero po osiągnięciu prędkości **3 km/h**. Poniżej tej prędkości pistolety pozostają wyłączone nawet w stanie "Malowanie".
+> **Zabezpieczenie:** Pistolety włączają się automatycznie dopiero po osiągnięciu progu minimalnej prędkości (domyślnie **3 km/h**, konfigurowalne 0–10 km/h z panelu WWW). Poniżej progu pistolety pozostają wyłączone nawet w stanie "Malowanie".
 
 ### 7.3 Ekran przygotowania (SETUP)
 
@@ -607,7 +622,7 @@ Na ekranie malowania pojawi się znacznik **[GAP]** informujący o aktywnym tryb
 2. Połącz się hasłem: **12345678**
 3. Otwórz przeglądarkę i wejdź na: **http://192.168.4.1**
 
-Panel automatycznie odświeża dane co 1 sekundę bez przeładowania strony.
+Panel komunikuje się z urządzeniem przez **WebSocket** (port 81) — dane statusu przychodzą automatycznie co 500 ms bez opóźnień. Przy braku WebSocket automatycznie przełącza się na REST polling co 2 s.
 
 ### 9.2 Funkcje panelu WWW
 
@@ -628,9 +643,9 @@ Panel sterowania w przeglądarce oferuje pełną kontrolę nad maszyną:
 | **Semi: kolejna linia** | Przycisk widoczny w trybie SEMI gdy kreska zakończona |
 | **Anomalia pistoletów** | Pulsujący banner ostrzegawczy gdy wykryto anomalię — widoczny automatycznie |
 | **Kalibracja** | Przycisk rozpoczęcia/zakończenia, licznik impulsów, impulsy/metr |
-| **Alarm prędkości** | Bieżący próg maks., suwak konfiguracji (5–30 km/h), przycisk zapisu do NVS |
-| **System** | Wersja firmware, wolna RAM, uptime, liczba klientów WiFi |
-| **Menu serwisowe** | Dwie zakładki: **Statystyki** (lifetime + sesja) i **Raporty SD** (lista plików CSV) |
+| **Alarm prędkości** | Dwa suwaki: próg min. (0–10 km/h) i maks. (5–30 km/h), przyciski zapisu do NVS |
+| **System** | Wersja firmware, wolna RAM, uptime, klienci WiFi, status WebSocket |
+| **Menu serwisowe** | Trzy zakładki: **Statystyki**, **Raporty SD** (CSV + GeoJSON), **Trasy GPS** (GPX/GeoJSON) |
 
 ### 9.3 Zmiana wzorca przez panel WWW
 
@@ -738,11 +753,18 @@ data,godzina,wzorzec,dystans_m,powierzchnia_m2,lat,lon
 
 ### 12.1 Minimalna prędkość malowania
 
-System wymaga prędkości minimum **3 km/h** do włączenia pistoletów. Poniżej tej prędkości:
+System wymaga osiągnięcia **progu minimalnej prędkości** do włączenia pistoletów. Domyślny próg to **3 km/h**, ale jest **konfigurowalny w zakresie 0–10 km/h** z panelu WWW (sekcja "Alarm prędkości" → suwak "Min. prędkość").
+
+Poniżej progu minimalnej prędkości:
 - Pistolety pozostają wyłączone (nawet w stanie "Malowanie")
 - Na ekranie nadal widoczny jest status "Malowanie"
-- Po przyspieszeniu powyżej 3 km/h pistolety włączają się automatycznie
+- Po przyspieszeniu powyżej progu pistolety włączają się automatycznie
 - Pozycja w cyklu wzorca (kreska/przerwa) jest obliczana na bieżąco z dystansu
+
+**Konfiguracja progu minimalnej prędkości:**
+- **Panel WWW:** sekcja "Alarm prędkości" → suwak "Min. prędkość (pistolety OFF poniżej)" → przycisk "Zapisz"
+- **API:** `POST /api/control` z `action=set_min_speed&value=2.0`
+- Wartość zapisywana trwale w NVS — przetrwa restart
 
 **Wyjątek:** Tryb czyszczenia dysz omija zabezpieczenie prędkości — pistolety działają na postoju.
 
@@ -756,14 +778,22 @@ Pistolety wyłączają się natychmiast przy:
 - Puszczeniu przycisku START w trybie czyszczenia dysz
 - Zadziałaniu mechanizmu gun keepalive (brak aktualizacji silnika malowania >300 ms)
 
-### 12.3 Watchdog timer
+### 12.3 Podwójny watchdog timer (dual watchdog)
 
-System posiada sprzętowy watchdog timer ESP32 z timeoutem **3 sekund**. Jeśli pętla główna (`loop()`) zawiesi się z dowolnej przyczyny:
-- Watchdog zrestartuje mikrokontroler po 3 sekundach
+System posiada sprzętowy watchdog timer ESP32 z timeoutem **3 sekund** nadzorujący **oba rdzenie procesora**:
+
+| Rdzeń | Zadanie | WDT |
+|-------|---------|-----|
+| **Core 1** | Pętla główna `loop()` — enkoder, pistolety, wyświetlacz | `esp_task_wdt_reset()` w każdej iteracji |
+| **Core 0** | Task WebServer — HTTP, WebSocket, WiFi | `esp_task_wdt_add()` po 5 s, reset w każdej iteracji |
+
+Jeśli **dowolny rdzeń** zawiesi się na dłużej niż 3 sekundy:
+- Watchdog zrestartuje mikrokontroler
 - Wszystkie piny GPIO wracają do stanu LOW — pistolety się zamykają
 - System uruchamia się od nowa z zapisanymi ustawieniami z NVS
+- Jeśli backup NVS istnieje na karcie SD, ustawienia zostaną automatycznie przywrócone
 
-> **Uwaga:** Reset watchdoga jest widoczny w monitorze szeregowym jako komunikat restartu.
+> **Uwaga:** Reset watchdoga jest widoczny w monitorze szeregowym oraz w logu zdarzeń na karcie SD.
 
 ### 12.4 Gun keepalive (300 ms)
 
@@ -833,22 +863,25 @@ System wyposażony jest w pasywny buzzer (GPIO 8) generujący sygnały dźwięko
 
 ## 14. Architektura wielordzeniowa
 
-TrassarV3 v2.16.0 wykorzystuje oba rdzenie procesora ESP32-S3 i obsługuje 10 ekranów interfejsu:
+TrassarV3 v2.21.0 wykorzystuje oba rdzenie procesora ESP32-S3 i obsługuje 11 ekranów interfejsu:
 
 | Rdzeń | Zadania |
 |-------|---------|
-| **Core 0** | Serwer WWW (WiFi, obsługa HTTP, API REST) |
-| **Core 1** | Krytyczna pętla: enkoder, pistolety, buzzer, wyświetlacz, statystyki |
+| **Core 0** | Serwer WWW (WiFi, HTTP, WebSocket port 81, API REST), WDT Core 0 |
+| **Core 1** | Krytyczna pętla: enkoder, pistolety, buzzer, wyświetlacz, statystyki, GPS track, event log, NVS backup |
 
 ### Korzyści
-- Obciążenie serwera HTTP (np. szybkie odświeżanie panelu) **nie wpływa** na czas reakcji pistoletów
+- Obciążenie serwera HTTP i WebSocket **nie wpływa** na czas reakcji pistoletów
 - **Mutex spinlock** (`portMUX_TYPE`) chroni współdzielone dane `g_state` przed race conditions
-- Gun keepalive (300 ms) jest niezawodny nawet przy wielu klientach HTTP
-- Watchdog monitoruje tylko Core 1 (krytyczny)
+- Gun keepalive (300 ms) jest niezawodny nawet przy wielu klientach HTTP/WS
+- **Podwójny watchdog** monitoruje oba rdzenie (Core 0 + Core 1)
+- **WebSocket push** co 500 ms — panel WWW reaguje natychmiast na zmiany stanu
 
-### Okresowy zapis statystyk
-- Podczas malowania statystyki lifetime zapisywane automatycznie do NVS **co 60 sekund**
-- Ochrona przed utratą danych przy: watchdog reset, zanik zasilania, awaria sprzętu
+### Okresowy zapis danych
+- Statystyki lifetime zapisywane do NVS **co 60 sekund** podczas malowania
+- **Backup NVS na kartę SD co 30 minut** — pełna kopia ustawień w formacie JSON
+- **Log zdarzeń** — chronologiczny zapis start/stop/pauza/anomalie na kartę SD
+- Ochrona przed utratą danych przy: watchdog reset, zanik zasilania, awaria Flash
 
 ---
 
@@ -1020,7 +1053,76 @@ Po zatrzymaniu malowania (STOP) koordynaty GPS są automatycznie zapisywane w ra
 
 ---
 
-## 20. Przykłady zastosowania
+## 20. Zapis trasy GPS (GPX + GeoJSON)
+
+### 20.1 Opis
+
+Podczas malowania system automatycznie rejestruje trasę GPS w buforze PSRAM (do 4320 punktów, ~6 godzin przy interwale 5 s). Po zakończeniu sesji (STOP) trasa jest eksportowana na kartę SD w dwóch formatach:
+
+| Format | Plik | Kompatybilność |
+|--------|------|----------------|
+| **GPX 1.1** | `/tracks/track_RRRRMMDD_HHMMSS.gpx` | Google Earth, QGIS, Strava, Garmin |
+| **GeoJSON** | `/tracks/track_RRRRMMDD_HHMMSS.geojson` | Leaflet, Mapbox, geojson.io, QGIS |
+
+### 20.2 Dane w punkcie trasy
+
+Każdy punkt (co 5 s) zawiera: szerokość i długość geograficzną, wysokość n.p.m., prędkość, timestamp UTC.
+
+### 20.3 Przeglądanie tras
+
+- **Panel WWW → Menu serwisowe → zakładka "Trasy GPS"** — lista plików z linkami pobierania
+- **API:** `GET /api/tracks` (lista), `GET /api/tracks/download?file=...` (pobieranie)
+- **Status JSON:** pola `gpxRec` (czy trwa nagrywanie) i `gpxPts` (liczba punktów)
+
+### 20.4 Konwersja raportów do GeoJSON
+
+Oprócz tras, raporty CSV sesji można konwertować do GeoJSON:
+- **API:** `GET /api/reports/geojson?file=RRRRMMDD.csv`
+- Zwraca GeoJSON FeatureCollection z Point geometry per sesja (chunked streaming)
+
+---
+
+## 21. Backup NVS na kartę SD
+
+### 21.1 Opis
+
+System automatycznie tworzy kopię zapasową wszystkich ustawień NVS na kartę SD co **30 minut**. Plik backupu: `/backup/nvs_backup.json`.
+
+### 21.2 Co jest backupowane
+
+Kalibracja enkodera, statystyki lifetime, wzorce własne (3 sloty), liczniki strzałów pistoletów, prędkość min/max, tryb pracy, tryb przełączania wzorców.
+
+### 21.3 Auto-restore
+
+Przy starcie systemu, jeśli NVS jest pusty (np. po wymianie modułu ESP32 lub wyczyszczeniu Flash), a na karcie SD istnieje plik backupu — ustawienia zostaną automatycznie przywrócone. Log Serial: `[NVS-BKP] Auto-restore z SD`.
+
+---
+
+## 22. Log zdarzeń na kartę SD
+
+### 22.1 Opis
+
+System zapisuje zdarzenia do pliku `/logs/RRRRMMDD.log` (jeden plik na dzień, max 64 KB).
+
+### 22.2 Format
+
+```
+HH:MM:SS [KATEGORIA] treść zdarzenia
+```
+
+### 22.3 Kategorie zdarzeń
+
+| Kategoria | Zdarzenia |
+|-----------|-----------|
+| `[SYSTEM]` | Start firmware z podsumowaniem konfiguracji |
+| `[ENGINE]` | Start/stop/pauza/resume malowania z danymi sesji |
+| `[ENGINE]` | Overspeed, keepalive timeout |
+| `[ANOMALY]` | Detekcja anomalii pistoletów z listą dotkniętych |
+| `[BACKUP]` | Okresowy backup NVS, auto-restore |
+
+---
+
+## 23. Przykłady zastosowania
 
 ### Przykład 1: Malowanie linii przerywanej P-1a na nowej drodze
 
@@ -1325,7 +1427,72 @@ data,godzina,wzorzec,dystans_m,powierzchnia_m2,lat,lon
 
 ---
 
-## 21. Rozwiązywanie problemów
+### Przykład 11: Eksport trasy GPS do systemu GIS (GeoJSON / GPX)
+
+**Scenariusz:** Inżynier drogowy potrzebuje precyzyjnej trasy malowania w formacie GIS, aby nałożyć ją na mapę w QGIS i wygenerować raport z dokładnymi koordynatami każdego odcinka.
+
+**Kroki — nagrywanie trasy:**
+
+1. Upewnij się, że GPS ma fix (panel WWW → sekcja GPS → Fix: TAK, satelity ≥ 4)
+2. Rozpocznij malowanie — trasa GPS nagrywana automatycznie (punkt co 5 s)
+3. W panelu WWW widoczne: `gpxRec: true`, `gpxPts` rośnie co 5 s
+4. Po zakończeniu naciśnij **STOP** — trasa zostanie zapisana na kartę SD w dwóch formatach:
+   - `/tracks/track_20260224_093015.gpx` — kompatybilny z Google Earth
+   - `/tracks/track_20260224_093015.geojson` — kompatybilny z Leaflet, Mapbox, QGIS
+
+**Kroki — pobieranie i wizualizacja:**
+
+5. W panelu WWW → Menu serwisowe → zakładka **"Trasy GPS"**
+6. Kliknij link pobierania pliku `.geojson`
+7. Otwórz plik w QGIS: Warstwa → Dodaj warstwę wektorową → wybierz plik
+8. Trasa malowania wyświetli się jako linia na mapie z punktami zawierającymi: lat, lng, alt, speed, timestamp
+
+**Alternatywnie — konwersja raportu CSV do GeoJSON:**
+
+9. W przeglądarce otwórz: `http://192.168.4.1/api/reports/geojson?file=20260224.csv`
+10. Plik GeoJSON z punktami sesji (każda sesja = osobny Point z właściwościami)
+
+> **Wskazówka:** Pliki GeoJSON można też otworzyć na stronie [geojson.io](https://geojson.io) bez instalowania żadnego oprogramowania — wystarczy wkleić zawartość pliku.
+
+---
+
+### Przykład 12: Odzyskiwanie ustawień po wymianie modułu ESP32
+
+**Scenariusz:** Moduł ESP32-S3 uległ awarii i został wymieniony na nowy. Wszystkie ustawienia (kalibracja, wzorce własne, statystyki lifetime) zostały utracone. Na karcie SD pozostał backup NVS.
+
+**Kroki:**
+
+1. **Włóż kartę SD** z poprzedniego modułu do nowego ESP32
+2. **Wgraj firmware** TrassarV3 v2.21.0 na nowy moduł (`pio run --target upload`)
+3. **Włącz urządzenie** — system wykryje pusty NVS i znajdzie backup na SD:
+   ```
+   [NVS-BKP] NVS pusty, znaleziono backup na SD
+   [NVS-BKP] Przywracam ustawienia z /backup/nvs_backup.json
+   [NVS-BKP] Przywrócono: kalibracja, wzorce, statystyki lifetime
+   ```
+4. **Zweryfikuj** w panelu WWW:
+   - Kalibracja enkodera: wartość Imp/metr przywrócona (nie trzeba kalibrować ponownie)
+   - Statystyki lifetime: łączny dystans i powierzchnia zachowane
+   - Wzorce własne: 3 sloty przywrócone
+   - Progi prędkości min/max: zachowane
+   - Tryb pracy: zachowany
+
+**Co jest przywracane:**
+| Ustawienie | Przywracane |
+|------------|:-----------:|
+| Kalibracja enkodera (imp/metr) | Tak |
+| Statystyki lifetime (dystans, powierzchnia, czas) | Tak |
+| Wzorce własne (3 sloty) | Tak |
+| Liczniki strzałów pistoletów | Tak |
+| Prędkość min/max | Tak |
+| Tryb pracy (AUTO/SEMI/RĘCZNY) | Tak |
+| Tryb przełączania (Smart/Instant) | Tak |
+
+> **Uwaga:** Backup tworzony jest automatycznie co 30 minut. Aby wymusić natychmiastowy backup, zrestartuj urządzenie — backup zostanie wykonany po 30 min od startu.
+
+---
+
+## 24. Rozwiązywanie problemów
 
 | Problem | Możliwa przyczyna | Rozwiązanie |
 |---------|-------------------|-------------|
@@ -1357,4 +1524,4 @@ data,godzina,wzorzec,dystans_m,powierzchnia_m2,lat,lon
 ---
 
 *TrassarV3 — Komputer pokładowy malowarki pasów drogowych*
-*Firmware v2.16.0 | ESP32-S3 N16R8 | GPS NEO-6M | 6 pistoletów, 16 wzorców, 3 tryby pracy, Smart/Instant, reset etapu, buzzer, watchdog, anomaly detect*
+*Firmware v2.21.0 | ESP32-S3 N16R8 | GPS NEO-6M | 6 pistoletów, 16 wzorców, 3 tryby pracy | WebSocket | GPX/GeoJSON | NVS backup | dual watchdog | event log | enkoder x4*

@@ -29,7 +29,7 @@ Obsługuje **6 pistoletów natryskowych**, **16 wzorców malowania** (15 normowy
 - **Anti-flicker** - ekrany TFT bez migania (setTextPadding na wszystkich ekranach)
 - **Diagnostyka** - heap monitoring, stack HWM, fragmentacja, logi co 30 s
 - **Okresowy zapis statystyk** - lifetime stats co 60 s (ochrona przed utratą danych)
-- **Szybki ISR enkodera** - bezpośredni odczyt rejestru GPIO (~50 ns vs ~2 μs)
+- **Enkoder kwadraturowy x4** - ISR CHANGE na obu kanałach A+B, tablica stanów 4×4, bezpośredni odczyt rejestru GPIO (~50 ns)
 - **API statystyk lifetime** (`/api/stats`) - dystans, powierzchnia, czas pracy przez WWW
 - **API raportów SD** (`/api/reports`) - lista plików raportów CSV przez WWW
 - **Detekcja anomalii pistoletów** - alert gdy pistolet nie strzela mimo aktywnej konfiguracji
@@ -46,6 +46,14 @@ Obsługuje **6 pistoletów natryskowych**, **16 wzorców malowania** (15 normowy
 - **Joystick analogowy KY-023** - nawigacja menu góra/dół/lewo/prawo + przycisk, auto-repeat, uzupełnia fizyczne przyciski
 - **Ekran podsumowania etapu** - po zatrzymaniu malowania wyświetla statystyki (dystans, powierzchnia, czas, śr. prędkość, GPS) z opcjami: kontynuuj / nowy etap / HOME
 - **Podgląd na żywo wzorca** - animowany wskaźnik pozycji (czerwona linia + trójkąt) na wizualizacji wzorca podczas malowania, śledzi pozycję w cyklu kreska/przerwa
+- **Zapis trasy GPS (GPX + GeoJSON)** - nagrywanie trasy podczas malowania, bufor PSRAM do 4320 pkt (~6h), eksport kompatybilny z Google Earth, QGIS, Leaflet
+- **WebSocket push (port 81)** - broadcast statusu co 500 ms, zastępuje polling REST, auto-reconnect z fallback
+- **Integracja GIS/GeoJSON** - konwersja raportów CSV do GeoJSON, trasa jako GeoJSON LineString, nowe endpointy API
+- **Backup NVS na kartę SD** - automatyczny backup ustawień co 30 min do JSON, auto-restore przy pustym NVS po awarii
+- **Podwójny watchdog (dual)** - WDT na obu rdzeniach (Core 0 + Core 1), 3s timeout, auto-reset
+- **Log zdarzeń na kartę SD** - dzienne pliki logów /logs/RRRRMMDD.log, kategorie: SYSTEM/ENGINE/ANOMALY/BACKUP
+- **Konfigurowalna prędkość minimalna** - próg pistoletów OFF konfigurowalny 0-10 km/h z panelu WWW, zapis NVS
+- **Joystick auto-detekcja** - auto-kalibracja centrum, wykrywanie floating ADC, debounce 200ms
 
 ## Pistolety i ich zastosowanie
 
@@ -147,7 +155,10 @@ TrassarV3/
 │   ├── menu.h/cpp              # System menu (nawigacja 11 ekranów)
 │   ├── buzzer.h/cpp            # Sygnalizacja dźwiękowa (LEDC PWM)
 │   ├── gps_handler.h/cpp      # Obsługa GPS NEO-6M (UART2, TinyGPS++)
-│   └── joystick.h/cpp         # Joystick analogowy KY-023 (ADC + przycisk)
+│   ├── gps_track.h/cpp        # Zapis trasy GPS (GPX + GeoJSON, bufor PSRAM)
+│   ├── joystick.h/cpp         # Joystick analogowy KY-023 (ADC + przycisk, auto-detekcja)
+│   ├── event_log.h/cpp        # Log zdarzeń na kartę SD (dzienne pliki)
+│   └── nvs_backup.h/cpp       # Backup/restore NVS na kartę SD (JSON)
 ├── docs/
 │   ├── INSTRUKCJA_OBSLUGI.md   # Instrukcja obsługi
 │   ├── SCHEMAT_PODLACZEN.md    # Schemat podłączeń
@@ -165,7 +176,7 @@ TrassarV3/
 
 ## Wersja
 
-Aktualna wersja firmware: **v2.16.0**
+Aktualna wersja firmware: **v2.21.0**
 
 ## Rekomendacje rozwoju
 
@@ -179,29 +190,29 @@ Poniżej lista rekomendowanych usprawnień i nowych funkcji, które warto rozwa�
 - **Unit testy** — testy logiki `painting_engine`, `patterns`, `statistics` na hoście x86 (PlatformIO native)
 
 ### Interfejs i UX
-- **Joystick analogowy (KY-023)** — zastąpienie sekwencji SELEKTOR/STOP jednym joystickiem do nawigacji menu (góra/dół/lewo/prawo + przycisk)
-- **Ekran podsumowania etapu** — po STOP wyświetlanie podsumowania: dystans, powierzchnia, czas, wzorzec, GPS — z opcją "Kontynuuj" lub "Nowy etap"
-- **Podgląd na żywo wzorca na TFT** — wizualizacja kreska/przerwa na wyświetlaczu (obecnie tylko w panelu WWW)
+- ~~Joystick analogowy (KY-023)~~ — **zaimplementowane w v2.16.0** (auto-detekcja i kalibracja w v2.21.0)
+- ~~Ekran podsumowania etapu~~ — **zaimplementowane w v2.15.0**
+- ~~Podgląd na żywo wzorca na TFT~~ — **zaimplementowane w v2.16.0**
 - **Jasność wyświetlacza** — regulacja z panelu WWW lub menu serwisowego (obecnie stała wartość PWM)
 - **Dźwięki konfigurowalne** — włączanie/wyłączanie poszczególnych sygnałów buzzera z panelu WWW
 
 ### Pomiary i precyzja
-- **Podwójny enkoder (kwadraturowy)** — wykorzystanie obu kanałów A+B dla x2/x4 rozdzielczości (lepsza precyzja kresek)
+- ~~Podwójny enkoder (kwadraturowy x4)~~ — **zaimplementowane w v2.17.0**
 - **Fuzja GPS + enkoder** — korekcja dryfu enkodera na podstawie dystansu GPS na długich odcinkach
 - **Automatyczna kalibracja z GPS** — kalibracja impulsów/metr na podstawie dystansu GPS (bez taśmy mierniczej)
-- **Zapis trasy GPS (GPX/KML)** — ciągły zapis koordynatów podczas malowania, eksport pliku trasy
+- ~~Zapis trasy GPS (GPX + GeoJSON)~~ — **zaimplementowane w v2.18.0 + v2.19.0**
 
 ### Komunikacja i integracja
 - **Bluetooth Low Energy (BLE)** — komunikacja z tabletem/telefonem bez WiFi (mniejsze zużycie energii)
 - **MQTT / IoT** — wysyłanie danych do chmury (monitoring floty maszyn, dashboard operatora)
-- **Integracja z systemami GIS** — eksport raportów z GPS do formatów GIS (GeoJSON, Shapefile)
-- **REST API v2 z WebSocket** — push notifications zamiast pollingu co 1 s (mniejszy ruch, szybsza reakcja panelu)
+- ~~Integracja z systemami GIS (GeoJSON)~~ — **zaimplementowane w v2.19.0**
+- ~~REST API v2 z WebSocket~~ — **zaimplementowane w v2.19.0** (push co 500 ms)
 
 ### Bezpieczeństwo i niezawodność
-- **Backup NVS na SD** — periodyczny eksport ustawień NVS na kartę SD (odzyskiwanie po awarii Flash)
-- **Podwójny watchdog** — osobny WDT dla Core 0 (serwer WWW) obok istniejącego na Core 1
+- ~~Backup NVS na SD~~ — **zaimplementowane w v2.20.0** (co 30 min + auto-restore)
+- ~~Podwójny watchdog (Core 0 + Core 1)~~ — **zaimplementowane w v2.20.0**
 - **Szyfrowanie WiFi WPA2-Enterprise** — dla zastosowań komercyjnych z wieloma maszynami
-- **Log zdarzeń na SD** — chronologiczny log startów/stopów/błędów/anomalii (poza raportami CSV)
+- ~~Log zdarzeń na SD~~ — **zaimplementowane w v2.20.0** (dzienne pliki logów)
 
 ### Sprzęt
 - **Czujnik poziomu farby** — ultradźwiękowy lub pływakowy, alarm niskiego poziomu w panelu
