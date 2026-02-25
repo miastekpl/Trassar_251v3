@@ -624,7 +624,7 @@ void DisplayManager::drawServiceMenu(int selectedIndex) {
     tft.setFreeFont(FM9);
     tft.setTextColor(COLOR_MENU_TXT, COLOR_BG);
     tft.setTextPadding(TFT_SCREEN_W - 12);
-    tft.drawString("SEL=dalej STOP=cofnij SEL(1s)=wejdz STOP(1s)=powrot", HINT_X, HINT_Y);
+    tft.drawString("^ v =nawiguj  OK=wejdz  <=powrot", HINT_X, HINT_Y);
     tft.setTextPadding(0);
 }
 
@@ -716,9 +716,9 @@ void DisplayManager::drawCalibrationScreen(bool active, float pulses, float ppm,
     tft.setTextColor(COLOR_MENU_TXT, COLOR_BG);
     tft.setTextPadding(TFT_SCREEN_W - 12);
     if (active) {
-        tft.drawString("START=zakoncz pomiar  STOP(1s)=powrot", HINT_X, HINT_Y);
+        tft.drawString("OK=zakoncz pomiar  <=powrot", HINT_X, HINT_Y);
     } else {
-        tft.drawString("START=rozpocznij pomiar  STOP(1s)=powrot", HINT_X, HINT_Y);
+        tft.drawString("OK=rozpocznij pomiar  <=powrot", HINT_X, HINT_Y);
     }
     tft.setTextPadding(0);
 }
@@ -778,9 +778,9 @@ void DisplayManager::drawDistanceMeter(float distanceM, bool measuring) {
     tft.setTextColor(COLOR_MENU_TXT, COLOR_BG);
     tft.setTextPadding(TFT_SCREEN_W - 12);
     if (measuring) {
-        tft.drawString("START=pauza STOP=reset STOP(1s)=powrot", HINT_X, HINT_Y);
+        tft.drawString("OK=pauza  ^=reset  <=powrot", HINT_X, HINT_Y);
     } else {
-        tft.drawString("START=pomiar STOP=reset STOP(1s)=powrot", HINT_X, HINT_Y);
+        tft.drawString("OK=pomiar  ^=reset  <=powrot", HINT_X, HINT_Y);
     }
     tft.setTextPadding(0);
 }
@@ -899,7 +899,7 @@ void DisplayManager::drawReportsScreen(bool sdReady, int fileCount, const char* 
     tft.setFreeFont(FM9);
     tft.setTextColor(COLOR_MENU_TXT, COLOR_BG);
     tft.setTextPadding(TFT_SCREEN_W - 12);
-    tft.drawString("STOP(1s)=powrot", HINT_X, HINT_Y);
+    tft.drawString("<=powrot", HINT_X, HINT_Y);
     tft.setTextPadding(0);
 }
 
@@ -1016,7 +1016,7 @@ void DisplayManager::drawSessionResetScreen(float distM, float areaM2, unsigned 
     tft.setFreeFont(FM9);
     tft.setTextColor(COLOR_MENU_TXT, COLOR_BG);
     tft.setTextPadding(TFT_SCREEN_W - 12);
-    tft.drawString("START = TAK    STOP = NIE", HINT_X, HINT_Y);
+    tft.drawString("OK = TAK    <= NIE", HINT_X, HINT_Y);
     tft.setTextPadding(0);
 }
 
@@ -1115,7 +1115,7 @@ void DisplayManager::drawSummaryScreen(const char* patCode, float distM, float a
     tft.setFreeFont(FM9);
     tft.setTextColor(COLOR_MENU_TXT, COLOR_BG);
     tft.setTextPadding(TFT_SCREEN_W - 12);
-    tft.drawString("START=kontynuuj  STOP=nowy etap  STOP(1s)=HOME", HINT_X, HINT_Y);
+    tft.drawString("START=kontynuuj  ^=nowy etap  <=HOME", HINT_X, HINT_Y);
     tft.setTextPadding(0);
 }
 
@@ -1173,7 +1173,7 @@ void DisplayManager::drawSetupScreen(int cursor, MachineMode mode,
                                      bool smartSwitch, bool gapStart) {
     drawHeader("PRZYGOTOWANIE");
 
-    // Etykiety i wartosci
+    // Etykiety i wartosci (3 opcje konfiguracyjne)
     static const char* labels[3] = {
         "Tryb pracy:",
         "Przelaczanie:",
@@ -1192,9 +1192,10 @@ void DisplayManager::drawSetupScreen(int cursor, MachineMode mode,
         (uint16_t)(gapStart    ? COLOR_WARNING : COLOR_ACCENT)
     };
 
-    const int SETUP_ITEM_H = 48;
+    const int SETUP_ITEM_H = 40;       // 40px — miesci 4 pozycje (4*40=160)
     const int SETUP_START_Y = 36;
 
+    // --- 3 opcje konfiguracyjne ---
     for (int i = 0; i < 3; i++) {
         int iy = SETUP_START_Y + i * SETUP_ITEM_H;
         bool sel = (i == cursor);
@@ -1227,8 +1228,23 @@ void DisplayManager::drawSetupScreen(int cursor, MachineMode mode,
         tft.drawFastHLine(0, iy + SETUP_ITEM_H - 1, TFT_SCREEN_W, COLOR_DIVIDER);
     }
 
+    // --- 4. pozycja: przycisk ROZPOCZNIJ MALOWANIE ---
+    {
+        int iy = SETUP_START_Y + 3 * SETUP_ITEM_H;
+        bool sel = (cursor == 3);
+        uint16_t bg = sel ? COLOR_ACCENT : COLOR_BG;
+        uint16_t fg = sel ? COLOR_BG     : COLOR_ACCENT;
+
+        tft.fillRect(0, iy, TFT_SCREEN_W, SETUP_ITEM_H, bg);
+        tft.setFreeFont(FSB12);
+        tft.setTextColor(fg, bg);
+        tft.setTextDatum(MC_DATUM);
+        tft.drawString("ROZPOCZNIJ MALOWANIE", TFT_SCREEN_W / 2, iy + SETUP_ITEM_H / 2);
+        tft.setTextDatum(TL_DATUM);
+    }
+
     // Wyczysc reszte pod opcjami
-    int bottomY = SETUP_START_Y + 3 * SETUP_ITEM_H;
+    int bottomY = SETUP_START_Y + 4 * SETUP_ITEM_H;
     if (bottomY < HINT_Y) {
         tft.fillRect(0, bottomY, TFT_SCREEN_W, HINT_Y - bottomY, COLOR_BG);
     }
@@ -1237,6 +1253,6 @@ void DisplayManager::drawSetupScreen(int cursor, MachineMode mode,
     tft.setFreeFont(FM9);
     tft.setTextColor(COLOR_MENU_TXT, COLOR_BG);
     tft.setTextPadding(TFT_SCREEN_W - 12);
-    tft.drawString("SEL=dalej SEL(1s)=zmien START=maluj STOP(1s)=wroc", HINT_X, HINT_Y);
+    tft.drawString("^ v =nawiguj  OK=zmien/potwierdz  <=powrot", HINT_X, HINT_Y);
     tft.setTextPadding(0);
 }

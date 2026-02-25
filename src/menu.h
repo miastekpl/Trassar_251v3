@@ -32,7 +32,7 @@ private:
     int nozzlePatternIdx = 0;
 
     // Ekran przygotowania (SETUP)
-    int setupCursor = 0;       // 0=tryb, 1=przelaczanie, 2=start
+    int setupCursor = 0;       // 0=tryb, 1=przelaczanie, 2=start, 3=rozpocznij
     int setupMode = 0;         // 0=AUTO, 1=SEMI, 2=MANUAL
     bool setupSmart = true;    // true=Smart, false=Instant
     bool setupGapStart = false;// true=Od przerwy, false=Normalny

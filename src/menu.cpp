@@ -175,39 +175,46 @@ void MenuSystem::handlePaintingScreen(ButtonEvent e) {
 void MenuSystem::handleSetup(ButtonEvent e) {
     switch (e) {
         case EVT_SELECT_SHORT:
-            // Kursor w dol
+            // Kursor w dol (joystick DOWN)
             setupCursor++;
-            if (setupCursor > 2) setupCursor = 0;
+            if (setupCursor > 3) setupCursor = 0;
             g_state.displayNeedsUpdate = true;
             break;
 
         case EVT_STOP_SHORT:
-            // Kursor w gore
+            // Kursor w gore (joystick UP)
             setupCursor--;
-            if (setupCursor < 0) setupCursor = 2;
+            if (setupCursor < 0) setupCursor = 3;
             g_state.displayNeedsUpdate = true;
             break;
 
         case EVT_SELECT_LONG:
-            // Zmien wartosc wybranej opcji
+            // Joystick SW / RIGHT / SELECT(dlugi) — zmien wartosc lub rozpocznij
             switch (setupCursor) {
                 case 0:  // Tryb pracy: AUTO -> SEMI -> RECZNY -> AUTO
                     setupMode++;
                     if (setupMode > 2) setupMode = 0;
+                    buzzer.beep(1500, 60);
+                    g_state.displayNeedsUpdate = true;
                     break;
                 case 1:  // Przelaczanie: Smart <-> Instant
                     setupSmart = !setupSmart;
+                    buzzer.beep(1500, 60);
+                    g_state.displayNeedsUpdate = true;
                     break;
                 case 2:  // Start: Normalny <-> Od przerwy
                     setupGapStart = !setupGapStart;
+                    buzzer.beep(1500, 60);
+                    g_state.displayNeedsUpdate = true;
                     break;
+                case 3:  // ROZPOCZNIJ — zapisz i maluj (joystick SW na tej opcji)
+                    goto setup_start_painting;
             }
-            buzzer.beep(1500, 60);
-            g_state.displayNeedsUpdate = true;
             break;
 
         case EVT_START_SHORT:
-        case EVT_START_LONG: {
+        case EVT_START_LONG:
+        setup_start_painting: {
             // Zapisz ustawienia i rozpocznij malowanie
             MachineMode newMode = (MachineMode)setupMode;
             if (newMode != g_state.machineMode) {
@@ -237,7 +244,7 @@ void MenuSystem::handleSetup(ButtonEvent e) {
         }
 
         case EVT_STOP_LONG:
-            // Powrot do HOME bez zmian
+            // Powrot do HOME bez zmian (joystick LEFT)
             goToScreen(SCREEN_HOME);
             break;
 
@@ -296,6 +303,7 @@ void MenuSystem::handleServiceMenu(ButtonEvent e) {
 void MenuSystem::handleCalibration(ButtonEvent e) {
     switch (e) {
         case EVT_START_SHORT:
+        case EVT_SELECT_LONG:   // Joystick SW = rozpocznij/zakoncz kalibracje
             if (!encoderDist.isCalibrating()) {
                 encoderDist.startCalibration();
             } else {
@@ -322,6 +330,7 @@ void MenuSystem::handleCalibration(ButtonEvent e) {
 void MenuSystem::handleDistanceMeter(ButtonEvent e) {
     switch (e) {
         case EVT_START_SHORT:
+        case EVT_SELECT_LONG:   // Joystick SW = start/pauza pomiaru
             if (!distMeasuring) {
                 // Rozpocznij lub wznow pomiar
                 distMeasuring = true;
@@ -399,7 +408,8 @@ void MenuSystem::handleNozzleClean(ButtonEvent e) {
 void MenuSystem::handleSessionReset(ButtonEvent e) {
     switch (e) {
         case EVT_START_SHORT:
-        case EVT_START_LONG: {
+        case EVT_START_LONG:
+        case EVT_SELECT_LONG: {  // Joystick SW = potwierdz reset
             // Reset licznikow sesji
             stats.resetSession();
             encoderDist.resetDistance();
