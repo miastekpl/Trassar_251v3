@@ -1,6 +1,6 @@
 // ============================================================
 // TrassarV3 - Komputer pokładowy malowarki pasów drogowych
-// Firmware v2.21.0
+// Firmware v2.22.0
 //
 // Platforma:    ESP32-S3 N16R8 (dual-core)
 // Wyświetlacz:  ILI9341 2.8" 240x320 SPI
@@ -32,6 +32,8 @@
 #include "nvs_backup.h"
 #include <esp_task_wdt.h>
 #include <esp_heap_caps.h>
+#include <esp_system.h>
+#include <soc/gpio_struct.h>
 
 // Globalny stan systemu
 SystemState g_state;
@@ -39,6 +41,29 @@ portMUX_TYPE g_stateMux = portMUX_INITIALIZER_UNLOCKED;
 
 // Stan detekcji anomalii pistoletow
 GunAnomalyState gunAnomaly;
+
+// ============================================================
+// E-STOP: przerwanie GPIO — natychmiastowe wylaczenie pistoletow
+// Styk NC do GND: normalnie LOW, wcisniety/przerwany = HIGH
+// Wywolywane w <1us od zmiany stanu pinu
+// ============================================================
+static volatile bool estopTriggered = false;
+
+void IRAM_ATTR estopISR() {
+    // Bezposredni odczyt rejestru GPIO (nie digitalRead — wolny)
+    bool active = ((PIN_BTN_ESTOP < 32)
+        ? ((GPIO.in >> PIN_BTN_ESTOP) & 1)
+        : ((GPIO.in1.val >> (PIN_BTN_ESTOP - 32)) & 1));
+    if (active == ESTOP_ACTIVE_LEVEL) {
+        GunController::forceAllOffISR();
+        estopTriggered = true;
+    }
+}
+
+// Callback przed resetem ESP (WDT, panic, esp_restart)
+static void shutdownGunsOff() {
+    GunController::forceAllOffISR();
+}
 
 // Timery
 unsigned long lastDisplayRefresh = 0;
@@ -174,6 +199,19 @@ void setup() {
 
     // Wczytaj tryb przelaczania wzorcow z NVS
     paintEngine.setSmartSwitch(storage.loadSwitchMode());
+
+    // 14. Emergency Stop — przycisk grzybkowy (NC do GND)
+    Serial.println("[INIT] Emergency Stop (GPIO " + String(PIN_BTN_ESTOP) + ")...");
+    pinMode(PIN_BTN_ESTOP, INPUT_PULLUP);
+    attachInterrupt(digitalPinToInterrupt(PIN_BTN_ESTOP), estopISR, CHANGE);
+    // Sprawdz czy E-STOP nie jest juz wcisniety przy starcie
+    if (digitalRead(PIN_BTN_ESTOP) == ESTOP_ACTIVE_LEVEL) {
+        Serial.println("[INIT] UWAGA: E-STOP aktywny przy starcie!");
+        estopTriggered = true;
+    }
+
+    // 15. Shutdown handler — wymuszenie guns OFF przed resetem WDT/panic
+    esp_register_shutdown_handler(shutdownGunsOff);
 
     // Watchdog timer - 3s timeout, auto-reset przy zawieszeniu
     Serial.println("[INIT] Watchdog timer...");

@@ -1,13 +1,13 @@
 #pragma once
 // ============================================================
-// TrassarV3 - Konfiguracja sprzętowa v2.21.0
+// TrassarV3 - Konfiguracja sprzętowa v2.22.0
 // Komputer pokładowy malowarki pasów drogowych
 // ============================================================
 
 #include <Arduino.h>
 
 // ============ WERSJA FIRMWARE ============
-#define FW_VERSION      "2.21.0"
+#define FW_VERSION      "2.22.0"
 #define FW_NAME         "TrassarV3"
 #define FW_DATE         __DATE__
 
@@ -39,6 +39,7 @@
 #define PIN_BTN_STOP     39   // Stop
 #define PIN_BTN_SELECT   40   // Selektor
 #define PIN_BTN_GAP       7   // Start od przerwy (przycisk na enkoderze)
+#define PIN_BTN_ESTOP     9   // Emergency stop (grzybkowy NC do GND)
 
 // ============ Przekaźniki pistoletów (6 szt.) ============
 #define PIN_RELAY_P1     41   // Pistolet 1 - oś L, 12cm
@@ -78,6 +79,13 @@
 
 // ============ Gun keepalive ============
 #define GUN_KEEPALIVE_TIMEOUT_MS  300  // Awaryjne guns.allOff() jesli brak update >300ms
+
+// ============ Emergency Stop (grzybkowy) ============
+// Styk NC (normally closed) do GND:
+//   Normalnie: LOW (styk zamkniety)
+//   Wcisniety/przerwany kabel: HIGH (INPUT_PULLUP) = ESTOP aktywny
+// Fail-safe: przerwanie kabla = taki sam efekt jak wcisniecie
+#define ESTOP_ACTIVE_LEVEL  HIGH
 
 // ============ Kalibracja ============
 #define DEFAULT_PULSES_PER_METER  100.0f
