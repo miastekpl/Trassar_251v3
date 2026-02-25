@@ -12,6 +12,7 @@ public:
     void begin();
     void update();
     ButtonEvent getEvent();
+    bool isEnabled() const { return axesEnabled; }
 
 private:
     enum JoyDir : uint8_t {
@@ -21,6 +22,11 @@ private:
         JOY_LEFT,
         JOY_RIGHT
     };
+
+    // Auto-detekcja i kalibracja
+    bool axesEnabled = false;   // Osie analogowe wlaczone (joystick wykryty)
+    int centerX = 2048;         // Skalibrowane centrum X
+    int centerY = 2048;         // Skalibrowane centrum Y
 
     // Stan osi analogowych
     JoyDir currentDir = JOY_NONE;
