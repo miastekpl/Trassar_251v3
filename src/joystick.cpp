@@ -28,8 +28,14 @@ void JoystickHandler::begin() {
 }
 
 JoystickHandler::JoyDir JoystickHandler::readDirection() {
-    int vrx = analogRead(PIN_JOY_VRX);
-    int vry = analogRead(PIN_JOY_VRY);
+    // Srednia z 4 probek — redukcja szumu ADC (szczegolnie ADC2 + WiFi AP)
+    int vrx = 0, vry = 0;
+    for (int i = 0; i < 4; i++) {
+        vrx += analogRead(PIN_JOY_VRX);
+        vry += analogRead(PIN_JOY_VRY);
+    }
+    vrx /= 4;
+    vry /= 4;
 
     int dx = abs(vrx - JOY_CENTER);
     int dy = abs(vry - JOY_CENTER);
@@ -87,6 +93,10 @@ void JoystickHandler::update() {
     JoyDir dir = readDirection();
 
     if (dir != currentDir) {
+        // Anti-bounce: ignoruj zmiany kierunku szybsze niz 200ms
+        // Zapobiega oscylacji ADC na granicy dead zone (szum, floating pin, WiFi+ADC2)
+        if (now - dirStartMs < 200) return;
+
         // Zmiana kierunku
         currentDir = dir;
         dirStartMs = now;
