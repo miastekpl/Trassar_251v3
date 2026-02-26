@@ -1,4 +1,4 @@
-# TrassarV3 - Instrukcja obsługi v2.21.0
+# TrassarV3 - Instrukcja obsługi v2.22.0
 
 ## Spis treści
 
@@ -54,7 +54,7 @@ System zapewnia:
 | Parametr | Wartość |
 |----------|---------|
 | Mikrokontroler | ESP32-S3 N16R8 (16 MB Flash, 8 MB PSRAM) |
-| Firmware | v2.21.0 |
+| Firmware | v2.22.0 |
 | Wyświetlacz | ILI9341 2.8" TFT, 320×240 px, tryb landscape |
 | Interfejs SPI | HSPI (SPI3), 27 MHz |
 | Zegar RTC | DS1307 z baterią CR2032 |
@@ -817,7 +817,30 @@ Przy zbyt dużej prędkości jakość malowania spada (farba się rozpryskuje, l
 - **Wyświetlacz:** Prędkość wyświetlana na żółto
 - **Buzzer:** Podwójny puls 1.5 kHz, powtarzany co 3 sekundy
 
-### 12.6 Odszumianie enkodera
+### 12.6 Emergency Stop (E-STOP) — przycisk grzybkowy
+
+System wyposażony jest w **przycisk awaryjnego zatrzymania** (grzybkowy, czerwony) zapewniający natychmiastowe wyłączenie pistoletów w sytuacji zagrożenia.
+
+**Zasada działania (fail-safe):**
+- Przycisk E-STOP używa styku **NC (normally closed)** podłączonego do GND
+- **Normalnie** (grzybek NIE wciśnięty): styk zamknięty → GPIO = LOW → praca normalna
+- **Wciśnięty grzybek**: styk otwarty → GPIO = HIGH (pullup) → **E-STOP aktywny!**
+- **Przerwany kabel**: obwód otwarty → GPIO = HIGH (pullup) → **E-STOP aktywny!**
+
+**Reakcja systemu na E-STOP:**
+1. **ISR (natychmiastowo, <1 μs):** Przerwanie GPIO wyłącza wszystkie przekaźniki pistoletów przez bezpośredni zapis do rejestrów GPIO — bez czekania na pętlę programu
+2. **Pętla główna:** Zatrzymuje sesję malowania, sygnał buzzera (800 Hz, 500 ms), log zdarzenia
+3. **Blokada:** Dopóki grzybek jest wciśnięty, pętla główna jest zablokowana — żadna operacja malowania nie jest możliwa
+4. **Odblokowanie:** Po puszczeniu grzybka (styk NC zamyka się) → system wraca do ekranu głównego
+
+**Dodatkowe warstwy bezpieczeństwa:**
+- `esp_register_shutdown_handler()` — wyłączenie pistoletów przed resetem watchdoga
+- Gun keepalive (300 ms) — awaryjne wyłączenie jeśli silnik malowania nie odpowiada
+- Sprawdzenie stanu E-STOP przy starcie systemu — jeśli aktywny, blokuje uruchomienie
+
+> **Montaż:** Przycisk grzybkowy powinien być zamontowany w łatwo dostępnym miejscu na panelu operatora. Kabel od przycisku do sterownika powinien być zabezpieczony mechanicznie.
+
+### 12.7 Odszumianie enkodera
 
 Podczas inicjalizacji systemu enkoder może rejestrować drobne drgania. Po zakończeniu inicjalizacji system automatycznie zeruje licznik dystansu (`resetDistance()`), eliminując szum nazbierany podczas startu.
 
@@ -838,6 +861,7 @@ System wyposażony jest w pasywny buzzer (GPIO 8) generujący sygnały dźwięko
 | **Niska prędkość** | 2× puls | 1.5 kHz, 150 ms + 150 ms | Prędkość <3 km/h podczas malowania (co 3 s) |
 | **Przekroczenie prędkości** | 3× alarm | 3 kHz, 60 ms × 3 | Prędkość > próg maks. (co 2 s) |
 | **Anomalia pistoletu** | Niski-wysoki-niski | 800→1200→800 Hz | Pistolet nie strzela mimo konfiguracji (po 50 m) |
+| **E-STOP** | 1× długi beep | 800 Hz, 500 ms | Emergency Stop — natychmiastowe wyłączenie pistoletów |
 | **Błąd (RTC/SD)** | Opadający ton | 1000→800→600 Hz | Brak karty SD lub RTC niedostępny przy starcie |
 | **Semi: kreska gotowa** | 1× krótki beep | 1 kHz, 50 ms | Kreska zakończona, czekam na START (tryb SEMI) |
 | **Semi: kolejna linia** | 1× krótki beep | 1.5 kHz, 80 ms | Potwierdzenie rozpoczęcia nowej kreski (tryb SEMI) |
@@ -862,7 +886,7 @@ System wyposażony jest w pasywny buzzer (GPIO 8) generujący sygnały dźwięko
 
 ## 14. Architektura wielordzeniowa
 
-TrassarV3 v2.21.0 wykorzystuje oba rdzenie procesora ESP32-S3 i obsługuje 11 ekranów interfejsu:
+TrassarV3 v2.22.0 wykorzystuje oba rdzenie procesora ESP32-S3 i obsługuje 11 ekranów interfejsu:
 
 | Rdzeń | Zadania |
 |-------|---------|
@@ -1462,7 +1486,7 @@ data,godzina,wzorzec,dystans_m,powierzchnia_m2,lat,lon
 **Kroki:**
 
 1. **Włóż kartę SD** z poprzedniego modułu do nowego ESP32
-2. **Wgraj firmware** TrassarV3 v2.21.0 na nowy moduł (`pio run --target upload`)
+2. **Wgraj firmware** TrassarV3 v2.22.0 na nowy moduł (`pio run --target upload`)
 3. **Włącz urządzenie** — system wykryje pusty NVS i znajdzie backup na SD:
    ```
    [NVS-BKP] NVS pusty, znaleziono backup na SD
@@ -1523,4 +1547,4 @@ data,godzina,wzorzec,dystans_m,powierzchnia_m2,lat,lon
 ---
 
 *TrassarV3 — Komputer pokładowy malowarki pasów drogowych*
-*Firmware v2.21.0 | ESP32-S3 N16R8 | GPS NEO-6M | 6 pistoletów, 16 wzorców, 3 tryby pracy | WebSocket | GPX/GeoJSON | NVS backup | dual watchdog | event log | enkoder x4*
+*Firmware v2.22.0 | ESP32-S3 N16R8 | GPS NEO-6M | 6 pistoletów, 16 wzorców, 3 tryby pracy | WebSocket | GPX/GeoJSON | NVS backup | dual watchdog | event log | enkoder x4*

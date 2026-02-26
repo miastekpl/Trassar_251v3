@@ -247,6 +247,29 @@ void loop() {
     // Watchdog reset - jesli loop() sie zawiesi, ESP zresetuje sie po 3s
     esp_task_wdt_reset();
 
+    // ============================================================
+    // 0. E-STOP — najwyzszy priorytet, przed wszystkim innym
+    // ISR juz wymusil GPIO LOW; tutaj obsluga stanu maszyny
+    // ============================================================
+    if (estopTriggered || digitalRead(PIN_BTN_ESTOP) == ESTOP_ACTIVE_LEVEL) {
+        if (estopTriggered) {
+            estopTriggered = false;
+            // ISR juz wymusil LOW na GPIO, ale wywolaj tez allOff() dla spojnosci stanu
+            guns.allOff();
+            paintEngine.emergencyStop();
+            buzzer.beep(800, 500);
+            Serial.println("[E-STOP] EMERGENCY STOP AKTYWNY!");
+        }
+        // Blokuj normalna petle dopoki E-STOP jest wcisniety
+        // Tylko odswiezaj ekran i karm watchdoga
+        if (now - lastDisplayRefresh >= DISPLAY_REFRESH_MS) {
+            lastDisplayRefresh = now;
+            menu.update();
+        }
+        delay(50);
+        return;
+    }
+
     // 1. Odczyt przycisków
     buttons.update();
     ButtonEvent event = buttons.getEvent();

@@ -1,4 +1,4 @@
-# TrassarV3 - Dokumentacja techniczna i schemat podłączeń v2.21.0
+# TrassarV3 - Dokumentacja techniczna i schemat podłączeń v2.22.0
 
 ## Spis treści
 
@@ -42,13 +42,14 @@
 | 7 | Buzzer | **Buzzer pasywny 5V** (np. TMB12A05 lub odpowiednik) | LEDC PWM (kanał 1) | Pasywny — wymaga sygnału PWM, zakres 100 Hz – 5 kHz |
 | 8 | GPS | **GY-NEO6MV2** (chip u-blox NEO-6M + antena ceramiczna) | UART2 (9600 baud) | Antena 25×25 mm, 50 kanałów, NMEA 0183, cold start <35 s |
 | 9 | Joystick | **KY-023** (moduł joysticka analogowego 2-osiowego) | ADC2 (GPIO 19/20) + Digital (GPIO 46) | 2 potencjometry 10kΩ + przycisk tact |
-| 10 | Bateria RTC | **CR2032** 3V litowa | — | Podtrzymanie zegara DS1307 po odłączeniu zasilania |
+| 10 | Przycisk E-STOP | **Przycisk grzybkowy NC** (normally closed) | Digital (INPUT_PULLUP) | Emergency stop — styk NC do GND, fail-safe |
+| 11 | Bateria RTC | **CR2032** 3V litowa | — | Podtrzymanie zegara DS1307 po odłączeniu zasilania |
 
 ### 1.3 Firmware
 
 | Parametr | Wartość |
 |----------|---------|
-| Wersja | 2.21.0 |
+| Wersja | 2.22.0 |
 | Platforma | ESP32-S3 (PlatformIO) |
 | Biblioteki | TFT_eSPI v2.5.43, ArduinoJson v7.0.4, RTClib v2.1.4, TinyGPSPlus v1.0.3, WebSockets v2.4.1, SD, Wire, WiFi, esp_task_wdt |
 | Orientacja ekranu | Landscape (setRotation 1) |
@@ -67,12 +68,13 @@
 | 7 | Moduł przekaźników 6-kanałowy 5V | 1 | Z opto-izolacją, wejścia aktywne HIGH |
 | 8 | Moduł GPS GY-NEO6MV2 NEO-6M | 1 | Z anteną ceramiczną na kablu |
 | 9 | Joystick analogowy KY-023 | 1 | 5-pin: VRx, VRy, SW, +5V, GND |
-| 10 | Buzzer pasywny 5V | 1 | 2-pin (+/−), montaż panelowy |
-| 11 | Karta MicroSD | 1 | FAT32, min. 1 GB, klasa 4+ |
-| 12 | Przewody połączeniowe Dupont | ~45 | Żeńsko-żeński i żeńsko-męski |
-| 13 | Zasilacz USB-C 5V/2A | 1 | Minimum 1.5A przy pełnym obciążeniu |
-| 14 | Koło pomiarowe + uchwyt enkodera | 1 | Obwód dopasowany do kalibracji |
-| 15 | Zawory elektromagnetyczne pistoletów | 6 | Podłączenie do wyjść NO przekaźników |
+| 10 | Przycisk grzybkowy E-STOP NC | 1 | Styk NC (normally closed), montaż panelowy, fail-safe |
+| 11 | Buzzer pasywny 5V | 1 | 2-pin (+/−), montaż panelowy |
+| 12 | Karta MicroSD | 1 | FAT32, min. 1 GB, klasa 4+ |
+| 13 | Przewody połączeniowe Dupont | ~45 | Żeńsko-żeński i żeńsko-męski |
+| 14 | Zasilacz USB-C 5V/2A | 1 | Minimum 1.5A przy pełnym obciążeniu |
+| 15 | Koło pomiarowe + uchwyt enkodera | 1 | Obwód dopasowany do kalibracji |
+| 16 | Zawory elektromagnetyczne pistoletów | 6 | Podłączenie do wyjść NO przekaźników |
 
 ---
 
@@ -153,8 +155,11 @@
 | STOP | GPIO 39 | 39 | INPUT_PULLUP | Stop / Menu (1 s) / Cofnij |
 | SELEKTOR | GPIO 40 | 40 | INPUT_PULLUP | Odwróć P-3a/P-3b (HOME/PAINTING), nawigacja + wejście w opcję (menu serwis.) |
 | GAP (od przerwy) | GPIO 7 | 7 | INPUT_PULLUP | Start od przerwy (HOME) |
+| **E-STOP** (grzybkowy) | GPIO 9 | 9 | INPUT_PULLUP | **Emergency Stop** — styk NC do GND, fail-safe |
 
 > **UWAGA:** GPIO 26–37 są zajęte przez Octal PSRAM modułu N16R8! NIE wolno ich używać!
+>
+> **UWAGA GPIO 9:** Pin GPIO 9 jest współdzielony z TFT_DC w domyślnej konfiguracji wyświetlacza. Przy montażu E-STOP należy przenieść TFT_DC na inny wolny pin i zaktualizować build_flags w platformio.ini.
 >
 > **Parametry przycisków:** Debounce: 50 ms, Długie naciśnięcie: 1000 ms. Podłączenie: jeden styk do GPIO, drugi do GND. Wewnętrzne pull-up aktywowane programowo.
 
@@ -185,7 +190,7 @@
 | **6** | Enkoder DT (B) | INPUT_PULLUP | ISR CHANGE, kwadraturowy x4, debounce 200 μs |
 | **7** | Przycisk GAP (SW enkodera) | INPUT_PULLUP | "Start od przerwy" |
 | **8** | Buzzer | PWM (LEDC ch1) | Sygnalizacja dźwiękowa (pasywny) |
-| **9** | TFT DC | OUTPUT | Data/Command |
+| **9** | **E-STOP** (grzybkowy NC) / TFT DC | INPUT_PULLUP / OUTPUT | Emergency Stop (wymaga przeniesienia TFT_DC na inny pin) |
 | **10** | TFT CS | OUTPUT | Chip Select wyświetlacza |
 | **11** | SPI MOSI | OUTPUT | Wspólny TFT + SD |
 | **10** | TFT CS | OUTPUT | Chip Select wyświetlacza |
@@ -291,6 +296,12 @@ Na fizycznym panelu sterowania (ekran HOME i PAINTING) przycisk SELEKTOR **nie z
     │ [START]───│── GND ──│── GPIO 38                         │
     │ [STOP]────│── GND ──│── GPIO 39                         │
     │ [SELECT]──│── GND ──│── GPIO 40                         │
+    └───────────┘         │                                   │
+                          │  --- E-STOP (grzybkowy NC) ---   │
+    ┌───────────┐         │                                   │
+    │  GRZYBEK  │         │                                   │
+    │  E-STOP   │         │                                   │
+    │  (NC)  ───│── GND ──│── GPIO  9  (INPUT_PULLUP)        │
     └───────────┘         │                                   │
                           │  --- JOYSTICK ---                │
     ┌───────────┐         │                                   │
@@ -433,7 +444,29 @@ Na fizycznym panelu sterowania (ekran HOME i PAINTING) przycisk SELEKTOR **nie z
 
 > **Uwaga:** KY-023 zasilany z 3.3V (zakres ADC 0–3.3V). Centrum joysticka = ~1.65V (ADC ~2048). GPIO 46 jest pinem strapping — z pullup HIGH podczas bootu (poprawne). **Nie wciskać SW podczas włączania ESP32!**
 
-### 6.6 Podłączenie modułu GPS GY-NEO6MV2
+### 6.6 Podłączenie przycisku E-STOP (grzybkowy NC)
+
+```
+    ESP32-S3               Przycisk grzybkowy E-STOP
+    ┌──────────┐           ┌───────────────────────┐
+    │          │           │                       │
+    │ GPIO  9  ├───────────┤ Styk NC (zamknięty)   │
+    │ (pullup) │           │                       │
+    │          │           │    ┌─────────────┐    │
+    │    GND   ├───────────┤ COM│  GRZYBEK    │    │
+    └──────────┘           │    │ (czerwony)  │    │
+                           │    └─────────────┘    │
+                           └───────────────────────┘
+
+    Zasada działania (fail-safe):
+      Normalnie (grzybek NIE wciśnięty): styk NC zamknięty → GPIO 9 = LOW
+      Wciśnięty grzybek:                 styk NC otwarty   → GPIO 9 = HIGH (pullup) = E-STOP!
+      Przerwany kabel:                   obwód otwarty     → GPIO 9 = HIGH (pullup) = E-STOP!
+```
+
+> **UWAGA:** Przycisk E-STOP **musi** być typu NC (normally closed). Styk NC zapewnia bezpieczeństwo fail-safe: przerwanie kabla powoduje taki sam efekt jak wciśnięcie grzybka — natychmiastowe wyłączenie pistoletów. Przycisk grzybkowy powinien być zamontowany w łatwo dostępnym miejscu na panelu operatora.
+
+### 6.7 Podłączenie modułu GPS GY-NEO6MV2
 
 ```
     ESP32-S3               Moduł GPS GY-NEO6MV2
@@ -453,7 +486,7 @@ Na fizycznym panelu sterowania (ekran HOME i PAINTING) przycisk SELEKTOR **nie z
 
 > **Uwaga:** Moduł NEO-6M komunikuje się na 9600 baud (domyślnie). Antena ceramiczna musi mieć widoczność nieba. Pin TX modułu GPS podłączamy do GPIO 47 (UART2 RX), pin RX do GPIO 48 (UART2 TX).
 
-### 6.7 Podłączenie wyświetlacza i karty SD (wspólna magistrala SPI)
+### 6.8 Podłączenie wyświetlacza i karty SD (wspólna magistrala SPI)
 
 
 ```
@@ -483,7 +516,7 @@ Na fizycznym panelu sterowania (ekran HOME i PAINTING) przycisk SELEKTOR **nie z
       GPIO 15 = LOW → komunikacja z Touch
 ```
 
-### 6.8 Podłączenie zegara RTC DS1307
+### 6.9 Podłączenie zegara RTC DS1307
 
 ```
     ESP32-S3               Moduł DS1307
@@ -748,6 +781,9 @@ Szczegółowa dokumentacja API → [API_WWW.md](API_WWW.md)
 | JOY_DEAD_ZONE | 500 | Strefa martwa ±500 z centrum 2048 |
 | JOY_INITIAL_DELAY_MS | 400 | Opóźnienie przed auto-repeat [ms] |
 | JOY_REPEAT_MS | 200 | Interwał auto-repeat [ms] |
+| PIN_BTN_ESTOP | 9 | GPIO przycisku E-STOP (grzybkowy NC) |
+| ESTOP_ACTIVE_LEVEL | HIGH | Poziom aktywny E-STOP (HIGH = wciśnięty/przerwany kabel) |
+| GUN_KEEPALIVE_TIMEOUT_MS | 300 | Awaryjne wyłączenie pistoletów [ms] |
 | WS_PORT | 81 | Port serwera WebSocket |
 | WS_BROADCAST_MS | 500 | Interwał broadcast statusu przez WebSocket [ms] |
 | GPX_RECORD_INTERVAL_MS | 5000 | Interwał zapisu punktu trasy GPS [ms] |
@@ -824,5 +860,5 @@ Szczegółowa dokumentacja API → [API_WWW.md](API_WWW.md)
 
 ---
 
-*TrassarV3 — Dokumentacja techniczna v2.21.0*
+*TrassarV3 — Dokumentacja techniczna v2.22.0*
 *ESP32-S3 N16R8 | ILI9341 320×240 | GPS NEO-6M | 6 pistoletów | 16 wzorców | 3 tryby pracy | WiFi AP*
