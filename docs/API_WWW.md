@@ -1,4 +1,4 @@
-# TrassarV3 - API serwera WWW v2.16.0
+# TrassarV3 - API serwera WWW v2.22.0
 
 ## Informacje ogólne
 

@@ -1,13 +1,13 @@
 #pragma once
 // ============================================================
-// TrassarV3 - Konfiguracja sprzętowa v2.21.0
+// TrassarV3 - Konfiguracja sprzętowa v2.22.0
 // Komputer pokładowy malowarki pasów drogowych
 // ============================================================
 
 #include <Arduino.h>
 
 // ============ WERSJA FIRMWARE ============
-#define FW_VERSION      "2.21.0"
+#define FW_VERSION      "2.22.0"
 #define FW_NAME         "TrassarV3"
 #define FW_DATE         __DATE__
 
@@ -91,6 +91,13 @@
 #define JOY_DEAD_ZONE        500   // Strefa martwa ±500 z centrum (12-bit ADC, centrum=2048)
 #define JOY_INITIAL_DELAY_MS 400   // Opoznienie przed auto-repeat [ms]
 #define JOY_REPEAT_MS        200   // Interwał auto-repeat [ms]
+
+// ============ Expander MCP23017 (I2C — przyciski wzorców) ============
+// MCP23017 na tej samej magistrali I2C co RTC DS1307 (SDA=17, SCL=18)
+#define MCP23017_I2C_ADDR     0x20   // Adres I2C (A0=A1=A2=GND)
+#define MCP23017_NUM_BUTTONS    15   // 15 przycisków = 15 wzorców predefiniowanych
+#define MCP23017_SCAN_MS        20   // Interwał skanowania przycisków [ms]
+#define MCP23017_BUTTON_MASK  0x7FFF // Bity 0..14 (GPA0-7 + GPB0-6)
 
 // ============ GPS NEO-6M (UART2) ============
 #define PIN_GPS_RX       47   // ESP32 RX <- GPS TX

@@ -7,6 +7,65 @@ Wersjonowanie zgodne z [Semantic Versioning](https://semver.org/lang/pl/).
 
 ---
 
+## [2.22.0] - 2026-02-28
+
+### Dodano - 15 fizycznych przycisków wzorców (MCP23017 I2C)
+
+- **Ekspander I2C MCP23017** — 15 fizycznych przycisków do natychmiastowego wyboru wzorca malowania
+  - Nowy moduł `pattern_buttons.h/cpp` — driver MCP23017 via Wire (I2C)
+  - MCP23017 na wspólnej magistrali I2C z RTC DS1307 (SDA=GPIO 17, SCL=GPIO 18)
+  - Adres I2C: **0x20** (A0=A1=A2=GND, domyślny)
+  - 15 przycisków monostabilnych (NO) na portach GPA0–GPA7 + GPB0–GPB6
+  - Wewnętrzne pull-up MCP23017 aktywowane — przyciski bezpośrednio do GND
+  - Debounce programowy: dwa identyczne odczyty wymagane (skan co 20 ms)
+  - Potwierdzenie dźwiękowe: buzzer 1500 Hz / 80 ms przy każdym wyborze wzorca
+  - Log zdarzenia na SD: `[PAT_BTN] Przycisk N -> wzorzec P-Xx`
+  - Integracja z Smart/Instant: podczas malowania wzorzec oczekuje na koniec cyklu (Smart) lub zmienia natychmiast (Instant)
+  - Graceful degradation: jeśli MCP23017 niedostępny, system działa bez przycisków wzorców
+
+#### Mapowanie przycisków MCP23017
+
+| Pin MCP23017 | Wzorzec | Kod | Opis |
+|-------------|---------|-----|------|
+| GPA0 | P-1a | `PAT_P1A` | Przerywana długa |
+| GPA1 | P-1b | `PAT_P1B` | Przerywana krótka |
+| GPA2 | P-1c | `PAT_P1C` | Wydzielająca |
+| GPA3 | P-1d | `PAT_P1D` | Prowadząca wąska |
+| GPA4 | P-1e | `PAT_P1E` | Prowadząca szeroka |
+| GPA5 | P-2a | `PAT_P2A` | Ciągła wąska |
+| GPA6 | P-2b | `PAT_P2B` | Ciągła szeroka |
+| GPA7 | P-3a | `PAT_P3A` | Przekraczalna długa |
+| GPB0 | P-3b | `PAT_P3B` | Przekraczalna krótka |
+| GPB1 | P-4 | `PAT_P4` | Podwójna ciągła |
+| GPB2 | P-6 | `PAT_P6` | Ostrzegawcza |
+| GPB3 | P-7a | `PAT_P7A` | Krawędziowa przeryw. szer. |
+| GPB4 | P-7b | `PAT_P7B` | Krawędziowa ciągła szer. |
+| GPB5 | P-7c | `PAT_P7C` | Krawędziowa przeryw. wąska |
+| GPB6 | P-7d | `PAT_P7D` | Krawędziowa ciągła wąska |
+
+#### Nowe pliki
+| Plik | Opis |
+|------|------|
+| `src/pattern_buttons.h` | Deklaracja klasy `PatternButtonHandler` (driver MCP23017) |
+| `src/pattern_buttons.cpp` | Implementacja: I2C init, skan przycisków, debounce, zmiana wzorca |
+
+#### Nowe stałe w config.h
+| Stała | Wartość | Opis |
+|-------|---------|------|
+| `MCP23017_I2C_ADDR` | 0x20 | Adres I2C ekspandera MCP23017 |
+| `MCP23017_NUM_BUTTONS` | 15 | Liczba przycisków wzorców |
+| `MCP23017_SCAN_MS` | 20 | Interwał skanowania przycisków [ms] |
+| `MCP23017_BUTTON_MASK` | 0x7FFF | Maska bitowa aktywnych przycisków (bity 0–14) |
+
+### Zmieniono
+- Wersja firmware: 2.21.0 → **2.22.0** (zaktualizowana we wszystkich plikach źródłowych i dokumentacji)
+- `main.cpp`: dodano `#include "pattern_buttons.h"`, init `patternButtons.begin()` w setup, `patternButtons.update()` w loop
+- Zmiana wzorca z fizycznego panelu teraz możliwa **bez telefonu/WiFi** — 15 dedykowanych przycisków
+- README: zaktualizowane funkcje, BOM, struktura projektu
+- Dokumentacja: schemat podłączeń MCP23017, mapa GPIO, instrukcja obsługi
+
+---
+
 ## [2.21.0] - 2026-02-24
 
 ### Dodano - Konfigurowalna prędkość minimalna

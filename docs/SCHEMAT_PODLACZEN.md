@@ -1,4 +1,4 @@
-# TrassarV3 - Dokumentacja techniczna i schemat podłączeń v2.16.0
+# TrassarV3 - Dokumentacja techniczna i schemat podłączeń v2.22.0
 
 ## Spis treści
 
@@ -43,14 +43,16 @@
 | 8 | GPS | **GY-NEO6MV2** (chip u-blox NEO-6M + antena ceramiczna) | UART2 (9600 baud) | Antena 25×25 mm, 50 kanałów, NMEA 0183, cold start <35 s |
 | 9 | Joystick | **KY-023** (moduł joysticka analogowego 2-osiowego) | ADC2 (GPIO 19/20) + Digital (GPIO 46) | 2 potencjometry 10kΩ + przycisk tact |
 | 10 | Bateria RTC | **CR2032** 3V litowa | — | Podtrzymanie zegara DS1307 po odłączeniu zasilania |
+| 11 | Ekspander I/O | **MCP23017** (ekspander I2C 16-bit) | I2C (adres 0x20, wspólna magistrala z DS1307) | 15 wejść przyciskowych, wewn. pull-up, DIP-28 |
+| 12 | Przyciski wzorców | **Monostabilne NO** × 15 szt. | Digital (via MCP23017 GPA0–GPB6) | Montaż panelowy, po jednym na wzorzec P-1a…P-7d |
 
 ### 1.3 Firmware
 
 | Parametr | Wartość |
 |----------|---------|
-| Wersja | 2.16.0 |
+| Wersja | 2.22.0 |
 | Platforma | ESP32-S3 (PlatformIO) |
-| Biblioteki | TFT_eSPI v2.5.43, ArduinoJson v7.0.4, RTClib v2.1.4, TinyGPSPlus v1.0.3, SD, Wire, WiFi, esp_task_wdt |
+| Biblioteki | TFT_eSPI v2.5.43, ArduinoJson v7.0.4, RTClib v2.1.4, TinyGPSPlus v1.0.3, WebSockets v2.4.1, SD, Wire, WiFi, esp_task_wdt |
 | Orientacja ekranu | Landscape (setRotation 1) |
 | Anti-flicker | setTextPadding() zamiast clear() na HOME/PAINTING |
 
@@ -69,8 +71,10 @@
 | 9 | Joystick analogowy KY-023 | 1 | 5-pin: VRx, VRy, SW, +5V, GND |
 | 10 | Buzzer pasywny 5V | 1 | 2-pin (+/−), montaż panelowy |
 | 11 | Karta MicroSD | 1 | FAT32, min. 1 GB, klasa 4+ |
-| 12 | Przewody połączeniowe Dupont | ~45 | Żeńsko-żeński i żeńsko-męski |
-| 13 | Zasilacz USB-C 5V/2A | 1 | Minimum 1.5A przy pełnym obciążeniu |
+| 12 | Ekspander MCP23017 DIP-28 | 1 | I2C adres 0x20 (A0=A1=A2=GND), zasilanie 3.3V |
+| 13 | Przycisk monostabilny NO (wzorce) | 15 | Montaż panelowy, podłączenie: pin MCP → GND |
+| 14 | Przewody połączeniowe Dupont | ~65 | Żeńsko-żeński i żeńsko-męski |
+| 15 | Zasilacz USB-C 5V/2A | 1 | Minimum 1.5A przy pełnym obciążeniu |
 | 14 | Koło pomiarowe + uchwyt enkodera | 1 | Obwód dopasowany do kalibracji |
 | 15 | Zawory elektromagnetyczne pistoletów | 6 | Podłączenie do wyjść NO przekaźników |
 
@@ -121,7 +125,25 @@
 
 > **Uwaga:** Moduł DS1307 wymaga zasilania 5V. Linie I2C mają wbudowane rezystory pull-up na module. Bateria CR2032 podtrzymuje czas po odłączeniu zasilania.
 
-### 2.4 Enkoder obrotowy (pomiar dystansu i prędkości)
+### 2.4 Ekspander MCP23017 (I2C — 15 przycisków wzorców)
+
+| Pin MCP23017 | Pin ESP32-S3 | GPIO | Kierunek | Opis |
+|-------------|-------------|------|----------|------|
+| VDD | 3V3 | — | — | Zasilanie 3.3V |
+| VSS | GND | — | — | Masa |
+| SDA | GPIO 17 | 17 | I/O | I2C Data (wspólna z DS1307) |
+| SCL | GPIO 18 | 18 | OUTPUT | I2C Clock (wspólna z DS1307) |
+| A0 | GND | — | — | Bit adresu 0 (LOW → 0x20) |
+| A1 | GND | — | — | Bit adresu 1 (LOW → 0x20) |
+| A2 | GND | — | — | Bit adresu 2 (LOW → 0x20) |
+| RESET | 3V3 | — | — | Reset nieaktywny (HIGH) |
+| GPA0–GPA7 | — | — | INPUT (pull-up) | 8 przycisków wzorców (P-1a…P-3a) |
+| GPB0–GPB6 | — | — | INPUT (pull-up) | 7 przycisków wzorców (P-3b…P-7d) |
+| GPB7 | — | — | — | Nieużywany |
+
+> **Uwaga:** MCP23017 na wspólnej magistrali I2C z DS1307 (SDA=17, SCL=18). Adres I2C: 0x20. Wewnętrzne pull-up aktywowane programowo. Każdy przycisk podłączony: pin MCP → GND. Skanowanie co 20 ms z debounce.
+
+### 2.5 Enkoder obrotowy (pomiar dystansu i prędkości)
 
 | Pin enkodera | Pin ESP32-S3 | GPIO | Kierunek | Opis |
 |-------------|-------------|------|----------|------|
@@ -244,11 +266,12 @@
 
 ### 4.2 Zmiana wzorca malowania
 
-Zmiana wzorca jest możliwa **wyłącznie** przez:
+Zmiana wzorca jest możliwa przez:
+- **15 fizycznych przycisków wzorców** (MCP23017) — dedykowany przycisk per wzorzec predefiniowany (P-1a…P-7d)
 - **Panel WWW** — 16 przycisków wzorców (http://192.168.4.1), w tym WŁASNY
 - **API REST** — `POST /api/control` z `action=set_pattern&value=0..15` (15 = WŁASNY)
 
-Na fizycznym panelu sterowania (ekran HOME i PAINTING) przycisk SELEKTOR **nie zmienia** wzorca.
+Na fizycznym panelu sterowania (ekran HOME i PAINTING) przycisk SELEKTOR **nie zmienia** wzorca (służy do odwracania P-3a/P-3b). Wzorzec WŁASNY dostępny wyłącznie z panelu WWW/API.
 
 ---
 
@@ -271,10 +294,18 @@ Na fizycznym panelu sterowania (ekran HOME i PAINTING) przycisk SELEKTOR **nie z
     │  SD Card  │         │  GPIO 16 ← SD_CS ─────┘          │
     └───────────┘         │                                   │
                           │                                   │
-    ┌───────────┐  I2C    │  GPIO 17 ↔ SDA                    │
-    │  DS1307   │◄────────│  GPIO 18 ← SCL                    │
-    │  RTC      │         │                                   │
-    │  CR2032   │         │                                   │
+    ┌───────────┐  I2C    │  GPIO 17 ↔ SDA ──┐ Wspólna        │
+    │  DS1307   │◄────────│  GPIO 18 ← SCL ──┤ magistrala     │
+    │  RTC      │         │                   │ I2C            │
+    │  CR2032   │         │                   │                │
+    └───────────┘         │                   │                │
+                          │                   │                │
+    ┌───────────┐  I2C    │                   │                │
+    │ MCP23017  │◄────────│  SDA ─────────────┘                │
+    │ expander  │         │  SCL ─────────────┘                │
+    │ (0x20)    │         │                                   │
+    │ 15 przycis│         │  GPA0..GPA7 + GPB0..GPB6           │
+    │ wzorców   │         │  = 15 przycisków P-1a...P-7d       │
     └───────────┘         │                                   │
                           │                                   │
     ┌───────────┐ Digital │  GPIO  5 → CLK (ISR CHANGE)       │
@@ -452,7 +483,55 @@ Na fizycznym panelu sterowania (ekran HOME i PAINTING) przycisk SELEKTOR **nie z
 
 > **Uwaga:** Moduł NEO-6M komunikuje się na 9600 baud (domyślnie). Antena ceramiczna musi mieć widoczność nieba. Pin TX modułu GPS podłączamy do GPIO 47 (UART2 RX), pin RX do GPIO 48 (UART2 TX).
 
-### 6.7 Podłączenie wyświetlacza i karty SD (wspólna magistrala SPI)
+### 6.7 Podłączenie ekspandera MCP23017 (15 przycisków wzorców)
+
+```
+    ESP32-S3                    MCP23017 (DIP-28)
+    ┌──────────┐                ┌─────────────────────────────────────┐
+    │          │                │                                     │
+    │ GPIO 17  ├────────────────┤ SDA (pin 13)                        │
+    │ (I2C SDA)│   ┌──(wspólne  │                                     │
+    │          │   │  z DS1307) │                                     │
+    │ GPIO 18  ├───┘────────────┤ SCL (pin 12)                        │
+    │ (I2C SCL)│                │                                     │
+    │          │                │ A0 (pin 15) ── GND                  │
+    │          │                │ A1 (pin 16) ── GND   → adres 0x20   │
+    │          │                │ A2 (pin 17) ── GND                  │
+    │          │                │ RESET (pin 18) ── VCC (3.3V)        │
+    │          │                │                                     │
+    │    3V3   ├────────────────┤ VDD (pin 9)                         │
+    │    GND   ├────────────────┤ VSS (pin 10)                        │
+    │          │                │                                     │
+    │          │                │  --- PORT A (8 przycisków) ---       │
+    │          │                │ GPA0 (pin 21) ── [P-1a] ── GND      │
+    │          │                │ GPA1 (pin 22) ── [P-1b] ── GND      │
+    │          │                │ GPA2 (pin 23) ── [P-1c] ── GND      │
+    │          │                │ GPA3 (pin 24) ── [P-1d] ── GND      │
+    │          │                │ GPA4 (pin 25) ── [P-1e] ── GND      │
+    │          │                │ GPA5 (pin 26) ── [P-2a] ── GND      │
+    │          │                │ GPA6 (pin 27) ── [P-2b] ── GND      │
+    │          │                │ GPA7 (pin 28) ── [P-3a] ── GND      │
+    │          │                │                                     │
+    │          │                │  --- PORT B (7 przycisków) ---       │
+    │          │                │ GPB0 (pin 1)  ── [P-3b] ── GND      │
+    │          │                │ GPB1 (pin 2)  ── [P-4 ] ── GND      │
+    │          │                │ GPB2 (pin 3)  ── [P-6 ] ── GND      │
+    │          │                │ GPB3 (pin 4)  ── [P-7a] ── GND      │
+    │          │                │ GPB4 (pin 5)  ── [P-7b] ── GND      │
+    │          │                │ GPB5 (pin 6)  ── [P-7c] ── GND      │
+    │          │                │ GPB6 (pin 7)  ── [P-7d] ── GND      │
+    │          │                │ GPB7 (pin 8)  ── (nieużywany)        │
+    └──────────┘                └─────────────────────────────────────┘
+
+    Podłączenie przycisków: jeden styk do pinu MCP23017, drugi do GND.
+    Wewnętrzne pull-up MCP23017 aktywowane programowo — brak rezystorów.
+    Aktywny stan: LOW (0) = przycisk wciśnięty.
+    Każdy przycisk odpowiada jednemu wzorcowi malowania (P-1a … P-7d).
+```
+
+> **Uwaga:** MCP23017 dzieli magistralę I2C z DS1307 RTC (SDA=GPIO 17, SCL=GPIO 18). Adres MCP23017: **0x20** (A0=A1=A2 podłączone do GND). Zasilanie z 3.3V. Pin RESET podłączony do VCC (brak aktywnego resetu). Wewnętrzne pull-up aktywowane — nie potrzeba zewnętrznych rezystorów. Skanowanie przycisków co 20 ms z debounce.
+
+### 6.8 Podłączenie wyświetlacza i karty SD (wspólna magistrala SPI)
 
 
 ```
@@ -559,6 +638,7 @@ Na fizycznym panelu sterowania (ekran HOME i PAINTING) przycisk SELEKTOR **nie z
 | **buzzer** | buzzer.cpp/h | Sygnalizacja dźwiękowa (LEDC PWM, non-blocking) |
 | **gps_handler** | gps_handler.cpp/h | Obsługa GPS NEO-6M (UART2, TinyGPS++) |
 | **joystick** | joystick.cpp/h | Joystick analogowy KY-023 (ADC + przycisk, nawigacja menu) |
+| **pattern_buttons** | pattern_buttons.cpp/h | 15 przycisków wzorców via MCP23017 I2C (skan, debounce) |
 | **web_server** | web_server.cpp/h | WiFi AP + serwer HTTP + API REST |
 
 ### 8.2 Architektura dual-core (v2.6.0)
@@ -699,7 +779,7 @@ Szczegółowa dokumentacja API → [API_WWW.md](API_WWW.md)
 
 | Parametr | Wartość | Opis |
 |----------|---------|------|
-| FW_VERSION | "2.16.0" | Wersja firmware |
+| FW_VERSION | "2.22.0" | Wersja firmware |
 | FW_NAME | "TrassarV3" | Nazwa systemu |
 | WIFI_AP_SSID | "TrassarV3" | Nazwa sieci WiFi |
 | WIFI_AP_PASS | "12345678" | Hasło WiFi |
@@ -734,6 +814,10 @@ Szczegółowa dokumentacja API → [API_WWW.md](API_WWW.md)
 | JOY_DEAD_ZONE | 500 | Strefa martwa ±500 z centrum 2048 |
 | JOY_INITIAL_DELAY_MS | 400 | Opóźnienie przed auto-repeat [ms] |
 | JOY_REPEAT_MS | 200 | Interwał auto-repeat [ms] |
+| MCP23017_I2C_ADDR | 0x20 | Adres I2C ekspandera MCP23017 |
+| MCP23017_NUM_BUTTONS | 15 | Liczba przycisków wzorców |
+| MCP23017_SCAN_MS | 20 | Interwał skanowania przycisków [ms] |
+| MCP23017_BUTTON_MASK | 0x7FFF | Maska bitowa aktywnych przycisków (bity 0–14) |
 
 ### 9.2 Kolory UI (format RGB565)
 
@@ -804,5 +888,5 @@ Szczegółowa dokumentacja API → [API_WWW.md](API_WWW.md)
 
 ---
 
-*TrassarV3 — Dokumentacja techniczna v2.16.0*
-*ESP32-S3 N16R8 | ILI9341 320×240 | GPS NEO-6M | 6 pistoletów | 16 wzorców | 3 tryby pracy | WiFi AP*
+*TrassarV3 — Dokumentacja techniczna v2.22.0*
+*ESP32-S3 N16R8 | ILI9341 320×240 | GPS NEO-6M | MCP23017 | 6 pistoletów | 16 wzorców | 15 przycisków | 3 tryby pracy | WiFi AP*

@@ -1,12 +1,13 @@
 # TrassarV3 - Komputer pokładowy malowarki pasów drogowych
 
 Firmware komputera pokładowego malowarki pasów drogowych oparty na platformie **ESP32-S3 N16R8**.
-Obsługuje **6 pistoletów natryskowych**, **16 wzorców malowania** (15 normowych + własny) zgodnych z polskimi normami oznakowania drogowego, **3 tryby pracy** (automatyczny, półautomatyczny, ręczny), kalibrację enkodera i obliczanie powierzchni malowanej.
+Obsługuje **6 pistoletów natryskowych**, **16 wzorców malowania** (15 normowych + własny) zgodnych z polskimi normami oznakowania drogowego, **15 fizycznych przycisków wzorców** (ekspander MCP23017 I2C), **3 tryby pracy** (automatyczny, półautomatyczny, ręczny), kalibrację enkodera i obliczanie powierzchni malowanej.
 
 ## Funkcje
 
 - **6 pistoletów natryskowych** (P1-P6) sterowanych przekaźnikami
 - **16 wzorców malowania** (P-1a...P-7d + własny) - polskie normy oznakowania
+- **15 fizycznych przycisków wzorców** (MCP23017 I2C) - natychmiastowy wybór wzorca z panelu operatora
 - **3 tryby pracy** - automatyczny, półautomatyczny, ręczny
 - **Wzorzec własny** - definiowany przez operatora z panelu WWW, 3 sloty pamięci, zapis do NVS
 - **Kalibracja enkodera** - procedura 10m z zapisem do NVS
@@ -100,6 +101,8 @@ Obsługuje **6 pistoletów natryskowych**, **16 wzorców malowania** (15 normowy
 | Buzzer pasywny | Sygnalizacja dźwiękowa (GPIO 8) |
 | GPS GY-NEO6MV2 | Moduł GPS NEO-6M z anteną (UART2) |
 | Joystick KY-023 | Joystick analogowy 2-osiowy + przycisk (ADC1) |
+| MCP23017 | Ekspander I2C 16-bit — 15 przycisków wzorców (I2C 0x20) |
+| Przyciski wzorców x15 | Monostabilne NO, montaż panelowy — po jednym na wzorzec |
 
 ## Podłączenie WiFi
 
@@ -132,7 +135,7 @@ pio device monitor
 TrassarV3/
 ├── platformio.ini              # Konfiguracja PlatformIO
 ├── src/
-│   ├── main.cpp                # Główny plik programu (11 modułów)
+│   ├── main.cpp                # Główny plik programu (12 modułów)
 │   ├── config.h                # Definicje pinów, enumów, struktur
 │   ├── patterns.h/cpp          # 16 wzorców malowania (15 + własny)
 │   ├── guns.h/cpp              # Kontroler 6 przekaźników
@@ -147,7 +150,8 @@ TrassarV3/
 │   ├── menu.h/cpp              # System menu (nawigacja 11 ekranów)
 │   ├── buzzer.h/cpp            # Sygnalizacja dźwiękowa (LEDC PWM)
 │   ├── gps_handler.h/cpp      # Obsługa GPS NEO-6M (UART2, TinyGPS++)
-│   └── joystick.h/cpp         # Joystick analogowy KY-023 (ADC + przycisk)
+│   ├── joystick.h/cpp         # Joystick analogowy KY-023 (ADC + przycisk)
+│   └── pattern_buttons.h/cpp # 15 przycisków wzorców via MCP23017 I2C
 ├── docs/
 │   ├── INSTRUKCJA_OBSLUGI.md   # Instrukcja obsługi
 │   ├── SCHEMAT_PODLACZEN.md    # Schemat podłączeń
@@ -165,7 +169,7 @@ TrassarV3/
 
 ## Wersja
 
-Aktualna wersja firmware: **v2.16.0**
+Aktualna wersja firmware: **v2.22.0**
 
 ## Rekomendacje rozwoju
 

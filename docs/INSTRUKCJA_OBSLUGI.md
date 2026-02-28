@@ -1,4 +1,4 @@
-# TrassarV3 - Instrukcja obsługi v2.16.0
+# TrassarV3 - Instrukcja obsługi v2.22.0
 
 ## Spis treści
 
@@ -21,8 +21,9 @@
 17. [API statystyk i raportów SD](#17-api-statystyk-i-raportów-sd)
 18. [Menu serwisowe w panelu WWW](#18-menu-serwisowe-w-panelu-www)
 19. [Moduł GPS](#19-moduł-gps)
-20. [Przykłady zastosowania](#20-przykłady-zastosowania)
-21. [Rozwiązywanie problemów](#21-rozwiązywanie-problemów)
+20. [Fizyczne przyciski wzorców (MCP23017)](#20-fizyczne-przyciski-wzorców-mcp23017)
+21. [Przykłady zastosowania](#21-przykłady-zastosowania)
+22. [Rozwiązywanie problemów](#22-rozwiązywanie-problemów)
 
 ---
 
@@ -47,7 +48,7 @@ System zapewnia:
 | Parametr | Wartość |
 |----------|---------|
 | Mikrokontroler | ESP32-S3 N16R8 (16 MB Flash, 8 MB PSRAM) |
-| Firmware | v2.16.0 |
+| Firmware | v2.22.0 |
 | Wyświetlacz | ILI9341 2.8" TFT, 320×240 px, tryb landscape |
 | Interfejs SPI | HSPI (SPI3), 27 MHz |
 | Zegar RTC | DS1307 z baterią CR2032 |
@@ -65,6 +66,7 @@ System zapewnia:
 | Gun keepalive | 300 ms — awaryjne wyłączenie pistoletów |
 | Kalibracja | Odcinek 10 m, zapis do NVS |
 | GPS | GY-NEO6MV2 (NEO-6M), UART2, 9600 baud |
+| Przyciski wzorców | 15 szt. via MCP23017 I2C (ekspander 16-bit, adres 0x20) |
 | Zasilanie | USB-C 5V (ESP32-S3 DevKit) |
 
 ---
@@ -1020,7 +1022,59 @@ Po zatrzymaniu malowania (STOP) koordynaty GPS są automatycznie zapisywane w ra
 
 ---
 
-## 20. Przykłady zastosowania
+## 20. Fizyczne przyciski wzorców (MCP23017)
+
+### 20.1 Opis
+
+System wyposażony jest w **15 dedykowanych przycisków fizycznych** do natychmiastowego wyboru wzorca malowania — po jednym na każdy wzorzec predefiniowany (P-1a do P-7d). Przyciski podłączone są do ekspandera I2C **MCP23017**, który komunikuje się z ESP32-S3 na tej samej magistrali I2C co zegar RTC DS1307.
+
+Dzięki przyciskom wzorców operator może zmieniać wzorzec **bez konieczności korzystania z telefonu czy panelu WWW** — wystarczy nacisnąć odpowiedni przycisk na panelu sterowania maszyny.
+
+### 20.2 Mapowanie przycisków
+
+| Przycisk | Wzorzec | Nazwa | Typ linii |
+|----------|---------|-------|-----------|
+| 1 | P-1a | Przerywana długa | 4m / 8m, P2, 12cm |
+| 2 | P-1b | Przerywana krótka | 2m / 4m, P2, 12cm |
+| 3 | P-1c | Wydzielająca | 2m / 2m, P2, 12cm |
+| 4 | P-1d | Prowadząca wąska | 1m / 1m, P2, 12cm |
+| 5 | P-1e | Prowadząca szeroka | 1m / 1m, P4, 24cm |
+| 6 | P-2a | Ciągła wąska | ciągła, P2, 12cm |
+| 7 | P-2b | Ciągła szeroka | ciągła, P4, 24cm |
+| 8 | P-3a | Przekraczalna długa | ciągła + 4m/2m, P1+P3 |
+| 9 | P-3b | Przekraczalna krótka | ciągła + 1m/1m, P1+P3 |
+| 10 | P-4 | Podwójna ciągła | ciągła + ciągła, P1+P3 |
+| 11 | P-6 | Ostrzegawcza | 4m / 2m, P5, 12cm |
+| 12 | P-7a | Krawędziowa przeryw. szer. | 1m / 1m, P6, 24cm |
+| 13 | P-7b | Krawędziowa ciągła szer. | ciągła, P6, 24cm |
+| 14 | P-7c | Krawędziowa przeryw. wąska | 1m / 1m, P5, 12cm |
+| 15 | P-7d | Krawędziowa ciągła wąska | ciągła, P5, 12cm |
+
+### 20.3 Zachowanie
+
+- **Stan spoczynku (IDLE / HOME):** Naciśnięcie przycisku natychmiast zmienia aktywny wzorzec. Wyświetlacz aktualizuje się, buzzer potwierdza (1500 Hz, 80 ms). Wzorzec zapisywany do NVS.
+- **Podczas malowania (PAINTING):** Zmiana wzorca respektuje tryb przełączania:
+  - **Smart:** Bieżący cykl (kreska + przerwa) jest dokańczany, nowy wzorzec zaczyna się po jego zakończeniu
+  - **Instant:** Wzorzec zmienia się natychmiast
+- **Potwierdzenie:** Każde naciśnięcie sygnalizowane krótkim dźwiękiem buzzera i logowane na kartę SD
+
+### 20.4 Podłączenie
+
+Przyciski podłączane są w prostej konfiguracji: jeden styk do pinu MCP23017, drugi do GND. Wewnętrzne rezystory pull-up MCP23017 są aktywowane programowo — **nie potrzeba zewnętrznych rezystorów**.
+
+Szczegółowy schemat → [Schemat podłączeń](SCHEMAT_PODLACZEN.md), sekcja 6.7
+
+### 20.5 Diagnostyka
+
+Jeśli MCP23017 nie jest dostępny (niesprawny, niepodłączony), system wyświetla komunikat w logach szeregowych:
+```
+[PAT_BTN] MCP23017 niedostepny na 0x20 (err=2)
+```
+System kontynuuje normalne działanie — przyciski wzorców są niedostępne, ale zmiana wzorca pozostaje możliwa przez panel WWW.
+
+---
+
+## 21. Przykłady zastosowania
 
 ### Przykład 1: Malowanie linii przerywanej P-1a na nowej drodze
 
@@ -1325,7 +1379,7 @@ data,godzina,wzorzec,dystans_m,powierzchnia_m2,lat,lon
 
 ---
 
-## 21. Rozwiązywanie problemów
+## 22. Rozwiązywanie problemów
 
 | Problem | Możliwa przyczyna | Rozwiązanie |
 |---------|-------------------|-------------|

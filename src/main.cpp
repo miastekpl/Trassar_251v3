@@ -1,11 +1,11 @@
 // ============================================================
 // TrassarV3 - Komputer pokładowy malowarki pasów drogowych
-// Firmware v2.21.0
+// Firmware v2.22.0
 //
 // Platforma:    ESP32-S3 N16R8 (dual-core)
 // Wyświetlacz:  ILI9341 2.8" 240x320 SPI
 // RTC:          DS1307
-// Wejścia:      3x BS-33B + enkoder + joystick KY-023
+// Wejścia:      3x BS-33B + enkoder + joystick KY-023 + 15x MCP23017
 // Wyjścia:      6x przekaźnik (pistolety P1-P6)
 // Sieć:         WiFi AP + serwer HTTP (Core 0)
 // Krytyczna pętla:  Core 1 (enkoder, pistolety, buzzer)
@@ -30,6 +30,7 @@
 #include "joystick.h"
 #include "event_log.h"
 #include "nvs_backup.h"
+#include "pattern_buttons.h"
 #include <esp_task_wdt.h>
 #include <esp_heap_caps.h>
 
@@ -61,7 +62,7 @@ void setup() {
     Serial.println("==============================================");
     Serial.println("  TrassarV3 - Malowarka pasow drogowych");
     Serial.printf("  Firmware v%s  [%s]\n", FW_VERSION, FW_DATE);
-    Serial.println("  6 pistoletow, 16 wzorcow, 3 tryby pracy");
+    Serial.println("  6 pistoletow, 16 wzorcow, 15 przyciskow, 3 tryby");
     Serial.println("==============================================");
     Serial.println();
 
@@ -113,6 +114,10 @@ void setup() {
     patternMgr.begin();
     PatternID lastPat = storage.loadLastPattern();
     patternMgr.setPattern(lastPat);
+
+    // 7b. Fizyczne przyciski wzorców (MCP23017 I2C expander)
+    Serial.println("[INIT] Przyciski wzorcow MCP23017...");
+    patternButtons.begin();
 
     // 8. Silnik malowania
     Serial.println("[INIT] Silnik malowania...");
@@ -230,6 +235,9 @@ void loop() {
             menu.handleEvent(joyEvent);
         }
     }
+
+    // 1c. Odczyt przycisków wzorców (MCP23017 I2C)
+    patternButtons.update();
 
     // 2. Aktualizacja enkodera (prędkość)
     encoderDist.update();
