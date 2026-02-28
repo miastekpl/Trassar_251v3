@@ -15,7 +15,7 @@ public:
     float getDistanceMeters() const;
     float getSpeedMps() const;
     float getSpeedKmh() const;
-    int64_t getTotalPulses() const;
+    long  getTotalPulses() const;
     void  resetDistance();
 
     // Kalibracja
@@ -35,18 +35,18 @@ public:
 
 private:
     static EncoderDistance* instance;
-    static volatile int64_t totalPulses;
+    static volatile long totalPulses;
 
     float pulsesPerMeter = DEFAULT_PULSES_PER_METER;
     bool  calibrated = false;
 
     // Kalibracja
     bool  calibrating = false;
-    int64_t calStartPulses = 0;
+    long  calStartPulses = 0;
 
     // Prędkość
     float currentSpeed = 0;
-    int64_t lastSpeedPulses = 0;
+    long  lastSpeedPulses = 0;
     unsigned long lastSpeedTime = 0;
 
     // Stan kwadraturowy (2-bit: bit1=A, bit0=B)

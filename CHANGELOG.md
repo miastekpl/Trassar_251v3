@@ -7,52 +7,6 @@ Wersjonowanie zgodne z [Semantic Versioning](https://semver.org/lang/pl/).
 
 ---
 
-## [2.22.0] - 2026-02-26
-
-### Dodano — Bezpieczeństwo: E-STOP, mutex pistoletów, enkoder int64
-
-#### 1) Emergency Stop — przycisk grzybkowy (KRYTYCZNE)
-- **Przycisk grzybkowy NC** (normally closed) na GPIO 9 — fail-safe (przerwanie kabla = E-STOP)
-- GPIO ISR (`IRAM_ATTR`) z bezpośrednim odczytem rejestru GPIO — reakcja <1 μs
-- `GunController::forceAllOffISR()` — wyłączenie pistoletów przez bezpośredni zapis do rejestrów GPIO (bez mutex, IRAM-safe)
-- `esp_register_shutdown_handler()` — wyłączenie pistoletów przed resetem watchdoga
-- `PaintingEngine::emergencyStop()` — natychmiastowe zatrzymanie sesji, log, powrót do HOME
-- Blokada pętli głównej gdy E-STOP aktywny — żadne operacje malowania nie są możliwe
-- Sprawdzenie stanu E-STOP przy starcie systemu
-- Nowe zdarzenie `EVT_ESTOP` w `ButtonEvent`
-- Nowe stałe: `PIN_BTN_ESTOP=9`, `ESTOP_ACTIVE_LEVEL=HIGH`
-
-#### 2) Mutex stanów pistoletów — eliminacja race condition (KRYTYCZNE)
-- `portMUX_TYPE gunMux` (spinlock) chroni tablicę `gunStates[]` przed jednoczesnym dostępem z Core 0 (WebServer) i Core 1 (loop)
-- Wszystkie odczyty i zapisy `gunStates[]` objęte `taskENTER_CRITICAL`/`taskEXIT_CRITICAL`
-- Makro `FORCE_GPIO_LOW(pin)` — bezpośredni zapis do rejestrów GPIO dla ISR
-- `forceAllOffISR()` jako metoda statyczna `IRAM_ATTR` — bezpieczna w kontekście przerwania
-
-#### 3) Enkoder totalPulses int64_t — eliminacja overflow
-- `volatile long totalPulses` (32-bit) → `volatile int64_t totalPulses` (64-bit)
-- Eliminuje overflow po ~21.4M metrów ciągłej pracy (~21 474 km)
-- int64_t zapewnia >9.2 × 10¹⁸ impulsów — praktycznie nieskończone
-- Zaktualizowane typy: `calStartPulses`, `lastSpeedPulses`, `getTotalPulses()`
-- `abs()` → `llabs()` dla 64-bitowych wartości
-- Format printf: `%ld` → `%lld`
-
-### Zmieniono
-- Wersja firmware: 2.21.0 → **2.22.0** (zaktualizowana we wszystkich plikach źródłowych i dokumentacji)
-- `guns.h/cpp`: pełna przebudowa z mutex spinlock + `forceAllOffISR()` + include `<soc/gpio_struct.h>`
-- `config.h`: nowe stałe E-STOP (`PIN_BTN_ESTOP`, `ESTOP_ACTIVE_LEVEL`)
-- `button_handler.h`: nowe zdarzenie `EVT_ESTOP`
-- `painting_engine.h/cpp`: nowa metoda `emergencyStop()`
-- `encoder_distance.h/cpp`: `long` → `int64_t` dla liczników impulsów
-- `main.cpp`: ISR E-STOP, shutdown handler, blokada loop przy E-STOP, includes `<esp_system.h>` i `<soc/gpio_struct.h>`
-
-#### Nowe stałe w config.h
-| Stała | Wartość | Opis |
-|-------|---------|------|
-| `PIN_BTN_ESTOP` | 9 | GPIO przycisku grzybkowego E-STOP (NC do GND) |
-| `ESTOP_ACTIVE_LEVEL` | HIGH | Poziom aktywny E-STOP (HIGH = wciśnięty/kabel przerwany) |
-
----
-
 ## [2.21.0] - 2026-02-24
 
 ### Dodano - Konfigurowalna prędkość minimalna

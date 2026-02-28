@@ -1,4 +1,4 @@
-# TrassarV3 - Dokumentacja techniczna i schemat podłączeń v2.22.0
+# TrassarV3 - Dokumentacja techniczna i schemat podłączeń v2.16.0
 
 ## Spis treści
 
@@ -42,16 +42,15 @@
 | 7 | Buzzer | **Buzzer pasywny 5V** (np. TMB12A05 lub odpowiednik) | LEDC PWM (kanał 1) | Pasywny — wymaga sygnału PWM, zakres 100 Hz – 5 kHz |
 | 8 | GPS | **GY-NEO6MV2** (chip u-blox NEO-6M + antena ceramiczna) | UART2 (9600 baud) | Antena 25×25 mm, 50 kanałów, NMEA 0183, cold start <35 s |
 | 9 | Joystick | **KY-023** (moduł joysticka analogowego 2-osiowego) | ADC2 (GPIO 19/20) + Digital (GPIO 46) | 2 potencjometry 10kΩ + przycisk tact |
-| 10 | Przycisk E-STOP | **Przycisk grzybkowy NC** (normally closed) | Digital (INPUT_PULLUP) | Emergency stop — styk NC do GND, fail-safe |
-| 11 | Bateria RTC | **CR2032** 3V litowa | — | Podtrzymanie zegara DS1307 po odłączeniu zasilania |
+| 10 | Bateria RTC | **CR2032** 3V litowa | — | Podtrzymanie zegara DS1307 po odłączeniu zasilania |
 
 ### 1.3 Firmware
 
 | Parametr | Wartość |
 |----------|---------|
-| Wersja | 2.22.0 |
+| Wersja | 2.16.0 |
 | Platforma | ESP32-S3 (PlatformIO) |
-| Biblioteki | TFT_eSPI v2.5.43, ArduinoJson v7.0.4, RTClib v2.1.4, TinyGPSPlus v1.0.3, WebSockets v2.4.1, SD, Wire, WiFi, esp_task_wdt |
+| Biblioteki | TFT_eSPI v2.5.43, ArduinoJson v7.0.4, RTClib v2.1.4, TinyGPSPlus v1.0.3, SD, Wire, WiFi, esp_task_wdt |
 | Orientacja ekranu | Landscape (setRotation 1) |
 | Anti-flicker | setTextPadding() zamiast clear() na HOME/PAINTING |
 
@@ -68,13 +67,12 @@
 | 7 | Moduł przekaźników 6-kanałowy 5V | 1 | Z opto-izolacją, wejścia aktywne HIGH |
 | 8 | Moduł GPS GY-NEO6MV2 NEO-6M | 1 | Z anteną ceramiczną na kablu |
 | 9 | Joystick analogowy KY-023 | 1 | 5-pin: VRx, VRy, SW, +5V, GND |
-| 10 | Przycisk grzybkowy E-STOP NC | 1 | Styk NC (normally closed), montaż panelowy, fail-safe |
-| 11 | Buzzer pasywny 5V | 1 | 2-pin (+/−), montaż panelowy |
-| 12 | Karta MicroSD | 1 | FAT32, min. 1 GB, klasa 4+ |
-| 13 | Przewody połączeniowe Dupont | ~45 | Żeńsko-żeński i żeńsko-męski |
-| 14 | Zasilacz USB-C 5V/2A | 1 | Minimum 1.5A przy pełnym obciążeniu |
-| 15 | Koło pomiarowe + uchwyt enkodera | 1 | Obwód dopasowany do kalibracji |
-| 16 | Zawory elektromagnetyczne pistoletów | 6 | Podłączenie do wyjść NO przekaźników |
+| 10 | Buzzer pasywny 5V | 1 | 2-pin (+/−), montaż panelowy |
+| 11 | Karta MicroSD | 1 | FAT32, min. 1 GB, klasa 4+ |
+| 12 | Przewody połączeniowe Dupont | ~45 | Żeńsko-żeński i żeńsko-męski |
+| 13 | Zasilacz USB-C 5V/2A | 1 | Minimum 1.5A przy pełnym obciążeniu |
+| 14 | Koło pomiarowe + uchwyt enkodera | 1 | Obwód dopasowany do kalibracji |
+| 15 | Zawory elektromagnetyczne pistoletów | 6 | Podłączenie do wyjść NO przekaźników |
 
 ---
 
@@ -128,12 +126,12 @@
 | Pin enkodera | Pin ESP32-S3 | GPIO | Kierunek | Opis |
 |-------------|-------------|------|----------|------|
 | GND | GND | — | — | Masa |
-| CLK (A) | GPIO 5 | 5 | INPUT_PULLUP | Sygnał A (ISR CHANGE, kwadraturowy x4) |
-| DT (B) | GPIO 6 | 6 | INPUT_PULLUP | Sygnał B (ISR CHANGE, kwadraturowy x4) |
+| CLK (A) | GPIO 5 | 5 | INPUT_PULLUP | Sygnał A (przerwanie ISR CHANGE) |
+| DT (B) | GPIO 6 | 6 | INPUT_PULLUP | Sygnał B |
 | SW | GPIO 7 | 7 | INPUT_PULLUP | Przycisk "Start od przerwy" |
 | + (VCC) | 3V3 | — | — | Zasilanie (opcjonalne) |
 
-> **Uwaga:** Piny CLK i DT mają włączone wewnętrzne rezystory pull-up ESP32-S3. Enkoder pracuje w trybie kwadraturowym x4 — ISR CHANGE na obu kanałach A i B z tablicą stanów 4×4 (Gray code). Bezpośredni odczyt rejestru GPIO (~50 ns). Debouncing ISR: 200 μs (ENC_ISR_DEBOUNCE_US). Obliczanie prędkości: co 250 ms z filtrem wykładniczym (alpha = 0.3).
+> **Uwaga:** Piny CLK i DT mają włączone wewnętrzne rezystory pull-up ESP32-S3. Enkoder służy wyłącznie do pomiaru dystansu i prędkości (ISR na CLK/CHANGE). Debouncing ISR: 200 μs (ENC_ISR_DEBOUNCE_US). Obliczanie prędkości: co 250 ms z filtrem wykładniczym (alpha = 0.3).
 
 ### 2.5 Joystick analogowy KY-023
 
@@ -155,11 +153,8 @@
 | STOP | GPIO 39 | 39 | INPUT_PULLUP | Stop / Menu (1 s) / Cofnij |
 | SELEKTOR | GPIO 40 | 40 | INPUT_PULLUP | Odwróć P-3a/P-3b (HOME/PAINTING), nawigacja + wejście w opcję (menu serwis.) |
 | GAP (od przerwy) | GPIO 7 | 7 | INPUT_PULLUP | Start od przerwy (HOME) |
-| **E-STOP** (grzybkowy) | GPIO 9 | 9 | INPUT_PULLUP | **Emergency Stop** — styk NC do GND, fail-safe |
 
 > **UWAGA:** GPIO 26–37 są zajęte przez Octal PSRAM modułu N16R8! NIE wolno ich używać!
->
-> **UWAGA GPIO 9:** Pin GPIO 9 jest współdzielony z TFT_DC w domyślnej konfiguracji wyświetlacza. Przy montażu E-STOP należy przenieść TFT_DC na inny wolny pin i zaktualizować build_flags w platformio.ini.
 >
 > **Parametry przycisków:** Debounce: 50 ms, Długie naciśnięcie: 1000 ms. Podłączenie: jeden styk do GPIO, drugi do GND. Wewnętrzne pull-up aktywowane programowo.
 
@@ -186,11 +181,11 @@
 | **2** | Przekaźnik P4 | OUTPUT | Pistolet oś, 24 cm |
 | **3** | Przekaźnik P5 | OUTPUT | Pistolet krawędź, 12 cm |
 | **4** | Przekaźnik P6 | OUTPUT | Pistolet krawędź, 24 cm |
-| **5** | Enkoder CLK (A) | INPUT_PULLUP | ISR CHANGE, kwadraturowy x4, debounce 200 μs |
-| **6** | Enkoder DT (B) | INPUT_PULLUP | ISR CHANGE, kwadraturowy x4, debounce 200 μs |
+| **5** | Enkoder CLK | INPUT_PULLUP | ISR CHANGE, debounce 200 μs |
+| **6** | Enkoder DT | INPUT_PULLUP | Sygnał kierunku |
 | **7** | Przycisk GAP (SW enkodera) | INPUT_PULLUP | "Start od przerwy" |
 | **8** | Buzzer | PWM (LEDC ch1) | Sygnalizacja dźwiękowa (pasywny) |
-| **9** | **E-STOP** (grzybkowy NC) / TFT DC | INPUT_PULLUP / OUTPUT | Emergency Stop (wymaga przeniesienia TFT_DC na inny pin) |
+| **9** | TFT DC | OUTPUT | Data/Command |
 | **10** | TFT CS | OUTPUT | Chip Select wyświetlacza |
 | **11** | SPI MOSI | OUTPUT | Wspólny TFT + SD |
 | **10** | TFT CS | OUTPUT | Chip Select wyświetlacza |
@@ -297,12 +292,6 @@ Na fizycznym panelu sterowania (ekran HOME i PAINTING) przycisk SELEKTOR **nie z
     │ [STOP]────│── GND ──│── GPIO 39                         │
     │ [SELECT]──│── GND ──│── GPIO 40                         │
     └───────────┘         │                                   │
-                          │  --- E-STOP (grzybkowy NC) ---   │
-    ┌───────────┐         │                                   │
-    │  GRZYBEK  │         │                                   │
-    │  E-STOP   │         │                                   │
-    │  (NC)  ───│── GND ──│── GPIO  9  (INPUT_PULLUP)        │
-    └───────────┘         │                                   │
                           │  --- JOYSTICK ---                │
     ┌───────────┐         │                                   │
     │  KY-023   │         │                                   │
@@ -339,7 +328,6 @@ Na fizycznym panelu sterowania (ekran HOME i PAINTING) przycisk SELEKTOR **nie z
     └───────────┘         │                                   │
                           │  WiFi AP: TrassarV3 (12345678)    │
                           │  HTTP: http://192.168.4.1:80      │
-                          │  WebSocket: ws://192.168.4.1:81   │
                           │  Max klientów: 4                  │
                           └──────────────────────────────────┘
 ```
@@ -444,29 +432,7 @@ Na fizycznym panelu sterowania (ekran HOME i PAINTING) przycisk SELEKTOR **nie z
 
 > **Uwaga:** KY-023 zasilany z 3.3V (zakres ADC 0–3.3V). Centrum joysticka = ~1.65V (ADC ~2048). GPIO 46 jest pinem strapping — z pullup HIGH podczas bootu (poprawne). **Nie wciskać SW podczas włączania ESP32!**
 
-### 6.6 Podłączenie przycisku E-STOP (grzybkowy NC)
-
-```
-    ESP32-S3               Przycisk grzybkowy E-STOP
-    ┌──────────┐           ┌───────────────────────┐
-    │          │           │                       │
-    │ GPIO  9  ├───────────┤ Styk NC (zamknięty)   │
-    │ (pullup) │           │                       │
-    │          │           │    ┌─────────────┐    │
-    │    GND   ├───────────┤ COM│  GRZYBEK    │    │
-    └──────────┘           │    │ (czerwony)  │    │
-                           │    └─────────────┘    │
-                           └───────────────────────┘
-
-    Zasada działania (fail-safe):
-      Normalnie (grzybek NIE wciśnięty): styk NC zamknięty → GPIO 9 = LOW
-      Wciśnięty grzybek:                 styk NC otwarty   → GPIO 9 = HIGH (pullup) = E-STOP!
-      Przerwany kabel:                   obwód otwarty     → GPIO 9 = HIGH (pullup) = E-STOP!
-```
-
-> **UWAGA:** Przycisk E-STOP **musi** być typu NC (normally closed). Styk NC zapewnia bezpieczeństwo fail-safe: przerwanie kabla powoduje taki sam efekt jak wciśnięcie grzybka — natychmiastowe wyłączenie pistoletów. Przycisk grzybkowy powinien być zamontowany w łatwo dostępnym miejscu na panelu operatora.
-
-### 6.7 Podłączenie modułu GPS GY-NEO6MV2
+### 6.6 Podłączenie modułu GPS GY-NEO6MV2
 
 ```
     ESP32-S3               Moduł GPS GY-NEO6MV2
@@ -486,7 +452,7 @@ Na fizycznym panelu sterowania (ekran HOME i PAINTING) przycisk SELEKTOR **nie z
 
 > **Uwaga:** Moduł NEO-6M komunikuje się na 9600 baud (domyślnie). Antena ceramiczna musi mieć widoczność nieba. Pin TX modułu GPS podłączamy do GPIO 47 (UART2 RX), pin RX do GPIO 48 (UART2 TX).
 
-### 6.8 Podłączenie wyświetlacza i karty SD (wspólna magistrala SPI)
+### 6.7 Podłączenie wyświetlacza i karty SD (wspólna magistrala SPI)
 
 
 ```
@@ -516,7 +482,7 @@ Na fizycznym panelu sterowania (ekran HOME i PAINTING) przycisk SELEKTOR **nie z
       GPIO 15 = LOW → komunikacja z Touch
 ```
 
-### 6.9 Podłączenie zegara RTC DS1307
+### 6.8 Podłączenie zegara RTC DS1307
 
 ```
     ESP32-S3               Moduł DS1307
@@ -593,35 +559,29 @@ Na fizycznym panelu sterowania (ekran HOME i PAINTING) przycisk SELEKTOR **nie z
 | **buzzer** | buzzer.cpp/h | Sygnalizacja dźwiękowa (LEDC PWM, non-blocking) |
 | **gps_handler** | gps_handler.cpp/h | Obsługa GPS NEO-6M (UART2, TinyGPS++) |
 | **joystick** | joystick.cpp/h | Joystick analogowy KY-023 (ADC + przycisk, nawigacja menu) |
-| **web_server** | web_server.cpp/h | WiFi AP + HTTP + API REST + WebSocket (port 81) |
-| **gps_track** | gps_track.cpp/h | Zapis trasy GPS (GPX + GeoJSON) na SD |
-| **event_log** | event_log.cpp/h | Log zdarzeń na kartę SD (dzienne pliki) |
-| **nvs_backup** | nvs_backup.cpp/h | Backup/restore NVS na kartę SD (JSON) |
+| **web_server** | web_server.cpp/h | WiFi AP + serwer HTTP + API REST |
 
 ### 8.2 Architektura dual-core (v2.6.0)
 
 ```
-╔══════════════════════════════════╗  ╔══════════════════════════════════╗
-║         CORE 1 (loop)           ║  ║      CORE 0 (FreeRTOS)          ║
-║                                  ║  ║                                  ║
-║  0. esp_task_wdt_reset()         ║  ║  webTaskFunc() {                 ║
-║  1. buttons.update()             ║  ║      vTaskDelay(5s) // WDT init  ║
-║  1b. joystick.update()           ║  ║      esp_task_wdt_add(NULL)      ║
-║  2. menu.handleEvent()           ║  ║      for(;;) {                   ║
-║  3. encoderDist.update()         ║  ║        esp_task_wdt_reset()      ║
-║  4. rtcModule.update()           ║  ║        server.handleClient()     ║
-║  5. paintEngine.update()         ║  ║        wsServer.loop()           ║
-║  5b. checkGunKeepAlive()         ║  ║        broadcast co 500ms (WS)   ║
-║  5c. buzzer.update()             ║  ║        vTaskDelay(2ms)           ║
-║  5d. gpsTrack.addPoint() (5s)    ║  ║      }                           ║
-║  6. display refresh (500ms)      ║  ║  }                               ║
-║  7. menu.update() (100ms)        ║  ║                                  ║
-║  8. lifetime save (60s)          ║  ║  Stack: 16384 B                  ║
-║  9. diagnostyka (30s)            ║  ║  Priorytet: 1                    ║
-║  10. anomalia pistoletów (10s)   ║  ║  WDT: 3s (dual watchdog)        ║
-║  11. cache raportów SD (15s)     ║  ╚══════════════════════════════════╝
-║  12. NVS backup (30min)          ║
-║  13. event log (anomalie)        ║
+╔══════════════════════════════════╗  ╔══════════════════════════════╗
+║         CORE 1 (loop)           ║  ║      CORE 0 (FreeRTOS)      ║
+║                                  ║  ║                              ║
+║  0. esp_task_wdt_reset()         ║  ║  webTaskFunc() {             ║
+║  1. buttons.update()             ║  ║      for(;;) {               ║
+║  1b. joystick.update()           ║  ║          server.handleClient()║
+║  2. menu.handleEvent()           ║  ║
+║  3. encoderDist.update()         ║  ║          vTaskDelay(2ms)     ║
+║  4. rtcModule.update()           ║  ║      }                       ║
+║  5. paintEngine.update()         ║  ║  }                           ║
+║  5b. checkGunKeepAlive()         ║  ║                              ║
+║  5c. buzzer.update()             ║  ║  Stack: 12288 B              ║
+║  6. display refresh (500ms)      ║  ║  Priorytet: 1                ║
+║  7. menu.update() (100ms)        ║  ╚══════════════════════════════╝
+║  8. lifetime save (60s)          ║
+║  9. diagnostyka (30s)            ║
+║  10. anomalia pistoletów (10s)   ║
+║  11. cache raportów SD (15s)     ║
 ║  delay(1)                        ║
 ╚══════════════════════════════════╝
 ```
@@ -636,16 +596,13 @@ Na fizycznym panelu sterowania (ekran HOME i PAINTING) przycisk SELEKTOR **nie z
 | ENC_ISR_DEBOUNCE_US | 200 μs | Debouncing przerwania enkodera |
 | BTN_DEBOUNCE_MS | 50 ms | Debouncing przycisków |
 | BTN_LONG_PRESS_MS | 1000 ms | Próg długiego naciśnięcia |
-| WS broadcast | 500 ms | Push statusu JSON przez WebSocket (port 81) |
-| WS fallback polling | 2000 ms | REST polling /api/status gdy WebSocket niedostępny |
+| Auto-refresh WWW | 1000 ms | Odpytywanie /api/status przez JavaScript |
 | WDT_TIMEOUT_SEC | 3000 ms | Watchdog timer — auto-reset ESP32 |
 | GUN_KEEPALIVE_TIMEOUT_MS | 300 ms | Awaryjne wyłączenie pistoletów |
 | LIFETIME_SAVE_MS | 60000 ms | Okresowy zapis statystyk do NVS |
 | DIAG_PRINT_MS | 30000 ms | Diagnostyka systemowa (Serial) |
 | GUN_ANOMALY_CHECK_MS | 10000 ms | Sprawdzanie anomalii pistoletów |
 | REPORT_CACHE_MS | 15000 ms | Odświeżanie cache raportów SD |
-| GPX_RECORD_INTERVAL_MS | 5000 ms | Zapis punktu GPS do bufora trasy |
-| NVS_BACKUP | 1800000 ms | Backup NVS na kartę SD (30 min) |
 
 ### 8.4 Maszyna stanów
 
@@ -697,7 +654,7 @@ Na fizycznym panelu sterowania (ekran HOME i PAINTING) przycisk SELEKTOR **nie z
 ```
 paintEngine.update():
     1. Oblicz dystans od startu wzorca
-    2. Sprawdź prędkość >= minSpeedKmh (domyślnie 3 km/h, konfigurowalne)
+    2. Sprawdź prędkość >= 3 km/h (MIN_PAINT_SPEED_KMH)
     3. Zależnie od trybu (g_state.machineMode):
 
        TRYB AUTO:
@@ -730,11 +687,7 @@ paintEngine.update():
 | `/api/status` | GET | JSON ze stanem systemu (+ anomalia pistoletów) |
 | `/api/stats` | GET | Statystyki lifetime + sesja + per-gun |
 | `/api/reports` | GET | Lista plików raportów CSV z karty SD |
-| `/api/control` | POST | Sterowanie maszyną (action=start\|pause\|stop\|start_from_gap\|set_pattern\|toggle_reverse\|set_mode\|semi_next_line\|save_custom_pattern\|cal_start\|cal_finish\|set_max_speed\|set_min_speed) |
-| `/api/reports/geojson` | GET | Konwersja raportu CSV → GeoJSON Points (chunked) |
-| `/api/tracks` | GET | Lista plików tras GPS (GPX/GeoJSON) |
-| `/api/tracks/download` | GET | Pobieranie pliku trasy GPS |
-| **WebSocket :81** | WS | Push statusu JSON co 500 ms do klientów |
+| `/api/control` | POST | Sterowanie maszyną (action=start\|pause\|stop\|start_from_gap\|set_pattern\|toggle_reverse\|set_mode\|semi_next_line\|save_custom_pattern\|cal_start\|cal_finish\|set_max_speed) |
 
 Szczegółowa dokumentacja API → [API_WWW.md](API_WWW.md)
 
@@ -746,14 +699,14 @@ Szczegółowa dokumentacja API → [API_WWW.md](API_WWW.md)
 
 | Parametr | Wartość | Opis |
 |----------|---------|------|
-| FW_VERSION | "2.21.0" | Wersja firmware |
+| FW_VERSION | "2.16.0" | Wersja firmware |
 | FW_NAME | "TrassarV3" | Nazwa systemu |
 | WIFI_AP_SSID | "TrassarV3" | Nazwa sieci WiFi |
 | WIFI_AP_PASS | "12345678" | Hasło WiFi |
 | WIFI_AP_CHANNEL | 6 | Kanał WiFi |
 | WIFI_AP_MAX_CON | 4 | Max klientów WiFi |
 | WEB_SERVER_PORT | 80 | Port serwera HTTP |
-| DEFAULT_MIN_PAINT_SPEED_KMH | 3.0 | Domyślny próg minimalnej prędkości [km/h] (konfigurowalne runtime) |
+| MIN_PAINT_SPEED_KMH | 3.0 | Minimalna prędkość malowania [km/h] |
 | DEFAULT_PULSES_PER_METER | 100.0 | Domyślna wartość kalibracji |
 | CALIBRATION_DISTANCE_M | 10.0 | Dystans kalibracji [m] |
 | TFT_SCREEN_W | 320 | Szerokość ekranu [px] (landscape) |
@@ -781,15 +734,6 @@ Szczegółowa dokumentacja API → [API_WWW.md](API_WWW.md)
 | JOY_DEAD_ZONE | 500 | Strefa martwa ±500 z centrum 2048 |
 | JOY_INITIAL_DELAY_MS | 400 | Opóźnienie przed auto-repeat [ms] |
 | JOY_REPEAT_MS | 200 | Interwał auto-repeat [ms] |
-| PIN_BTN_ESTOP | 9 | GPIO przycisku E-STOP (grzybkowy NC) |
-| ESTOP_ACTIVE_LEVEL | HIGH | Poziom aktywny E-STOP (HIGH = wciśnięty/przerwany kabel) |
-| GUN_KEEPALIVE_TIMEOUT_MS | 300 | Awaryjne wyłączenie pistoletów [ms] |
-| WS_PORT | 81 | Port serwera WebSocket |
-| WS_BROADCAST_MS | 500 | Interwał broadcast statusu przez WebSocket [ms] |
-| GPX_RECORD_INTERVAL_MS | 5000 | Interwał zapisu punktu trasy GPS [ms] |
-| GPX_MAX_POINTS | 4320 | Max punktów GPS w buforze PSRAM (~6h) |
-| NVS_BACKUP_INTERVAL_MS | 1800000 | Interwał backupu NVS na SD [ms] (30 min) |
-| EVENT_LOG_MAX_SIZE | 65536 | Max rozmiar dziennego pliku logu [B] (64 KB) |
 
 ### 9.2 Kolory UI (format RGB565)
 
@@ -860,5 +804,5 @@ Szczegółowa dokumentacja API → [API_WWW.md](API_WWW.md)
 
 ---
 
-*TrassarV3 — Dokumentacja techniczna v2.22.0*
+*TrassarV3 — Dokumentacja techniczna v2.16.0*
 *ESP32-S3 N16R8 | ILI9341 320×240 | GPS NEO-6M | 6 pistoletów | 16 wzorców | 3 tryby pracy | WiFi AP*

@@ -13,8 +13,7 @@ enum ButtonEvent : uint8_t {
     EVT_STOP_LONG,
     EVT_SELECT_SHORT,
     EVT_SELECT_LONG,
-    EVT_GAP_START,
-    EVT_ESTOP           // Emergency stop (grzybkowy, najwyzszy priorytet)
+    EVT_GAP_START
 };
 
 class ButtonHandler {

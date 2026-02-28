@@ -1,6 +1,6 @@
 // ============================================================
 // TrassarV3 - Komputer pokładowy malowarki pasów drogowych
-// Firmware v2.22.0
+// Firmware v2.21.0
 //
 // Platforma:    ESP32-S3 N16R8 (dual-core)
 // Wyświetlacz:  ILI9341 2.8" 240x320 SPI
@@ -32,8 +32,6 @@
 #include "nvs_backup.h"
 #include <esp_task_wdt.h>
 #include <esp_heap_caps.h>
-#include <esp_system.h>
-#include <soc/gpio_struct.h>
 
 // Globalny stan systemu
 SystemState g_state;
@@ -41,29 +39,6 @@ portMUX_TYPE g_stateMux = portMUX_INITIALIZER_UNLOCKED;
 
 // Stan detekcji anomalii pistoletow
 GunAnomalyState gunAnomaly;
-
-// ============================================================
-// E-STOP: przerwanie GPIO — natychmiastowe wylaczenie pistoletow
-// Styk NC do GND: normalnie LOW, wcisniety/przerwany = HIGH
-// Wywolywane w <1us od zmiany stanu pinu
-// ============================================================
-static volatile bool estopTriggered = false;
-
-void IRAM_ATTR estopISR() {
-    // Bezposredni odczyt rejestru GPIO (nie digitalRead — wolny)
-    bool active = ((PIN_BTN_ESTOP < 32)
-        ? ((GPIO.in >> PIN_BTN_ESTOP) & 1)
-        : ((GPIO.in1.val >> (PIN_BTN_ESTOP - 32)) & 1));
-    if (active == ESTOP_ACTIVE_LEVEL) {
-        GunController::forceAllOffISR();
-        estopTriggered = true;
-    }
-}
-
-// Callback przed resetem ESP (WDT, panic, esp_restart)
-static void shutdownGunsOff() {
-    GunController::forceAllOffISR();
-}
 
 // Timery
 unsigned long lastDisplayRefresh = 0;
@@ -200,19 +175,6 @@ void setup() {
     // Wczytaj tryb przelaczania wzorcow z NVS
     paintEngine.setSmartSwitch(storage.loadSwitchMode());
 
-    // 14. Emergency Stop — przycisk grzybkowy (NC do GND)
-    Serial.println("[INIT] Emergency Stop (GPIO " + String(PIN_BTN_ESTOP) + ")...");
-    pinMode(PIN_BTN_ESTOP, INPUT_PULLUP);
-    attachInterrupt(digitalPinToInterrupt(PIN_BTN_ESTOP), estopISR, CHANGE);
-    // Sprawdz czy E-STOP nie jest juz wcisniety przy starcie
-    if (digitalRead(PIN_BTN_ESTOP) == ESTOP_ACTIVE_LEVEL) {
-        Serial.println("[INIT] UWAGA: E-STOP aktywny przy starcie!");
-        estopTriggered = true;
-    }
-
-    // 15. Shutdown handler — wymuszenie guns OFF przed resetem WDT/panic
-    esp_register_shutdown_handler(shutdownGunsOff);
-
     // Watchdog timer - 3s timeout, auto-reset przy zawieszeniu
     Serial.println("[INIT] Watchdog timer...");
     esp_task_wdt_init(WDT_TIMEOUT_SEC, true);
@@ -247,29 +209,6 @@ void loop() {
     // Watchdog reset - jesli loop() sie zawiesi, ESP zresetuje sie po 3s
     esp_task_wdt_reset();
 
-    // ============================================================
-    // 0. E-STOP — najwyzszy priorytet, przed wszystkim innym
-    // ISR juz wymusil GPIO LOW; tutaj obsluga stanu maszyny
-    // ============================================================
-    if (estopTriggered || digitalRead(PIN_BTN_ESTOP) == ESTOP_ACTIVE_LEVEL) {
-        if (estopTriggered) {
-            estopTriggered = false;
-            // ISR juz wymusil LOW na GPIO, ale wywolaj tez allOff() dla spojnosci stanu
-            guns.allOff();
-            paintEngine.emergencyStop();
-            buzzer.beep(800, 500);
-            Serial.println("[E-STOP] EMERGENCY STOP AKTYWNY!");
-        }
-        // Blokuj normalna petle dopoki E-STOP jest wcisniety
-        // Tylko odswiezaj ekran i karm watchdoga
-        if (now - lastDisplayRefresh >= DISPLAY_REFRESH_MS) {
-            lastDisplayRefresh = now;
-            menu.update();
-        }
-        delay(50);
-        return;
-    }
-
     // 1. Odczyt przycisków
     buttons.update();
     ButtonEvent event = buttons.getEvent();
@@ -278,20 +217,10 @@ void loop() {
     }
 
     // 1b. Odczyt joysticka KY-023
-    // Osie joysticka (gora/dol/lewo/prawo) aktywne TYLKO na ekranach nawigacji.
-    // Na ekranach operacyjnych (HOME, PAINTING, SUMMARY) szum ADC generuje
-    // falszywe zdarzenia EVT_STOP_LONG / EVT_STOP_SHORT, ktore wchodza w menu
-    // serwisowe lub zatrzymuja malowanie. Przycisk SW dziala zawsze.
     joystick.update();
     ButtonEvent joyEvent = joystick.getEvent();
     if (joyEvent != EVT_NONE) {
-        bool isOperational = (g_state.currentScreen == SCREEN_HOME ||
-                              g_state.currentScreen == SCREEN_PAINTING ||
-                              g_state.currentScreen == SCREEN_SUMMARY);
-        // Na ekranach operacyjnych ignoruj zdarzenia z osi, przepusc SW
-        if (!isOperational || !joystick.wasAxisEvent()) {
-            menu.handleEvent(joyEvent);
-        }
+        menu.handleEvent(joyEvent);
     }
 
     // 2. Aktualizacja enkodera (prędkość)

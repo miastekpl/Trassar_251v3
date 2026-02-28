@@ -12,8 +12,6 @@ public:
     void begin();
     void update();
     ButtonEvent getEvent();
-    bool isEnabled() const { return axesEnabled; }
-    bool wasAxisEvent() const { return lastEventFromAxis; }
 
 private:
     enum JoyDir : uint8_t {
@@ -23,11 +21,6 @@ private:
         JOY_LEFT,
         JOY_RIGHT
     };
-
-    // Auto-detekcja i kalibracja
-    bool axesEnabled = false;   // Osie analogowe wlaczone (joystick wykryty)
-    int centerX = 2048;         // Skalibrowane centrum X
-    int centerY = 2048;         // Skalibrowane centrum Y
 
     // Stan osi analogowych
     JoyDir currentDir = JOY_NONE;
@@ -43,8 +36,6 @@ private:
     bool swLongFired = false;
     bool swPendingShort = false;
     bool swPendingLong = false;
-
-    bool lastEventFromAxis = false;  // Czy ostatnie zdarzenie bylo z osi (nie SW)
 
     JoyDir readDirection();
     ButtonEvent dirToEvent(JoyDir dir);

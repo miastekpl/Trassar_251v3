@@ -333,24 +333,6 @@ void PaintingEngine::stop() {
     }
 }
 
-// ============================================================
-// Emergency stop — natychmiastowe wylaczenie bez zapisu raportu
-// Wywolywane przez przycisk grzybkowy E-STOP
-// ============================================================
-void PaintingEngine::emergencyStop() {
-    guns.allOff();
-    if (g_state.machineState == STATE_PAINTING ||
-        g_state.machineState == STATE_PAUSED) {
-        g_state.machineState = STATE_STOPPED;
-        stats.pauseSessionTimer();
-        gpsTrack.stopRecording();
-        eventLog.log("ESTOP", "EMERGENCY STOP — pistolety wylaczone natychmiast");
-    }
-    g_state.currentScreen = SCREEN_HOME;
-    g_state.displayNeedsUpdate = true;
-    g_state.forceFullRedraw = true;
-}
-
 void PaintingEngine::setPattern(PatternID pat) {
     // --- Przelaczanie wzorcow (smart lub instant) ---
     if (g_state.machineState == STATE_PAINTING) {

@@ -1,4 +1,4 @@
-# TrassarV3 - API serwera WWW v2.22.0
+# TrassarV3 - API serwera WWW v2.16.0
 
 ## Informacje ogólne
 
@@ -87,10 +87,7 @@ Zwraca aktualny stan systemu w formacie JSON.
     "gpsLng": "21.012229",
     "gpsSat": 8,
     "gpsSpeed": "12.5",
-    "gpsHdop": "1.2",
-    "minSpeed": "3.0",
-    "gpxRec": false,
-    "gpxPts": 0
+    "gpsHdop": "1.2"
 }
 ```
 
@@ -138,9 +135,6 @@ Zwraca aktualny stan systemu w formacie JSON.
 | `gpsSat` | int | Liczba widocznych satelitów |
 | `gpsSpeed` | string | Prędkość z GPS [km/h] |
 | `gpsHdop` | string | HDOP — dokładność pozycji (niższa = lepsza, <2.0 = dobra) |
-| `minSpeed` | string | Próg minimalnej prędkości (pistolety OFF poniżej) [km/h] |
-| `gpxRec` | bool | Czy trwa nagrywanie trasy GPS |
-| `gpxPts` | int | Liczba punktów w buforze trasy GPS |
 
 ---
 
@@ -266,7 +260,6 @@ Wysyła komendę sterującą do systemu.
 | `cal_start` | - | Rozpocznij kalibrację enkodera |
 | `cal_finish` | - | Zakończ kalibrację enkodera |
 | `set_max_speed` | 5.0–30.0 | Ustaw próg alarmu prędkości [km/h] (zapis do NVS) |
-| `set_min_speed` | 0.0–10.0 | Ustaw próg minimalnej prędkości [km/h] (pistolety OFF poniżej, zapis do NVS) |
 
 **Mapowanie indeksów wzorców:**
 
@@ -365,20 +358,8 @@ curl -X POST -d "action=set_switch_mode&value=1" http://192.168.4.1/api/control
 # Ustaw tryb przelaczania wzorcow na Smart (dokoncz cykl)
 curl -X POST -d "action=set_switch_mode&value=0" http://192.168.4.1/api/control
 
-# Ustaw próg minimalnej prędkości na 2.0 km/h
-curl -X POST -d "action=set_min_speed&value=2.0" http://192.168.4.1/api/control
-
 # Pobierz raport CSV
 curl -O http://192.168.4.1/api/reports/download?file=20260219.csv
-
-# Pobierz raport jako GeoJSON
-curl http://192.168.4.1/api/reports/geojson?file=20260219.csv
-
-# Lista tras GPS
-curl http://192.168.4.1/api/tracks
-
-# Pobierz trasę GPX
-curl -O http://192.168.4.1/api/tracks/download?file=track_20260219_093015.gpx
 ```
 
 ## Kody odpowiedzi HTTP
@@ -389,78 +370,9 @@ curl -O http://192.168.4.1/api/tracks/download?file=track_20260219_093015.gpx
 | 400 | Brak wymaganego parametru `action` |
 | 404 | Nieznany endpoint |
 
----
-
-### GET /api/reports/geojson
-
-Konwertuje raport CSV sesji na format GeoJSON (Points FeatureCollection). Streaming chunked — oszczędny pamięciowo.
-
-**Parametry (query string):**
-
-| Parametr | Wymagany | Opis |
-|----------|----------|------|
-| `file` | Tak | Nazwa pliku CSV (np. `20260224.csv`) |
-
-**Odpowiedź:** `application/geo+json` — GeoJSON FeatureCollection z Point geometry per sesja.
-
-```bash
-curl http://192.168.4.1/api/reports/geojson?file=20260224.csv
-```
-
----
-
-### GET /api/tracks
-
-Zwraca listę plików tras GPS (GPX i GeoJSON) z katalogu `/tracks/` na karcie SD.
-
-**Odpowiedź:** `application/json`
-
-```json
-[
-    {"file": "track_20260224_093015.gpx", "size": 45678},
-    {"file": "track_20260224_093015.geojson", "size": 32100}
-]
-```
-
----
-
-### GET /api/tracks/download
-
-Pobiera plik trasy GPS (GPX lub GeoJSON) z karty SD.
-
-**Parametry (query string):**
-
-| Parametr | Wymagany | Opis |
-|----------|----------|------|
-| `file` | Tak | Nazwa pliku trasy (np. `track_20260224_093015.gpx`) |
-
-```bash
-curl -O http://192.168.4.1/api/tracks/download?file=track_20260224_093015.gpx
-```
-
----
-
-## WebSocket (port 81)
-
-Od wersji 2.19.0 panel WWW używa WebSocket zamiast pollingu REST. Serwer WebSocket działa na **porcie 81** i broadcastuje pełny status JSON do wszystkich podłączonych klientów co **500 ms**.
-
-**Adres:** `ws://192.168.4.1:81`
-
-**Protokół:**
-- Serwer wysyła: pełny JSON statusu (identyczny z `/api/status`) co 500 ms
-- Klient nie musi wysyłać zapytań — dane przychodzą automatycznie
-- Auto-reconnect w kliencie JS z fallback na REST polling co 2 s
-
-**Zalety vs polling:**
-- 2× szybsza aktualizacja (500 ms vs 1000 ms)
-- Mniejszy narzut sieciowy (brak HTTP headers przy każdym zapytaniu)
-- Natychmiastowa reakcja panelu na zmiany stanu
-
----
-
 ## Autorefresh panelu WWW
 
-Panel HTML używa WebSocket (port 81) jako głównego kanału komunikacji. Przy braku WebSocket automatycznie przełącza się na REST polling `/api/status` co 2 sekundy.
+Panel HTML automatycznie odpytuje `/api/status` co 1 sekundę za pomocą JavaScript `fetch()`. Dane są aktualizowane w interfejsie bez przeładowania strony.
 
 Przycisk **START OD PRZERWY** jest aktywny tylko gdy maszyna jest w stanie `idle` lub `stopped`. W trakcie malowania przycisk jest wyszarzony.
 

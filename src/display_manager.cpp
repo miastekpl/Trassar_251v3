@@ -37,17 +37,17 @@
 #define VIZ_X               100     // X poczatek obszaru wizualizacji
 #define VIZ_Y               2       // Y poczatek
 #define VIZ_W               120     // Szerokosc
-#define VIZ_H               200     // Wysokosc (rozszerzone po obnizeniu prostokatow)
+#define VIZ_H               166     // Wysokosc
 
 // Pozycje Y elementow — lewa kolumna
 #define ROW_PAT_Y           2       // Kod wzorca (FSB24)
 #define ROW_NAME_Y          38      // Nazwa wzorca / flaga [GAP]
 #define ROW_FLAG_Y          54      // Flaga [ODW]
-#define ROW_STATUS_Y        72      // Status "Gotowy" / "Malowanie" (FSB12)
-#define ROW_MODE_Y          96      // Tryb pracy na ekranie HOME (przesunieto: FSB12 status jest wyzszy)
-#define ROW_TIME_Y          98      // Czas sesji (PAINTING)
-#define ROW_DIST_Y          116     // Dystans sesji (PAINTING)
-#define ROW_MODE2_Y         136     // Tryb pracy na ekranie PAINTING
+#define ROW_STATUS_Y        72      // Status "Gotowy" / "Malowanie"
+#define ROW_MODE_Y          92      // Tryb pracy na ekranie HOME
+#define ROW_TIME_Y          94      // Czas sesji (PAINTING)
+#define ROW_DIST_Y          112     // Dystans sesji (PAINTING)
+#define ROW_MODE2_Y         132     // Tryb pracy na ekranie PAINTING
 
 // Pozycje Y elementow — prawa kolumna
 #define ROW_SPEED_Y         2       // Predkosc (FSB24)
@@ -55,13 +55,13 @@
 #define ROW_AREA_Y          56      // Powierzchnia (FSB12)
 
 // Dol ekranu
-#define GUN_RECTS_Y         (TFT_SCREEN_H - 34)    // Y prostokatow pistoletow (przy dolnej krawedzi)
+#define GUN_RECTS_Y         (TFT_SCREEN_H - 66)    // Y prostokatow pistoletow
 #define HINT_Y              (TFT_SCREEN_H - 22)     // Y paska podpowiedzi
 
-// Prostokaty pistoletow — od krawedzi do krawedzi, wysokosc zmniejszona o 1/3
-#define GUN_W               51      // Szerokosc prostokata (edge-to-edge)
-#define GUN_H               34      // Wysokosc prostokata (bylo 50, -1/3)
-#define GUN_GAP             2       // Minimalny odstep miedzy prostokatami
+// Prostokaty pistoletow
+#define GUN_W               42      // Szerokosc prostokata
+#define GUN_H               50      // Wysokosc prostokata
+#define GUN_GAP             6       // Odstep miedzy prostokatami
 
 // Wizualizacja wzorca — parametry kolumn
 #define VIZ_COL_GAP         16      // Odstep miedzy kolumnami
@@ -259,8 +259,8 @@ void DisplayManager::drawHomeScreen(const char* patCode, const char* patName,
     }
     tft.setTextPadding(0);
 
-    // Status "Gotowy" (FSB12 — wieksza czcionka statusu)
-    tft.setFreeFont(FSB12);
+    // Status "Gotowy"
+    tft.setFreeFont(FSB9);
     tft.setTextColor(COLOR_ACCENT, COLOR_BG);
     tft.setTextPadding(COL_L_PAD);
     tft.drawString("Gotowy", MARGIN_X, ROW_STATUS_Y);
@@ -505,9 +505,9 @@ void DisplayManager::drawPaintingScreen(MachineState state, const char* patCode,
     }
     tft.setTextPadding(0);
 
-    // Status pracy (Malowanie / Pauza / Zatrzymany) — FSB12
+    // Status pracy (Malowanie / Pauza / Zatrzymany)
     uint16_t sc = stateColor(state);
-    tft.setFreeFont(FSB12);
+    tft.setFreeFont(FSB9);
     tft.setTextColor(sc, COLOR_BG);
     tft.setTextPadding(COL_L_PAD);
     tft.drawString(stateStr(state), MARGIN_X, ROW_STATUS_Y);
@@ -624,7 +624,7 @@ void DisplayManager::drawServiceMenu(int selectedIndex) {
     tft.setFreeFont(FM9);
     tft.setTextColor(COLOR_MENU_TXT, COLOR_BG);
     tft.setTextPadding(TFT_SCREEN_W - 12);
-    tft.drawString("^ v =nawiguj  OK=wejdz  <=powrot", HINT_X, HINT_Y);
+    tft.drawString("SEL=dalej STOP=cofnij SEL(1s)=wejdz STOP(1s)=powrot", HINT_X, HINT_Y);
     tft.setTextPadding(0);
 }
 
@@ -716,9 +716,9 @@ void DisplayManager::drawCalibrationScreen(bool active, float pulses, float ppm,
     tft.setTextColor(COLOR_MENU_TXT, COLOR_BG);
     tft.setTextPadding(TFT_SCREEN_W - 12);
     if (active) {
-        tft.drawString("OK=zakoncz pomiar  <=powrot", HINT_X, HINT_Y);
+        tft.drawString("START=zakoncz pomiar  STOP(1s)=powrot", HINT_X, HINT_Y);
     } else {
-        tft.drawString("OK=rozpocznij pomiar  <=powrot", HINT_X, HINT_Y);
+        tft.drawString("START=rozpocznij pomiar  STOP(1s)=powrot", HINT_X, HINT_Y);
     }
     tft.setTextPadding(0);
 }
@@ -778,9 +778,9 @@ void DisplayManager::drawDistanceMeter(float distanceM, bool measuring) {
     tft.setTextColor(COLOR_MENU_TXT, COLOR_BG);
     tft.setTextPadding(TFT_SCREEN_W - 12);
     if (measuring) {
-        tft.drawString("OK=pauza  ^=reset  <=powrot", HINT_X, HINT_Y);
+        tft.drawString("START=pauza STOP=reset STOP(1s)=powrot", HINT_X, HINT_Y);
     } else {
-        tft.drawString("OK=pomiar  ^=reset  <=powrot", HINT_X, HINT_Y);
+        tft.drawString("START=pomiar STOP=reset STOP(1s)=powrot", HINT_X, HINT_Y);
     }
     tft.setTextPadding(0);
 }
@@ -899,7 +899,7 @@ void DisplayManager::drawReportsScreen(bool sdReady, int fileCount, const char* 
     tft.setFreeFont(FM9);
     tft.setTextColor(COLOR_MENU_TXT, COLOR_BG);
     tft.setTextPadding(TFT_SCREEN_W - 12);
-    tft.drawString("<=powrot", HINT_X, HINT_Y);
+    tft.drawString("STOP(1s)=powrot", HINT_X, HINT_Y);
     tft.setTextPadding(0);
 }
 
@@ -1016,7 +1016,7 @@ void DisplayManager::drawSessionResetScreen(float distM, float areaM2, unsigned 
     tft.setFreeFont(FM9);
     tft.setTextColor(COLOR_MENU_TXT, COLOR_BG);
     tft.setTextPadding(TFT_SCREEN_W - 12);
-    tft.drawString("OK = TAK    <= NIE", HINT_X, HINT_Y);
+    tft.drawString("START = TAK    STOP = NIE", HINT_X, HINT_Y);
     tft.setTextPadding(0);
 }
 
@@ -1115,7 +1115,7 @@ void DisplayManager::drawSummaryScreen(const char* patCode, float distM, float a
     tft.setFreeFont(FM9);
     tft.setTextColor(COLOR_MENU_TXT, COLOR_BG);
     tft.setTextPadding(TFT_SCREEN_W - 12);
-    tft.drawString("START=kontynuuj  ^=nowy etap  <=HOME", HINT_X, HINT_Y);
+    tft.drawString("START=kontynuuj  STOP=nowy etap  STOP(1s)=HOME", HINT_X, HINT_Y);
     tft.setTextPadding(0);
 }
 
@@ -1173,7 +1173,7 @@ void DisplayManager::drawSetupScreen(int cursor, MachineMode mode,
                                      bool smartSwitch, bool gapStart) {
     drawHeader("PRZYGOTOWANIE");
 
-    // Etykiety i wartosci (3 opcje konfiguracyjne)
+    // Etykiety i wartosci
     static const char* labels[3] = {
         "Tryb pracy:",
         "Przelaczanie:",
@@ -1188,14 +1188,13 @@ void DisplayManager::drawSetupScreen(int cursor, MachineMode mode,
     // Kolor wartosci
     uint16_t valColors[3] = {
         COLOR_ACCENT,
-        (uint16_t)(smartSwitch ? COLOR_ACCENT : COLOR_WARNING),
-        (uint16_t)(gapStart    ? COLOR_WARNING : COLOR_ACCENT)
+        smartSwitch ? COLOR_ACCENT : COLOR_WARNING,
+        gapStart    ? COLOR_WARNING : COLOR_ACCENT
     };
 
-    const int SETUP_ITEM_H = 40;       // 40px — miesci 4 pozycje (4*40=160)
+    const int SETUP_ITEM_H = 48;
     const int SETUP_START_Y = 36;
 
-    // --- 3 opcje konfiguracyjne ---
     for (int i = 0; i < 3; i++) {
         int iy = SETUP_START_Y + i * SETUP_ITEM_H;
         bool sel = (i == cursor);
@@ -1228,23 +1227,8 @@ void DisplayManager::drawSetupScreen(int cursor, MachineMode mode,
         tft.drawFastHLine(0, iy + SETUP_ITEM_H - 1, TFT_SCREEN_W, COLOR_DIVIDER);
     }
 
-    // --- 4. pozycja: przycisk ROZPOCZNIJ MALOWANIE ---
-    {
-        int iy = SETUP_START_Y + 3 * SETUP_ITEM_H;
-        bool sel = (cursor == 3);
-        uint16_t bg = sel ? COLOR_ACCENT : COLOR_BG;
-        uint16_t fg = sel ? COLOR_BG     : COLOR_ACCENT;
-
-        tft.fillRect(0, iy, TFT_SCREEN_W, SETUP_ITEM_H, bg);
-        tft.setFreeFont(FSB12);
-        tft.setTextColor(fg, bg);
-        tft.setTextDatum(MC_DATUM);
-        tft.drawString("ROZPOCZNIJ MALOWANIE", TFT_SCREEN_W / 2, iy + SETUP_ITEM_H / 2);
-        tft.setTextDatum(TL_DATUM);
-    }
-
     // Wyczysc reszte pod opcjami
-    int bottomY = SETUP_START_Y + 4 * SETUP_ITEM_H;
+    int bottomY = SETUP_START_Y + 3 * SETUP_ITEM_H;
     if (bottomY < HINT_Y) {
         tft.fillRect(0, bottomY, TFT_SCREEN_W, HINT_Y - bottomY, COLOR_BG);
     }
@@ -1253,6 +1237,6 @@ void DisplayManager::drawSetupScreen(int cursor, MachineMode mode,
     tft.setFreeFont(FM9);
     tft.setTextColor(COLOR_MENU_TXT, COLOR_BG);
     tft.setTextPadding(TFT_SCREEN_W - 12);
-    tft.drawString("^ v =nawiguj  OK=zmien/potwierdz  <=powrot", HINT_X, HINT_Y);
+    tft.drawString("SEL=dalej SEL(1s)=zmien START=maluj STOP(1s)=wroc", HINT_X, HINT_Y);
     tft.setTextPadding(0);
 }

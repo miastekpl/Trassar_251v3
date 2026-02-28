@@ -1,6 +1,6 @@
 // ============================================================
 // TrassarV3 - Enkoder kwadraturowy: dystans, prędkość, kalibracja
-// v2.22.0 - Pelne dekodowanie kwadraturowe x4 (oba kanaly A+B)
+// v2.21.0 - Pelne dekodowanie kwadraturowe x4 (oba kanaly A+B)
 //           ISR na CLK(A) i DT(B) CHANGE — 4x rozdzielczosc
 //           Tablica stanow (4x4) do niezawodnego dekodowania kierunku
 //           Bezposredni odczyt rejestru GPIO (~50ns)
@@ -12,7 +12,7 @@
 
 EncoderDistance encoderDist;
 EncoderDistance* EncoderDistance::instance = nullptr;
-volatile int64_t EncoderDistance::totalPulses = 0;
+volatile long EncoderDistance::totalPulses = 0;
 volatile uint8_t EncoderDistance::quadState = 0;
 
 // Makra do szybkiego odczytu GPIO (piny 0-31 -> GPIO.in, piny 32-39 -> GPIO.in1.val)
@@ -84,15 +84,15 @@ void EncoderDistance::update() {
     unsigned long now = millis();
     if (now - lastSpeedTime >= SPEED_CALC_INTERVAL_MS) {
         noInterrupts();
-        int64_t currentPulses = totalPulses;
+        long currentPulses = totalPulses;
         interrupts();
 
-        int64_t dPulses = currentPulses - lastSpeedPulses;
+        long dPulses = currentPulses - lastSpeedPulses;
         float dt = (now - lastSpeedTime) / 1000.0f;
 
         float instantSpeed = 0;
         if (dt > 0 && pulsesPerMeter > 0) {
-            instantSpeed = (float)llabs(dPulses) / pulsesPerMeter / dt;
+            instantSpeed = (float)abs(dPulses) / pulsesPerMeter / dt;
         }
 
         // Filtr dolnoprzepustowy
@@ -106,9 +106,9 @@ void EncoderDistance::update() {
 
 float EncoderDistance::getDistanceMeters() const {
     noInterrupts();
-    int64_t p = totalPulses;
+    long p = totalPulses;
     interrupts();
-    return (pulsesPerMeter > 0) ? (float)llabs(p) / pulsesPerMeter : 0;
+    return (pulsesPerMeter > 0) ? (float)abs(p) / pulsesPerMeter : 0;
 }
 
 float EncoderDistance::getSpeedMps() const {
@@ -119,9 +119,9 @@ float EncoderDistance::getSpeedKmh() const {
     return currentSpeed * 3.6f;
 }
 
-int64_t EncoderDistance::getTotalPulses() const {
+long EncoderDistance::getTotalPulses() const {
     noInterrupts();
-    int64_t p = totalPulses;
+    long p = totalPulses;
     interrupts();
     return p;
 }
@@ -147,16 +147,16 @@ void EncoderDistance::startCalibration() {
 void EncoderDistance::finishCalibration() {
     if (!calibrating) return;
     noInterrupts();
-    int64_t endPulses = totalPulses;
+    long endPulses = totalPulses;
     interrupts();
 
-    int64_t diff = llabs(endPulses - calStartPulses);
+    long diff = abs(endPulses - calStartPulses);
     if (diff > 10) { // Minimum sensownych impulsów
         pulsesPerMeter = (float)diff / CALIBRATION_DISTANCE_M;
         calibrated = true;
         saveCalibration();
-        Serial.printf("[CAL] Kalibracja zakonczona: %lld impulsow / 10m = %.1f imp/m\n",
-                      (long long)diff, pulsesPerMeter);
+        Serial.printf("[CAL] Kalibracja zakonczona: %ld impulsow / 10m = %.1f imp/m\n",
+                      diff, pulsesPerMeter);
     } else {
         Serial.println("[CAL] Za malo impulsow - kalibracja anulowana");
     }
@@ -171,9 +171,9 @@ void EncoderDistance::cancelCalibration() {
 float EncoderDistance::getCalibrationPulses() const {
     if (!calibrating) return 0;
     noInterrupts();
-    int64_t current = totalPulses;
+    long current = totalPulses;
     interrupts();
-    return (float)llabs(current - calStartPulses);
+    return (float)abs(current - calStartPulses);
 }
 
 void EncoderDistance::loadCalibration() {

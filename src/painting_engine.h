@@ -15,7 +15,6 @@ public:
     void pause();
     void resume();
     void stop();
-    void emergencyStop();  // E-STOP: natychmiastowe wylaczenie bez zapisu
 
     void setPattern(PatternID pat);
     void toggleReverse();
