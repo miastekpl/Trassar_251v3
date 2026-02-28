@@ -12,6 +12,7 @@ public:
     void begin();
     void update();
     ButtonEvent getEvent();
+    bool wasAxisEvent() const { return _wasAxisEvent; }
 
 private:
     enum JoyDir : uint8_t {
@@ -36,6 +37,8 @@ private:
     bool swLongFired = false;
     bool swPendingShort = false;
     bool swPendingLong = false;
+
+    bool _wasAxisEvent = false;   // true = ostatnie zdarzenie z osi, false = z SW
 
     JoyDir readDirection();
     ButtonEvent dirToEvent(JoyDir dir);

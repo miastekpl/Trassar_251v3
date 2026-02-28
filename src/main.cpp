@@ -220,7 +220,15 @@ void loop() {
     joystick.update();
     ButtonEvent joyEvent = joystick.getEvent();
     if (joyEvent != EVT_NONE) {
-        menu.handleEvent(joyEvent);
+        // Na ekranach operacyjnych (HOME/PAINTING/SUMMARY) blokuj zdarzenia z osi
+        // analogowych — szum ADC moze generowac falszywe EVT_STOP_LONG
+        // i samoistnie przelaczac ekrany. Przepuszczamy tylko SW (przycisk).
+        bool isOperational = (g_state.currentScreen == SCREEN_HOME ||
+                              g_state.currentScreen == SCREEN_PAINTING ||
+                              g_state.currentScreen == SCREEN_SUMMARY);
+        if (!isOperational || !joystick.wasAxisEvent()) {
+            menu.handleEvent(joyEvent);
+        }
     }
 
     // 2. Aktualizacja enkodera (prędkość)

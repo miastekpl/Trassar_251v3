@@ -114,18 +114,22 @@ ButtonEvent JoystickHandler::getEvent() {
     // Priorytet: przycisk SW > osie
     if (swPendingLong) {
         swPendingLong = false;
+        _wasAxisEvent = false;
         return EVT_START_LONG;      // Dlugie SW = START long (np. otwarcie SETUP)
     }
     if (swPendingShort) {
         swPendingShort = false;
+        _wasAxisEvent = false;
         return EVT_SELECT_LONG;     // Krotkie SW = wejdz/potwierdz
     }
 
     if (pendingEvent != EVT_NONE) {
         ButtonEvent evt = pendingEvent;
         pendingEvent = EVT_NONE;
+        _wasAxisEvent = true;
         return evt;
     }
 
+    _wasAxisEvent = false;
     return EVT_NONE;
 }
