@@ -144,8 +144,8 @@ void MenuSystem::handlePaintingScreen(ButtonEvent e) {
             }
             strncpy(summaryPatCode, patternMgr.getCurrent().code, sizeof(summaryPatCode) - 1);
             summaryHasGps = gpsHandler.hasFix();
-            summaryLat = summaryHasGps ? gpsHandler.getLatitude() : 0;
-            summaryLon = summaryHasGps ? gpsHandler.getLongitude() : 0;
+            summaryLat = summaryHasGps ? gpsHandler.getLat() : 0;
+            summaryLon = summaryHasGps ? gpsHandler.getLng() : 0;
 
             paintEngine.stop();
             goToScreen(SCREEN_SUMMARY);
