@@ -18,10 +18,11 @@ private:
     void handleNozzleClean(ButtonEvent e);
     void handleSetup(ButtonEvent e);
     void handleSessionReset(ButtonEvent e);
+    void handleCounterReset(ButtonEvent e);
     void handleSummary(ButtonEvent e);
     void goToScreen(ScreenID screen);
 
-    static const int SERVICE_MENU_ITEMS = 5;
+    static const int SERVICE_MENU_ITEMS = 6;
 
     // Pomiar dystansu
     bool distMeasuring = false;

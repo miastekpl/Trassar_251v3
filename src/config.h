@@ -157,6 +157,7 @@ enum ScreenID : uint8_t {
     SCREEN_NOZZLE_CLEAN,
     SCREEN_SETUP,
     SCREEN_SESSION_RESET,
+    SCREEN_COUNTER_RESET,   // Reset wszystkich licznikow (oprocz kalibracji)
     SCREEN_SUMMARY          // Podsumowanie etapu po STOP
 };
 

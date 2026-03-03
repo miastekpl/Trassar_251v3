@@ -50,6 +50,15 @@ void StatisticsManager::resetSession() {
     }
 }
 
+void StatisticsManager::resetAll() {
+    resetSession();
+    lifetime = LifetimeStats();
+    for (int i = 0; i < NUM_GUNS; i++) {
+        gunShotCounts[i] = 0;
+        gunWasOn[i] = false;
+    }
+}
+
 unsigned long StatisticsManager::getSessionTimeSec() const {
     unsigned long total = sessionAccumMs;
     if (sessionTimerRunning) {

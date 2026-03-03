@@ -15,6 +15,8 @@ public:
 
     // Sesja bieżąca
     void resetSession();
+    // Reset wszystkich licznikow (sesja + lifetime + strzaly)
+    void resetAll();
     float getSessionDistance() const { return sessionDistance; }
     float getSessionArea() const { return sessionArea; }
     unsigned long getSessionTimeSec() const;

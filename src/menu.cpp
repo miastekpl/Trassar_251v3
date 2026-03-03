@@ -55,6 +55,7 @@ void MenuSystem::handleEvent(ButtonEvent event) {
         case SCREEN_NOZZLE_CLEAN:   handleNozzleClean(event);     break;
         case SCREEN_SETUP:          handleSetup(event);           break;
         case SCREEN_SESSION_RESET:  handleSessionReset(event);    break;
+        case SCREEN_COUNTER_RESET:  handleCounterReset(event);    break;
         case SCREEN_SUMMARY:        handleSummary(event);         break;
     }
 }
@@ -277,6 +278,9 @@ void MenuSystem::handleServiceMenu(ButtonEvent e) {
                 case 4:
                     goToScreen(SCREEN_SESSION_RESET);
                     break;
+                case 5:
+                    goToScreen(SCREEN_COUNTER_RESET);
+                    break;
             }
             break;
 
@@ -413,6 +417,35 @@ void MenuSystem::handleSessionReset(ButtonEvent e) {
         case EVT_STOP_SHORT:
         case EVT_STOP_LONG:
             // Anuluj - powrot do menu
+            goToScreen(SCREEN_SERVICE_MENU);
+            break;
+
+        default:
+            break;
+    }
+}
+
+// ============ SCREEN_COUNTER_RESET ============
+// START = potwierdz reset (zeruj wszystkie liczniki oprocz kalibracji)
+// STOP  = anuluj (powrot do menu serwisowego)
+
+void MenuSystem::handleCounterReset(ButtonEvent e) {
+    switch (e) {
+        case EVT_START_SHORT:
+        case EVT_START_LONG: {
+            // Reset wszystkich licznikow
+            stats.resetAll();
+            encoderDist.resetDistance();
+            storage.resetAllExceptCalibration();
+            g_state.machineState = STATE_IDLE;
+            buzzer.beep(1500, 300);
+            Serial.println("[MENU] Reset wszystkich licznikow (kalibracja zachowana)");
+            goToScreen(SCREEN_HOME);
+            break;
+        }
+
+        case EVT_STOP_SHORT:
+        case EVT_STOP_LONG:
             goToScreen(SCREEN_SERVICE_MENU);
             break;
 
@@ -590,6 +623,21 @@ void MenuSystem::update() {
                 stats.getSessionTimeSec()
             );
             break;
+
+        // ---- Reset wszystkich licznikow ----
+        case SCREEN_COUNTER_RESET: {
+            uint32_t gunShots[NUM_GUNS];
+            for (int i = 0; i < NUM_GUNS; i++) {
+                gunShots[i] = stats.getGunShotCount(i);
+            }
+            display.drawCounterResetScreen(
+                stats.getLifetimeDistance(),
+                stats.getLifetimeArea(),
+                stats.getLifetimePaintTimeSec(),
+                gunShots
+            );
+            break;
+        }
 
         // ---- Podsumowanie etapu ----
         case SCREEN_SUMMARY:

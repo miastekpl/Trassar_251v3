@@ -49,6 +49,9 @@ public:
     void saveSwitchMode(bool smart);
     bool loadSwitchMode();
 
+    // Reset wszystkich danych oprocz kalibracji
+    void resetAllExceptCalibration();
+
 private:
     void checkNvsVersion();
 };

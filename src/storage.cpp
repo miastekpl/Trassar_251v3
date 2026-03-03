@@ -179,3 +179,22 @@ bool StorageManager::loadSwitchMode() {
     prefs.end();
     return val;
 }
+
+void StorageManager::resetAllExceptCalibration() {
+    // Zachowaj kalibracje przed czyszczeniem
+    bool calibrated;
+    float ppm = loadCalibration(calibrated);
+
+    // Wyczysc cala przestrzen NVS
+    prefs.begin("trassar", false);
+    prefs.clear();
+
+    // Przywroc wersje NVS i kalibracje
+    prefs.putUChar("nvs_ver", NVS_DATA_VERSION);
+    if (calibrated) {
+        prefs.putFloat("cal_ppm", ppm);
+        prefs.putBool("cal_done", true);
+    }
+    prefs.end();
+    Serial.println("[NVS] Reset wszystkich danych (kalibracja zachowana)");
+}

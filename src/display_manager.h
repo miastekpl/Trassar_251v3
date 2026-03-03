@@ -42,6 +42,10 @@ public:
     // Reset etapu (potwierdzenie)
     void drawSessionResetScreen(float distM, float areaM2, unsigned long timeSec);
 
+    // Reset wszystkich licznikow (potwierdzenie)
+    void drawCounterResetScreen(float ltDistM, float ltAreaM2, uint32_t ltTimeSec,
+                                const uint32_t gunShots[6]);
+
     // Podsumowanie etapu (po STOP)
     void drawSummaryScreen(const char* patCode, float distM, float areaM2,
                            unsigned long timeSec, float speedAvg,
