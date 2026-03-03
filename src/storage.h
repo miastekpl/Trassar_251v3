@@ -49,6 +49,14 @@ public:
     void saveSwitchMode(bool smart);
     bool loadSwitchMode();
 
+    // Motogodziny (MTH) - calkowity czas pracy silnika
+    void saveMTH(uint32_t totalSec);
+    uint32_t loadMTH();
+
+    // Tryb nocny
+    void saveNightMode(bool enabled);
+    bool loadNightMode();
+
     // Reset wszystkich danych oprocz kalibracji
     void resetAllExceptCalibration();
 

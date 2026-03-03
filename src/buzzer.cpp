@@ -55,6 +55,29 @@ static const BuzzerStep SEQ_ERROR[] = {
     {600,  300}
 };
 
+// Zmiana wzorca: krotki dwutonowy beep (wyzszy niz zwykly beep)
+static const BuzzerStep SEQ_PATTERN_CHANGE[] = {
+    {1800, 60},
+    {0,    30},
+    {2200, 80}
+};
+
+// Ostrzezenie brak SD: trojkowy niski ton (uwaga)
+static const BuzzerStep SEQ_SD_WARNING[] = {
+    {1000, 150},
+    {0,    80},
+    {1000, 150},
+    {0,    80},
+    {1000, 150}
+};
+
+// Auto-pauza: opadajacy dwutonowy
+static const BuzzerStep SEQ_AUTO_PAUSE[] = {
+    {1500, 100},
+    {0,    50},
+    {1000, 150}
+};
+
 // ============ Implementacja ============
 
 void BuzzerController::begin() {
@@ -107,6 +130,15 @@ void BuzzerController::play(BuzzerSignal signal) {
             break;
         case BUZ_ERROR:
             startSequence(SEQ_ERROR, sizeof(SEQ_ERROR) / sizeof(BuzzerStep));
+            break;
+        case BUZ_PATTERN_CHANGE:
+            startSequence(SEQ_PATTERN_CHANGE, sizeof(SEQ_PATTERN_CHANGE) / sizeof(BuzzerStep));
+            break;
+        case BUZ_SD_WARNING:
+            startSequence(SEQ_SD_WARNING, sizeof(SEQ_SD_WARNING) / sizeof(BuzzerStep));
+            break;
+        case BUZ_AUTO_PAUSE:
+            startSequence(SEQ_AUTO_PAUSE, sizeof(SEQ_AUTO_PAUSE) / sizeof(BuzzerStep));
             break;
         default:
             break;

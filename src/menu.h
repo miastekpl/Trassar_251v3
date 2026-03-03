@@ -20,9 +20,12 @@ private:
     void handleSessionReset(ButtonEvent e);
     void handleCounterReset(ButtonEvent e);
     void handleSummary(ButtonEvent e);
+    void handleLifetimeStats(ButtonEvent e);
+    void handleCustomPattern(ButtonEvent e);
+    void handleStatsExport(ButtonEvent e);
     void goToScreen(ScreenID screen);
 
-    static const int SERVICE_MENU_ITEMS = 6;
+    static const int SERVICE_MENU_ITEMS = 9;  // 6 + lifetime + custom_pat + export
 
     // Pomiar dystansu
     bool distMeasuring = false;
@@ -47,5 +50,14 @@ private:
     float summaryLat = 0;
     float summaryLon = 0;
     char summaryPatCode[16] = {};
+
+    // Edycja wzorca wlasnego
+    int custCursor = 0;        // 0=pistolet, 1=tryb, 2=linia, 3=przerwa, 4=zapisz
+    int custGunIdx = 0;        // Aktualnie edytowany pistolet (0..5)
+    CustomPatternCfg custCfg;  // Edytowany wzorzec
+
+    // Eksport statystyk
+    bool exportDone = false;
+    bool exportSuccess = false;
 };
 extern MenuSystem menu;

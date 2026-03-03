@@ -29,6 +29,7 @@ void StorageManager::checkNvsVersion() {
             prefs.remove("cust_p2");
             Serial.println("[NVS] Wyczyszczono wzorce wlasne (zmiana formatu)");
         }
+        // v2->v3: dodano MTH (mth_sec) i night_mode — brak migracji (nowe klucze)
         prefs.putUChar("nvs_ver", NVS_DATA_VERSION);
     } else {
         Serial.printf("[NVS] Wersja NVS: %d (OK)\n", ver);
@@ -180,21 +181,49 @@ bool StorageManager::loadSwitchMode() {
     return val;
 }
 
+void StorageManager::saveMTH(uint32_t totalSec) {
+    prefs.begin("trassar", false);
+    prefs.putUInt("mth_sec", totalSec);
+    prefs.end();
+}
+
+uint32_t StorageManager::loadMTH() {
+    prefs.begin("trassar", true);
+    uint32_t val = prefs.getUInt("mth_sec", 0);
+    prefs.end();
+    return val;
+}
+
+void StorageManager::saveNightMode(bool enabled) {
+    prefs.begin("trassar", false);
+    prefs.putBool("night_mode", enabled);
+    prefs.end();
+}
+
+bool StorageManager::loadNightMode() {
+    prefs.begin("trassar", true);
+    bool val = prefs.getBool("night_mode", false);
+    prefs.end();
+    return val;
+}
+
 void StorageManager::resetAllExceptCalibration() {
-    // Zachowaj kalibracje przed czyszczeniem
+    // Zachowaj kalibracje i MTH przed czyszczeniem
     bool calibrated;
     float ppm = loadCalibration(calibrated);
+    uint32_t mth = loadMTH();
 
     // Wyczysc cala przestrzen NVS
     prefs.begin("trassar", false);
     prefs.clear();
 
-    // Przywroc wersje NVS i kalibracje
+    // Przywroc wersje NVS, kalibracje i MTH
     prefs.putUChar("nvs_ver", NVS_DATA_VERSION);
     if (calibrated) {
         prefs.putFloat("cal_ppm", ppm);
         prefs.putBool("cal_done", true);
     }
+    prefs.putUInt("mth_sec", mth);
     prefs.end();
-    Serial.println("[NVS] Reset wszystkich danych (kalibracja zachowana)");
+    Serial.println("[NVS] Reset wszystkich danych (kalibracja + MTH zachowane)");
 }

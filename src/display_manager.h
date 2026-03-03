@@ -51,13 +51,43 @@ public:
                            unsigned long timeSec, float speedAvg,
                            bool hasGps, float lat, float lon);
 
+    // Statystyki lifetime
+    void drawLifetimeStatsScreen(float ltDistM, float ltAreaM2, uint32_t ltTimeSec,
+                                 const uint32_t gunShots[6], uint32_t mthSec);
+
+    // Edycja wzorca wlasnego
+    void drawCustomPatternScreen(int cursor, int gunIdx, const CustomPatternCfg& cfg);
+
+    // Eksport statystyk na SD
+    void drawStatsExportScreen(bool exporting, bool success);
+
+    // Ikona ostrzezenia SD na ekranie malowania
+    void drawSdWarningIcon();
+
     // ---- Elementy pomocnicze ----
     void drawHeader(const char* title);
     void drawGunRects(int y, const GunPatternCfg gunsCfg[6],
                       const bool gunStates[6], bool paused);
     void drawProgressBar(int x, int y, int w, int h, int percent, uint16_t color);
 
+    // Tryb nocny
+    void applyNightMode(bool night);
+
     TFT_eSPI& getTFT() { return tft; }
+
+    // Kolory dynamiczne (zmieniane przez tryb nocny)
+    uint16_t cBg          = COLOR_BG;
+    uint16_t cText        = COLOR_TEXT;
+    uint16_t cHeaderBg    = COLOR_HEADER_BG;
+    uint16_t cHeaderTxt   = COLOR_HEADER_TXT;
+    uint16_t cAccent      = COLOR_ACCENT;
+    uint16_t cWarning     = COLOR_WARNING;
+    uint16_t cError       = COLOR_ERROR;
+    uint16_t cMenuSel     = COLOR_MENU_SEL;
+    uint16_t cMenuTxt     = COLOR_MENU_TXT;
+    uint16_t cDivider     = COLOR_DIVIDER;
+    uint16_t cGunOn       = COLOR_GUN_ON;
+    uint16_t cGunOff      = COLOR_GUN_OFF;
 
 private:
     TFT_eSPI tft;
@@ -65,6 +95,7 @@ private:
     uint16_t stateColor(MachineState s);
     const char* modeStr(MachineMode m);
     void fmtTime(unsigned long sec, char* buf, size_t len);
+    void fmtMTH(uint32_t sec, char* buf, size_t len);
     void drawPatternVisualization(int vizX, int vizY, int vizW, int vizH,
                                   const GunPatternCfg gunsCfg[6],
                                   bool reversed, bool gapStart,

@@ -10,11 +10,13 @@ StatisticsManager stats;
 void StatisticsManager::begin() {
     resetSession();
     loadLifetime();
+    loadMTH();
     storage.loadGunShotCounts(gunShotCounts);
     for (int i = 0; i < NUM_GUNS; i++) gunWasOn[i] = false;
     Serial.printf("[STATS] Gun shots lifetime: P1=%u P2=%u P3=%u P4=%u P5=%u P6=%u\n",
                   gunShotCounts[0], gunShotCounts[1], gunShotCounts[2],
                   gunShotCounts[3], gunShotCounts[4], gunShotCounts[5]);
+    Serial.printf("[STATS] MTH: %u s (%.1f h)\n", mthTotalSec, mthTotalSec / 3600.0f);
 }
 
 void StatisticsManager::updatePainting(float distanceDelta, const bool gunStates[NUM_GUNS]) {
@@ -94,4 +96,38 @@ void StatisticsManager::saveLifetime() {
 
 void StatisticsManager::loadLifetime() {
     lifetime = storage.loadLifetimeStats();
+}
+
+// ============ Motogodziny (MTH) ============
+
+void StatisticsManager::startMTH() {
+    if (!mthRunning) {
+        mthStartMs = millis();
+        mthRunning = true;
+    }
+}
+
+void StatisticsManager::stopMTH() {
+    if (mthRunning) {
+        mthTotalSec += (millis() - mthStartMs) / 1000;
+        mthRunning = false;
+    }
+}
+
+void StatisticsManager::saveMTH() {
+    uint32_t sec = getMTHSeconds();
+    storage.saveMTH(sec);
+}
+
+void StatisticsManager::loadMTH() {
+    mthTotalSec = storage.loadMTH();
+    mthRunning = false;
+}
+
+uint32_t StatisticsManager::getMTHSeconds() const {
+    uint32_t total = mthTotalSec;
+    if (mthRunning) {
+        total += (millis() - mthStartMs) / 1000;
+    }
+    return total;
 }

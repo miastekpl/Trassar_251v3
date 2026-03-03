@@ -7,7 +7,7 @@
 #include <Arduino.h>
 
 // ============ WERSJA FIRMWARE ============
-#define FW_VERSION      "2.22.0"
+#define FW_VERSION      "2.23.0"
 #define FW_NAME         "TrassarV3"
 #define FW_DATE         __DATE__
 
@@ -73,6 +73,13 @@
 #define DEFAULT_MIN_PAINT_SPEED_KMH   3.0f  // Prog niskiej predkosci (pistolety OFF ponizej)
 #define DEFAULT_MAX_PAINT_SPEED_KMH  15.0f  // Prog alarmu przekroczenia predkosci
 
+// ============ Auto-pauza przy zatrzymaniu (tryb AUTO) ============
+#define AUTO_PAUSE_SPEED_KMH   0.5f   // Prog predkosci do auto-pauzy [km/h]
+#define AUTO_PAUSE_DELAY_MS   1500     // Opoznienie przed auto-pauza [ms]
+
+// ============ Motogodziny (MTH) ============
+#define MTH_SAVE_INTERVAL_MS  300000UL  // Zapis MTH co 5 min
+
 // ============ Watchdog ============
 #define WDT_TIMEOUT_SEC       3    // Timeout watchdoga [s], auto-reset
 
@@ -117,7 +124,7 @@
 #define GUN_ANOMALY_DISTANCE_M   50.0f   // Min dystans sesji do uruchomienia detekcji [m]
 #define GUN_ANOMALY_CHECK_MS     10000   // Interwał sprawdzania anomalii [ms]
 
-// ============ Kolory UI ============
+// ============ Kolory UI - tryb dzienny ============
 #define COLOR_BG          0x0000
 #define COLOR_TEXT         0xFFFF
 #define COLOR_HEADER_BG   0x1A3C
@@ -130,6 +137,20 @@
 #define COLOR_DIVIDER     0x4208
 #define COLOR_GUN_ON      0x07E0
 #define COLOR_GUN_OFF     0x4208
+
+// ============ Kolory UI - tryb nocny (amber/dark) ============
+#define NIGHT_COLOR_BG          0x0000
+#define NIGHT_COLOR_TEXT        0xFCC0   // Cieply amber
+#define NIGHT_COLOR_HEADER_BG   0x2100   // Ciemny braz
+#define NIGHT_COLOR_HEADER_TXT  0xFCC0
+#define NIGHT_COLOR_ACCENT      0xFC00   // Pomaranczowy
+#define NIGHT_COLOR_WARNING     0xFB00   // Ciemny zolty
+#define NIGHT_COLOR_ERROR       0xC000   // Ciemny czerwony
+#define NIGHT_COLOR_MENU_SEL    0x4200   // Ciemny amber podswietlenie
+#define NIGHT_COLOR_MENU_TXT    0x9B40   // Przygaszony amber
+#define NIGHT_COLOR_DIVIDER     0x3180   // Ciemny separator
+#define NIGHT_COLOR_GUN_ON      0xFC00   // Pomaranczowy
+#define NIGHT_COLOR_GUN_OFF     0x3180   // Ciemny szary-amber
 
 // ============ Stany maszyny ============
 enum MachineState : uint8_t {
@@ -158,7 +179,10 @@ enum ScreenID : uint8_t {
     SCREEN_SETUP,
     SCREEN_SESSION_RESET,
     SCREEN_COUNTER_RESET,   // Reset wszystkich licznikow (oprocz kalibracji)
-    SCREEN_SUMMARY          // Podsumowanie etapu po STOP
+    SCREEN_SUMMARY,         // Podsumowanie etapu po STOP
+    SCREEN_LIFETIME_STATS,  // Statystyki lifetime
+    SCREEN_CUSTOM_PATTERN,  // Edycja wzorca wlasnego
+    SCREEN_STATS_EXPORT     // Eksport statystyk na SD
 };
 
 // ============ Identyfikatory wzorców ============
@@ -226,6 +250,9 @@ struct SystemState {
     int menuIndex = 0;
     bool displayNeedsUpdate = true;
     bool forceFullRedraw = true;
+
+    bool nightMode = false;           // Tryb nocny (amber UI)
+    bool sdCardWarningShown = false;  // Flaga jednorazowego ostrzezenia SD
 };
 
 extern SystemState g_state;
@@ -238,7 +265,7 @@ extern portMUX_TYPE g_stateMux;
 #define STATE_UNLOCK() taskEXIT_CRITICAL(&g_stateMux)
 
 // ============ Wersja formatu danych NVS ============
-#define NVS_DATA_VERSION  2  // Inkrementuj przy zmianie struktur NVS
+#define NVS_DATA_VERSION  3  // Inkrementuj przy zmianie struktur NVS
 
 // ============ Sloty wzorcow wlasnych ============
 #define NUM_CUSTOM_SLOTS  3

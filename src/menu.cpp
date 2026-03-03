@@ -1,5 +1,7 @@
 // ============================================================
-// TrassarV3 - System menu v2.9  (tryby pracy + menu serwisowe)
+// TrassarV3 - System menu v2.23  (tryby pracy + menu serwisowe)
+// v2.23: +lifetime stats, +custom pattern editor, +stats export,
+//        +SD warning, +night mode toggle, +auto-pause
 // ============================================================
 
 #include "menu.h"
@@ -15,6 +17,7 @@
 #include "storage.h"
 #include "buzzer.h"
 #include "gps_handler.h"
+#include "event_log.h"
 
 MenuSystem menu;
 
@@ -57,6 +60,9 @@ void MenuSystem::handleEvent(ButtonEvent event) {
         case SCREEN_SESSION_RESET:  handleSessionReset(event);    break;
         case SCREEN_COUNTER_RESET:  handleCounterReset(event);    break;
         case SCREEN_SUMMARY:        handleSummary(event);         break;
+        case SCREEN_LIFETIME_STATS: handleLifetimeStats(event);   break;
+        case SCREEN_CUSTOM_PATTERN: handleCustomPattern(event);   break;
+        case SCREEN_STATS_EXPORT:   handleStatsExport(event);     break;
     }
 }
 
@@ -65,6 +71,12 @@ void MenuSystem::handleEvent(ButtonEvent event) {
 void MenuSystem::handleHomeScreen(ButtonEvent e) {
     switch (e) {
         case EVT_START_SHORT:
+            // Alarm braku SD przy starcie malowania (jednorazowy)
+            if (!reportLogger.isReady() && !g_state.sdCardWarningShown) {
+                g_state.sdCardWarningShown = true;
+                buzzer.play(BUZ_SD_WARNING);
+                eventLog.log("MENU", "Ostrzezenie: start malowania bez karty SD");
+            }
             paintEngine.start();
             goToScreen(SCREEN_PAINTING);
             break;
@@ -81,7 +93,11 @@ void MenuSystem::handleHomeScreen(ButtonEvent e) {
             break;
 
         case EVT_GAP_START:
-            // Dedykowany przycisk "Start od przerwy" (GPIO 7)
+            // Alarm braku SD
+            if (!reportLogger.isReady() && !g_state.sdCardWarningShown) {
+                g_state.sdCardWarningShown = true;
+                buzzer.play(BUZ_SD_WARNING);
+            }
             paintEngine.startFromGap();
             goToScreen(SCREEN_PAINTING);
             break;
@@ -226,6 +242,12 @@ void MenuSystem::handleSetup(ButtonEvent e) {
                           setupSmart ? "TAK" : "NIE",
                           setupGapStart ? "OD PRZERWY" : "NORMALNY");
 
+            // Alarm braku SD
+            if (!reportLogger.isReady() && !g_state.sdCardWarningShown) {
+                g_state.sdCardWarningShown = true;
+                buzzer.play(BUZ_SD_WARNING);
+            }
+
             // Uruchom malowanie
             if (setupGapStart) {
                 paintEngine.startFromGap();
@@ -247,7 +269,7 @@ void MenuSystem::handleSetup(ButtonEvent e) {
     }
 }
 
-// ============ SCREEN_SERVICE_MENU  (4 pozycje) ============
+// ============ SCREEN_SERVICE_MENU  (9 pozycji) ============
 
 void MenuSystem::handleServiceMenu(ButtonEvent e) {
     switch (e) {
@@ -276,12 +298,50 @@ void MenuSystem::handleServiceMenu(ButtonEvent e) {
                     goToScreen(SCREEN_NOZZLE_CLEAN);
                     break;
                 case 4:
+                    goToScreen(SCREEN_LIFETIME_STATS);
+                    break;
+                case 5: {
+                    // Zaladuj aktualny wzorzec wlasny do edycji
+                    custCfg = patternMgr.loadSlot(patternMgr.getActiveSlot());
+                    if (!custCfg.valid) {
+                        // Inicjalizuj pusty wzorzec
+                        memset(&custCfg, 0, sizeof(custCfg));
+                        custCfg.valid = true;
+                        for (int i = 0; i < NUM_GUNS; i++) {
+                            custCfg.lineLen[i] = 2.0f;
+                            custCfg.gapLen[i] = 2.0f;
+                        }
+                    }
+                    custCursor = 0;
+                    custGunIdx = 0;
+                    goToScreen(SCREEN_CUSTOM_PATTERN);
+                    break;
+                }
+                case 6: {
+                    exportDone = false;
+                    exportSuccess = false;
+                    goToScreen(SCREEN_STATS_EXPORT);
+                    break;
+                }
+                case 7:
                     goToScreen(SCREEN_SESSION_RESET);
                     break;
-                case 5:
+                case 8:
                     goToScreen(SCREEN_COUNTER_RESET);
                     break;
             }
+            break;
+
+        case EVT_START_SHORT:
+        case EVT_START_LONG:
+            // Toggle trybu nocnego z poziomu menu serwisowego
+            g_state.nightMode = !g_state.nightMode;
+            display.applyNightMode(g_state.nightMode);
+            storage.saveNightMode(g_state.nightMode);
+            buzzer.beep(1500, 60);
+            g_state.forceFullRedraw = true;
+            g_state.displayNeedsUpdate = true;
+            Serial.printf("[MENU] Tryb nocny: %s\n", g_state.nightMode ? "ON" : "OFF");
             break;
 
         case EVT_STOP_LONG:
@@ -489,6 +549,178 @@ void MenuSystem::handleSummary(ButtonEvent e) {
     }
 }
 
+// ============ SCREEN_LIFETIME_STATS ============
+// STOP(1s) = powrot
+
+void MenuSystem::handleLifetimeStats(ButtonEvent e) {
+    if (e == EVT_STOP_LONG) {
+        goToScreen(SCREEN_SERVICE_MENU);
+    }
+}
+
+// ============ SCREEN_CUSTOM_PATTERN ============
+// Nawigacja joystickiem/przyciskami:
+// SEL(krotki)  = kursor w dol
+// STOP(krotki) = kursor w gore
+// SEL(dlugi)   = zmien wartosc / zapisz
+// START        = zmien pistolet (gdy kursor=0) lub inkrementuj wartosc
+// STOP(dlugi)  = powrot bez zapisu
+
+void MenuSystem::handleCustomPattern(ButtonEvent e) {
+    switch (e) {
+        case EVT_SELECT_SHORT:
+            // Kursor w dol
+            custCursor++;
+            if (custCursor > 4) custCursor = 0;
+            g_state.displayNeedsUpdate = true;
+            break;
+
+        case EVT_STOP_SHORT:
+            // Kursor w gore
+            custCursor--;
+            if (custCursor < 0) custCursor = 4;
+            g_state.displayNeedsUpdate = true;
+            break;
+
+        case EVT_SELECT_LONG:
+            // Zmien wartosc wybranej opcji
+            switch (custCursor) {
+                case 0:  // Pistolet: P1 -> P2 -> ... -> P6 -> P1
+                    custGunIdx++;
+                    if (custGunIdx >= NUM_GUNS) custGunIdx = 0;
+                    break;
+                case 1: {  // Tryb: OFF -> CIAG -> PRZERYW -> OFF
+                    uint8_t m = custCfg.gunModes[custGunIdx];
+                    m++;
+                    if (m > GUN_DASHED) m = GUN_OFF;
+                    custCfg.gunModes[custGunIdx] = m;
+                    break;
+                }
+                case 2:  // Linia +0.5m
+                    custCfg.lineLen[custGunIdx] += 0.5f;
+                    if (custCfg.lineLen[custGunIdx] > 20.0f) custCfg.lineLen[custGunIdx] = 0.5f;
+                    break;
+                case 3:  // Przerwa +0.5m
+                    custCfg.gapLen[custGunIdx] += 0.5f;
+                    if (custCfg.gapLen[custGunIdx] > 20.0f) custCfg.gapLen[custGunIdx] = 0.5f;
+                    break;
+                case 4: {  // Zapisz
+                    custCfg.valid = true;
+                    int slot = patternMgr.getActiveSlot();
+                    patternMgr.saveSlot(slot, custCfg);
+                    patternMgr.activateSlot(slot);
+                    buzzer.beep(2000, 150);
+                    Serial.printf("[MENU] Wzorzec wlasny zapisany (slot %d)\n", slot);
+                    eventLog.logf("MENU", "Wzorzec wlasny zapisany (slot %d)", slot);
+                    goToScreen(SCREEN_SERVICE_MENU);
+                    return;
+                }
+            }
+            buzzer.beep(1500, 60);
+            g_state.displayNeedsUpdate = true;
+            break;
+
+        case EVT_START_SHORT:
+            // Dekrementuj wartosc (alternatywa do SEL_LONG)
+            switch (custCursor) {
+                case 0:
+                    custGunIdx--;
+                    if (custGunIdx < 0) custGunIdx = NUM_GUNS - 1;
+                    break;
+                case 1: {
+                    int m = (int)custCfg.gunModes[custGunIdx] - 1;
+                    if (m < 0) m = GUN_DASHED;
+                    custCfg.gunModes[custGunIdx] = (uint8_t)m;
+                    break;
+                }
+                case 2:
+                    custCfg.lineLen[custGunIdx] -= 0.5f;
+                    if (custCfg.lineLen[custGunIdx] < 0.5f) custCfg.lineLen[custGunIdx] = 20.0f;
+                    break;
+                case 3:
+                    custCfg.gapLen[custGunIdx] -= 0.5f;
+                    if (custCfg.gapLen[custGunIdx] < 0.5f) custCfg.gapLen[custGunIdx] = 20.0f;
+                    break;
+            }
+            buzzer.beep(1500, 40);
+            g_state.displayNeedsUpdate = true;
+            break;
+
+        case EVT_STOP_LONG:
+            // Powrot bez zapisu
+            goToScreen(SCREEN_SERVICE_MENU);
+            break;
+
+        default:
+            break;
+    }
+}
+
+// ============ SCREEN_STATS_EXPORT ============
+// START = eksportuj na SD
+// STOP(1s) = powrot
+
+void MenuSystem::handleStatsExport(ButtonEvent e) {
+    switch (e) {
+        case EVT_START_SHORT:
+        case EVT_START_LONG: {
+            if (exportDone) break;  // Juz wyeksportowano
+
+            if (!reportLogger.isReady()) {
+                exportDone = true;
+                exportSuccess = false;
+                buzzer.play(BUZ_ERROR);
+                g_state.displayNeedsUpdate = true;
+                break;
+            }
+
+            // Eksportuj lifetime stats do CSV
+            if (!SD.exists("/stats")) {
+                SD.mkdir("/stats");
+            }
+            File f = SD.open("/stats/lifetime_stats.csv", FILE_WRITE);
+            if (f) {
+                f.println("parametr,wartosc");
+                char buf[64];
+                snprintf(buf, sizeof(buf), "dystans_m,%.1f", stats.getLifetimeDistance());
+                f.println(buf);
+                snprintf(buf, sizeof(buf), "powierzchnia_m2,%.2f", stats.getLifetimeArea());
+                f.println(buf);
+                snprintf(buf, sizeof(buf), "czas_malowania_s,%u", stats.getLifetimePaintTimeSec());
+                f.println(buf);
+                snprintf(buf, sizeof(buf), "motogodziny_s,%u", stats.getMTHSeconds());
+                f.println(buf);
+                for (int i = 0; i < NUM_GUNS; i++) {
+                    snprintf(buf, sizeof(buf), "strzaly_P%d,%u", i + 1, stats.getGunShotCount(i));
+                    f.println(buf);
+                }
+                snprintf(buf, sizeof(buf), "data_eksportu,%s", rtcModule.getDateTimeStr());
+                f.println(buf);
+                f.close();
+                exportDone = true;
+                exportSuccess = true;
+                buzzer.beep(2000, 150);
+                eventLog.log("MENU", "Eksport statystyk na SD: /stats/lifetime_stats.csv");
+            } else {
+                exportDone = true;
+                exportSuccess = false;
+                buzzer.play(BUZ_ERROR);
+            }
+            g_state.forceFullRedraw = true;
+            g_state.displayNeedsUpdate = true;
+            break;
+        }
+
+        case EVT_STOP_SHORT:
+        case EVT_STOP_LONG:
+            goToScreen(SCREEN_SERVICE_MENU);
+            break;
+
+        default:
+            break;
+    }
+}
+
 // ============ Renderowanie + logika ciagla ============
 
 void MenuSystem::update() {
@@ -563,6 +795,10 @@ void MenuSystem::update() {
                 stats.getSessionDistance(),
                 paintEngine.getPatternDistance()
             );
+            // Ikona SD warning na ekranie malowania
+            if (!reportLogger.isReady()) {
+                display.drawSdWarningIcon();
+            }
             break;
         }
 
@@ -646,6 +882,32 @@ void MenuSystem::update() {
                 summaryTime, summaryAvgSpeed,
                 summaryHasGps, summaryLat, summaryLon
             );
+            break;
+
+        // ---- Statystyki lifetime ----
+        case SCREEN_LIFETIME_STATS: {
+            uint32_t gunShots[NUM_GUNS];
+            for (int i = 0; i < NUM_GUNS; i++) {
+                gunShots[i] = stats.getGunShotCount(i);
+            }
+            display.drawLifetimeStatsScreen(
+                stats.getLifetimeDistance(),
+                stats.getLifetimeArea(),
+                stats.getLifetimePaintTimeSec(),
+                gunShots,
+                stats.getMTHSeconds()
+            );
+            break;
+        }
+
+        // ---- Edycja wzorca wlasnego ----
+        case SCREEN_CUSTOM_PATTERN:
+            display.drawCustomPatternScreen(custCursor, custGunIdx, custCfg);
+            break;
+
+        // ---- Eksport statystyk ----
+        case SCREEN_STATS_EXPORT:
+            display.drawStatsExportScreen(!exportDone, exportSuccess);
             break;
     }
 }

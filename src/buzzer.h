@@ -15,7 +15,10 @@ enum BuzzerSignal : uint8_t {
     BUZ_LOW_SPEED,         // Predkosc < 3 km/h podczas malowania
     BUZ_OVERSPEED,         // Przekroczenie predkosci maks.
     BUZ_GUN_ANOMALY,       // Pistolet nie strzela mimo aktywnej konfiguracji
-    BUZ_ERROR              // Blad (brak SD, RTC niedostepny)
+    BUZ_ERROR,             // Blad (brak SD, RTC niedostepny)
+    BUZ_PATTERN_CHANGE,    // Zmiana wzorca przyciskiem MCP23017
+    BUZ_SD_WARNING,        // Ostrzezenie: brak karty SD przy starcie malowania
+    BUZ_AUTO_PAUSE         // Auto-pauza przy zatrzymaniu
 };
 
 // Pojedynczy krok sekwencji tonowej

@@ -40,6 +40,13 @@ public:
     void saveLifetime();
     void loadLifetime();
 
+    // Motogodziny (MTH) - calkowity czas pracy silnika
+    void startMTH();
+    void stopMTH();
+    void saveMTH();
+    void loadMTH();
+    uint32_t getMTHSeconds() const;
+
 private:
     // Sesja
     float sessionDistance = 0;
@@ -56,6 +63,11 @@ private:
     // Licznik strzalow pistoletow (lifetime, zlicza tranzycje OFF->ON)
     uint32_t gunShotCounts[NUM_GUNS] = {};
     bool     gunWasOn[NUM_GUNS] = {};  // Stan poprzedni (do detekcji tranzycji)
+
+    // Motogodziny (MTH)
+    uint32_t mthTotalSec = 0;
+    unsigned long mthStartMs = 0;
+    bool mthRunning = false;
 };
 
 extern StatisticsManager stats;
