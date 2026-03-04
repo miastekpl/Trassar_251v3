@@ -262,6 +262,19 @@ void TrassarWebServer::handleControl() {
         }
     } else if (action == "semi_next_line") {
         paintEngine.semiNextLine();
+    } else if (action == "send_event") {
+        // Wirtualne przyciski z panelu www — wstrzykniecie zdarzenia do menu
+        if (server.hasArg("value")) {
+            int val = server.arg("value").toInt();
+            if (val > 0 && val <= (int)EVT_GAP_START) {
+                menu.handleEvent((ButtonEvent)val);
+                Serial.printf("[WWW] Event: %d\n", val);
+            } else {
+                result = "nieprawidlowy event";
+            }
+        } else {
+            result = "brak parametru value";
+        }
     } else if (action == "set_screen") {
         if (server.hasArg("value")) {
             int val = server.arg("value").toInt();
@@ -312,6 +325,7 @@ String TrassarWebServer::getStateJson() {
     PatternID     snapPattern = g_state.currentPattern;
     bool          snapReversed = g_state.patternReversed;
     ScreenID      snapScreen  = g_state.currentScreen;
+    int           snapMenuIdx = g_state.menuIndex;
     STATE_UNLOCK();
 
     // Stan maszyny
@@ -327,6 +341,7 @@ String TrassarWebServer::getStateJson() {
 
     // Aktualny ekran TFT
     doc["screen"] = (int)snapScreen;
+    doc["menuIndex"] = snapMenuIdx;
 
     // Tryb pracy
     const char* modeStr;

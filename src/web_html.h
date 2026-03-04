@@ -171,6 +171,20 @@ body{
 .scr-btn.act{background:#1a3a5a;border-color:#2a7d9f;color:#fff;}
 .scr-btn .scr-ico{font-size:16px;display:block;margin-bottom:2px;}
 
+/* ---------- VIRTUAL BUTTONS ---------- */
+.vbtn-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;}
+.vbtn{
+    padding:14px 6px;border:1px solid #1e2d42;border-radius:10px;
+    background:#0d1520;color:#9eafc4;font-size:12px;font-weight:700;
+    cursor:pointer;text-align:center;transition:all .15s;
+    text-transform:uppercase;letter-spacing:.5px;
+}
+.vbtn:active{transform:scale(.93);background:#1a2a40;}
+.vbtn .vico{font-size:18px;display:block;margin-bottom:2px;}
+.vbtn-sel{border-color:#2a7d9f;color:#2ae67a;}
+.vbtn-stop{border-color:#8a2020;color:#e64040;}
+.vbtn-start{border-color:#1a8a4a;color:#2ae67a;}
+
 /* ---------- SERVICE MENU ---------- */
 .svc-tabs{display:flex;gap:4px;margin-bottom:10px;}
 .svc-tab{
@@ -446,6 +460,22 @@ body{
         </div>
     </div>
 
+    <!-- ========== VIRTUAL BUTTONS ========== -->
+    <div class="card">
+        <h3>Przyciski wirtualne</h3>
+        <div style="font-size:10px;color:#6b7d9a;margin-bottom:8px;">Sterowanie menu i ekranami serwisowymi</div>
+        <div class="vbtn-grid">
+            <div class="vbtn vbtn-start" onclick="sendEvt(1)"><span class="vico">&#9654;</span>START</div>
+            <div class="vbtn vbtn-sel" onclick="sendEvt(6)"><span class="vico">&#9660;</span>SEL</div>
+            <div class="vbtn vbtn-stop" onclick="sendEvt(4)"><span class="vico">&#9632;</span>STOP</div>
+        </div>
+        <div class="vbtn-grid" style="margin-top:6px;">
+            <div class="vbtn vbtn-start" onclick="sendEvt(2)"><span class="vico">&#9654;&#9654;</span>START(1s)</div>
+            <div class="vbtn vbtn-sel" onclick="sendEvt(7)"><span class="vico">&#10004;</span>SEL(1s)</div>
+            <div class="vbtn vbtn-stop" onclick="sendEvt(5)"><span class="vico">&#9194;</span>STOP(1s)</div>
+        </div>
+    </div>
+
     <!-- ========== SCREEN NAVIGATION ========== -->
     <div class="card">
         <h3>Nawigacja ekranow TFT</h3>
@@ -632,6 +662,13 @@ function setScreen(id){
         method:'POST',
         headers:{'Content-Type':'application/x-www-form-urlencoded'},
         body:'action=set_screen&value='+id
+    }).then(r=>r.json()).then(()=>fetchStatus());
+}
+function sendEvt(id){
+    fetch('/api/control',{
+        method:'POST',
+        headers:{'Content-Type':'application/x-www-form-urlencoded'},
+        body:'action=send_event&value='+id
     }).then(r=>r.json()).then(()=>fetchStatus());
 }
 /* ------- Custom pattern ------- */
@@ -952,12 +989,20 @@ function tftDrawPainting(ctx,d){
 function tftDrawServiceMenu(ctx,d){
     tftClear(ctx);tftHeader(ctx,'SERWIS');
     let items=['Kalibracja enkodera','Pomiar dystansu','Raporty',
-               'Czyszczenie dysz','Reset etapu','Reset licznikow'];
+               'Czyszczenie dysz','Statystyki lifetime','Wzorzec wlasny',
+               'Eksport statystyk','Reset etapu','Reset licznikow'];
+    let mi=d.menuIndex||0;
     ctx.font='12px sans-serif';
+    let rowH=23,y0=28;
     for(let i=0;i<items.length;i++){
-        let iy=36+i*30;
-        ctx.fillStyle=TFT_MENU;ctx.fillText(items[i],28,iy+20);
-        ctx.fillStyle=TFT_DIV;ctx.fillRect(0,iy+28,TFT_W,1);
+        let iy=y0+i*rowH;
+        if(i===mi){ctx.fillStyle=TFT_SEL;ctx.fillRect(0,iy,TFT_W,rowH);
+            ctx.fillStyle=TFT_ACCENT;ctx.fillText('\u25B6',8,iy+16);}
+        else{ctx.fillStyle=TFT_MENU;}
+        ctx.fillStyle=i===mi?TFT_ACCENT:TFT_MENU;
+        ctx.font=i===mi?'bold 12px sans-serif':'12px sans-serif';
+        ctx.fillText(items[i],24,iy+16);
+        ctx.fillStyle=TFT_DIV;ctx.fillRect(0,iy+rowH-1,TFT_W,1);
     }
     tftHint(ctx,'SEL=dalej STOP=cofnij SEL(1s)=wejdz');
 }
