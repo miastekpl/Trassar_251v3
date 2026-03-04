@@ -1,0 +1,61 @@
+# TrassarV3 - Konfiguracja clang-format
+# Styl: bazowy na LLVM, dostosowany do istniejących konwencji projektu
+
+Language: Cpp
+BasedOnStyle: LLVM
+
+# Wcięcia: 4 spacje (jak w istniejącym kodzie)
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+ContinuationIndentWidth: 4
+
+# Klamry: K&R (otwierająca na tej samej linii)
+BreakBeforeBraces: Attach
+AllowShortFunctionsOnASingleLine: Empty
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+AllowShortBlocksOnASingleLine: Empty
+
+# Kolumny
+ColumnLimit: 120
+
+# Wyrównanie
+AlignConsecutiveMacros: Consecutive
+AlignConsecutiveAssignments: None
+AlignTrailingComments: true
+AlignOperands: Align
+
+# Spacje
+SpaceBeforeParens: ControlStatements
+SpaceInEmptyParentheses: false
+SpacesInParentheses: false
+SpacesInSquareBrackets: false
+SpaceAfterCStyleCast: false
+SpaceBeforeAssignmentOperators: true
+
+# Dyrektywy include
+SortIncludes: Never
+IncludeBlocks: Preserve
+
+# Switch/case
+IndentCaseLabels: true
+AllowShortCaseLabelsOnASingleLine: true
+
+# Wskaźniki i referencje
+PointerAlignment: Left
+DerivePointerAlignment: false
+
+# Puste linie
+MaxEmptyLinesToKeep: 2
+KeepEmptyLinesAtTheStartOfBlocks: false
+
+# Łamanie argumentów
+BinPackArguments: true
+BinPackParameters: true
+AllowAllParametersOfDeclarationOnNextLine: true
+AllowAllArgumentsOnNextLine: true
+
+# Szablony i namespace
+NamespaceIndentation: None
+FixNamespaceComments: true
