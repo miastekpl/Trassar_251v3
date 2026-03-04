@@ -7,6 +7,7 @@ public:
     void begin();
     void handleEvent(ButtonEvent event);
     void update();   // renderowanie + ciagle sterowanie (np. czyszczenie dysz)
+    void goToScreen(ScreenID screen);
 
 private:
     void handleHomeScreen(ButtonEvent e);
@@ -23,7 +24,6 @@ private:
     void handleLifetimeStats(ButtonEvent e);
     void handleCustomPattern(ButtonEvent e);
     void handleStatsExport(ButtonEvent e);
-    void goToScreen(ScreenID screen);
 
     static const int SERVICE_MENU_ITEMS = 9;  // 6 + lifetime + custom_pat + export
 

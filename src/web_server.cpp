@@ -8,6 +8,7 @@
 #include <ArduinoJson.h>
 #include <esp_task_wdt.h>
 #include "painting_engine.h"
+#include "menu.h"
 #include "encoder_distance.h"
 #include "statistics.h"
 #include "guns.h"
@@ -261,6 +262,18 @@ void TrassarWebServer::handleControl() {
         }
     } else if (action == "semi_next_line") {
         paintEngine.semiNextLine();
+    } else if (action == "set_screen") {
+        if (server.hasArg("value")) {
+            int val = server.arg("value").toInt();
+            if (val >= 0 && val <= (int)SCREEN_STATS_EXPORT) {
+                menu.goToScreen((ScreenID)val);
+                Serial.printf("[WWW] Ekran: %d\n", val);
+            } else {
+                result = "nieprawidlowy ekran";
+            }
+        } else {
+            result = "brak parametru value";
+        }
     } else if (action == "set_switch_mode") {
         if (server.hasArg("value")) {
             int val = server.arg("value").toInt();
@@ -298,6 +311,7 @@ String TrassarWebServer::getStateJson() {
     MachineMode   snapMode    = g_state.machineMode;
     PatternID     snapPattern = g_state.currentPattern;
     bool          snapReversed = g_state.patternReversed;
+    ScreenID      snapScreen  = g_state.currentScreen;
     STATE_UNLOCK();
 
     // Stan maszyny
@@ -310,6 +324,9 @@ String TrassarWebServer::getStateJson() {
         default:             stateStr = "unknown";   break;
     }
     doc["state"] = stateStr;
+
+    // Aktualny ekran TFT
+    doc["screen"] = (int)snapScreen;
 
     // Tryb pracy
     const char* modeStr;

@@ -148,6 +148,17 @@ body{
 /* ---------- FOOTER ---------- */
 .footer{text-align:center;padding:10px;color:#3a4a60;font-size:10px;margin-top:4px;}
 
+/* ---------- SCREEN NAV ---------- */
+.scr-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+.scr-btn{
+    padding:10px 6px;border:1px solid #1e2d42;border-radius:8px;
+    background:#0d1520;color:#9eafc4;font-size:12px;font-weight:600;
+    cursor:pointer;text-align:center;transition:all .15s;
+}
+.scr-btn:active{transform:scale(.95);}
+.scr-btn.act{background:#1a3a5a;border-color:#2a7d9f;color:#fff;}
+.scr-btn .scr-ico{font-size:16px;display:block;margin-bottom:2px;}
+
 /* ---------- SERVICE MENU ---------- */
 .svc-tabs{display:flex;gap:4px;margin-bottom:10px;}
 .svc-tab{
@@ -414,6 +425,35 @@ body{
         </div>
     </div>
 
+    <!-- ========== SCREEN NAVIGATION ========== -->
+    <div class="card">
+        <h3>Nawigacja ekranow TFT</h3>
+        <div style="font-size:11px;color:#6b7d9a;margin-bottom:8px;">Aktualny ekran: <span id="scrCur" style="color:#2ae67a;font-weight:bold;">---</span></div>
+        <div style="font-size:10px;color:#4a6080;margin-bottom:6px;">Glowne</div>
+        <div class="scr-grid">
+            <div class="scr-btn" data-scr="0" onclick="setScreen(0)"><span class="scr-ico">&#8962;</span>Ekran glowny</div>
+            <div class="scr-btn" data-scr="7" onclick="setScreen(7)"><span class="scr-ico">&#9881;</span>Przygotowanie</div>
+            <div class="scr-btn" data-scr="1" onclick="setScreen(1)"><span class="scr-ico">&#9654;</span>Malowanie</div>
+            <div class="scr-btn" data-scr="10" onclick="setScreen(10)"><span class="scr-ico">&#9745;</span>Podsumowanie</div>
+        </div>
+        <div style="font-size:10px;color:#4a6080;margin:10px 0 6px;">Menu serwisowe</div>
+        <div class="scr-grid">
+            <div class="scr-btn" data-scr="2" onclick="setScreen(2)"><span class="scr-ico">&#9776;</span>Menu serwisowe</div>
+            <div class="scr-btn" data-scr="3" onclick="setScreen(3)"><span class="scr-ico">&#8982;</span>Kalibracja</div>
+            <div class="scr-btn" data-scr="4" onclick="setScreen(4)"><span class="scr-ico">&#8644;</span>Pomiar dystansu</div>
+            <div class="scr-btn" data-scr="5" onclick="setScreen(5)"><span class="scr-ico">&#128196;</span>Raporty</div>
+            <div class="scr-btn" data-scr="6" onclick="setScreen(6)"><span class="scr-ico">&#128167;</span>Czyszcz. dysz</div>
+            <div class="scr-btn" data-scr="11" onclick="setScreen(11)"><span class="scr-ico">&#128202;</span>Statystyki LT</div>
+            <div class="scr-btn" data-scr="12" onclick="setScreen(12)"><span class="scr-ico">&#9998;</span>Wzorzec wlasny</div>
+            <div class="scr-btn" data-scr="13" onclick="setScreen(13)"><span class="scr-ico">&#128190;</span>Eksport stat.</div>
+        </div>
+        <div style="font-size:10px;color:#4a6080;margin:10px 0 6px;">Resety</div>
+        <div class="scr-grid">
+            <div class="scr-btn" data-scr="8" onclick="setScreen(8)"><span class="scr-ico">&#8634;</span>Reset sesji</div>
+            <div class="scr-btn" data-scr="9" onclick="setScreen(9)"><span class="scr-ico">&#9888;</span>Reset licznikow</div>
+        </div>
+    </div>
+
     <!-- ========== SYSTEM INFO ========== -->
     <div class="card">
         <h3>Informacje systemowe</h3>
@@ -559,6 +599,18 @@ function setSwitchMode(m){
         method:'POST',
         headers:{'Content-Type':'application/x-www-form-urlencoded'},
         body:'action=set_switch_mode&value='+m
+    }).then(r=>r.json()).then(()=>fetchStatus());
+}
+/* ------- Screen navigation ------- */
+const SCR_NAMES=['Ekran glowny','Malowanie','Menu serwisowe','Kalibracja',
+    'Pomiar dystansu','Raporty','Czyszcz. dysz','Przygotowanie',
+    'Reset sesji','Reset licznikow','Podsumowanie','Statystyki LT',
+    'Wzorzec wlasny','Eksport stat.'];
+function setScreen(id){
+    fetch('/api/control',{
+        method:'POST',
+        headers:{'Content-Type':'application/x-www-form-urlencoded'},
+        body:'action=set_screen&value='+id
     }).then(r=>r.json()).then(()=>fetchStatus());
 }
 /* ------- Custom pattern ------- */
@@ -877,6 +929,17 @@ function applyStatus(d){
         if(gpsSpdEl) gpsSpdEl.textContent=d.gpsSpeed+' km/h';
         let gpsHdEl=document.getElementById('gpsHdop');
         if(gpsHdEl) gpsHdEl.textContent=d.gpsHdop;
+
+        /* Screen navigation highlight */
+        if(d.screen!==undefined){
+            let scrEl=document.getElementById('scrCur');
+            if(scrEl) scrEl.textContent=SCR_NAMES[d.screen]||('Ekran '+d.screen);
+            document.querySelectorAll('.scr-btn').forEach(function(el){
+                let sid=parseInt(el.getAttribute('data-scr'));
+                if(sid===d.screen) el.classList.add('act');
+                else el.classList.remove('act');
+            });
+        }
 
 }
 /* ------- Fetch (REST fallback) ------- */
