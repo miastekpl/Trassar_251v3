@@ -148,6 +148,18 @@ body{
 /* ---------- FOOTER ---------- */
 .footer{text-align:center;padding:10px;color:#3a4a60;font-size:10px;margin-top:4px;}
 
+/* ---------- TFT PREVIEW ---------- */
+.tft-wrap{
+    background:#000;border-radius:8px;border:2px solid #2a3a50;
+    padding:0;margin-bottom:12px;overflow:hidden;
+    position:relative;
+}
+.tft-wrap canvas{display:block;width:100%;height:auto;image-rendering:pixelated;}
+.tft-label{
+    position:absolute;top:4px;right:6px;font-size:9px;color:#3a5a3a;
+    pointer-events:none;letter-spacing:1px;
+}
+
 /* ---------- SCREEN NAV ---------- */
 .scr-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
 .scr-btn{
@@ -422,6 +434,15 @@ body{
                 <div class="lbl">Predkosc GPS</div>
                 <div class="val" id="gpsSpd">---</div>
             </div>
+        </div>
+    </div>
+
+    <!-- ========== TFT SCREEN PREVIEW ========== -->
+    <div class="card">
+        <h3>Podglad ekranu TFT</h3>
+        <div class="tft-wrap">
+            <canvas id="tftCvs" width="320" height="240"></canvas>
+            <span class="tft-label">ILI9341</span>
         </div>
     </div>
 
@@ -747,6 +768,396 @@ function fmtTime(sec){
     return String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
 }
 
+/* ============================================= */
+/* TFT Screen Preview - Canvas 320x240          */
+/* Mirrors physical ILI9341 display              */
+/* ============================================= */
+const TFT_W=320,TFT_H=240;
+const TFT_BG='#000010',TFT_TEXT='#e0e0e0',TFT_ACCENT='#2ae67a',TFT_WARN='#f0c040',TFT_ERR='#e64040';
+const TFT_MENU='#8090a0',TFT_DIV='#1a2a3a',TFT_SEL='#1a2a40';
+const TFT_GUN_ON='#20c050',TFT_GUN_OFF='#1a2030';
+const TFT_GUN_SHORT=['P1','P2','P3','P4','P5','P6'];
+
+function tftClear(ctx){ctx.fillStyle=TFT_BG;ctx.fillRect(0,0,TFT_W,TFT_H);}
+function tftHeader(ctx,title){
+    ctx.fillStyle='#0a1020';ctx.fillRect(0,0,TFT_W,22);
+    ctx.fillStyle=TFT_ACCENT;ctx.font='bold 14px monospace';
+    ctx.textAlign='center';ctx.fillText(title,TFT_W/2,16);
+    ctx.fillStyle=TFT_DIV;ctx.fillRect(0,22,TFT_W,1);ctx.textAlign='left';
+}
+function tftHint(ctx,txt){
+    ctx.fillStyle=TFT_MENU;ctx.font='9px monospace';
+    ctx.textAlign='left';ctx.fillText(txt,6,TFT_H-6);
+}
+function tftGunRects(ctx,y,gunsCfg,gunStates,paused){
+    let gw=44,gh=20,gap=6,total=6*gw+5*gap;
+    let x0=(TFT_W-total)/2;
+    for(let i=0;i<6;i++){
+        let x=x0+i*(gw+gap);
+        let inPat=gunsCfg&&gunsCfg[i]&&gunsCfg[i].mode!==0;
+        let firing=gunStates&&gunStates[i];
+        let bg;
+        if(firing) bg=TFT_GUN_ON;
+        else if(paused&&inPat) bg=TFT_WARN;
+        else if(inPat) bg=TFT_WARN;
+        else bg='#2a2a3a';
+        ctx.fillStyle=bg;ctx.fillRect(x,y,gw,gh);
+        ctx.strokeStyle=TFT_DIV;ctx.strokeRect(x,y,gw,gh);
+        ctx.fillStyle=firing?'#fff':TFT_MENU;ctx.font='bold 10px monospace';
+        ctx.textAlign='center';ctx.fillText(TFT_GUN_SHORT[i],x+gw/2,y+14);
+    }
+    ctx.textAlign='left';
+}
+function tftPatViz(ctx,vx,vy,vw,vh,patIdx,reversed){
+    let guns=PAT_DEFS[patIdx];
+    if(!guns||guns.length===0){ctx.fillStyle=TFT_BG;ctx.fillRect(vx,vy,vw,vh);return;}
+    ctx.fillStyle=TFT_BG;ctx.fillRect(vx,vy,vw,vh);
+    let lblH=14,colH=vh-lblH,colY=vy+lblH;
+    let colWidths=[];let totalW=0;
+    for(let a=0;a<guns.length;a++){
+        let gn=guns[a][0];
+        let w=(gn==='P4'||gn==='P6')?22:14;
+        colWidths.push(w);totalW+=w;
+    }
+    totalW+=(guns.length-1)*4;
+    let cx=vx+(vw-totalW)/2;
+    ctx.font='9px monospace';
+    for(let a=0;a<guns.length;a++){
+        let gn=guns[a][0],ln=guns[a][2],gp=guns[a][3],cw=colWidths[a];
+        ctx.fillStyle=TFT_MENU;ctx.textAlign='center';
+        ctx.fillText(gn,cx+cw/2,vy+10);
+        if(ln<=0&&gp<=0){
+            ctx.fillStyle=TFT_GUN_ON;ctx.fillRect(cx,colY,cw,colH);
+        } else {
+            let cycle=ln+gp;if(cycle<=0){cx+=cw+4;continue;}
+            ctx.fillStyle=TFT_GUN_OFF;ctx.fillRect(cx,colY,cw,colH);
+            let nCyc=cycle<=1.5?4:cycle<=3?3:2;
+            let totL=cycle*nCyc,sc=colH/totL,pos=0;
+            while(pos<totL){
+                let y1=colY+Math.floor(pos*sc);
+                let y2=colY+Math.floor((pos+ln)*sc);
+                if(y1>=colY+colH)break;if(y2>colY+colH)y2=colY+colH;
+                ctx.fillStyle=TFT_GUN_ON;ctx.fillRect(cx,y1,cw,y2-y1);
+                pos+=cycle;
+            }
+        }
+        ctx.strokeStyle=TFT_DIV;ctx.strokeRect(cx,colY,cw,colH);
+        cx+=cw+4;
+    }
+    ctx.textAlign='left';
+}
+/* Build gun config from PAT_DEFS for gun rects */
+function tftGunCfgFromPat(patIdx){
+    let cfg=[];
+    for(let i=0;i<6;i++) cfg.push({mode:0,lineLen:0,gapLen:0});
+    let guns=PAT_DEFS[patIdx];if(!guns)return cfg;
+    for(let a=0;a<guns.length;a++){
+        let gn=guns[a][0],ln=guns[a][2],gp=guns[a][3];
+        let gi=parseInt(gn.replace('P',''))-1;
+        if(gi<0||gi>=6)continue;
+        if(ln<=0&&gp<=0) cfg[gi].mode=1;/*continuous*/
+        else{cfg[gi].mode=2;cfg[gi].lineLen=ln;cfg[gi].gapLen=gp;}
+    }
+    return cfg;
+}
+
+/* ---- Screen 0: HOME ---- */
+function tftDrawHome(ctx,d){
+    tftClear(ctx);
+    let pi=d.patternIdx||0;
+    /* Left column: pattern code */
+    ctx.fillStyle=TFT_ACCENT;ctx.font='bold 26px sans-serif';
+    ctx.textAlign='left';ctx.fillText(d.pattern||'P-1a',6,32);
+    /* Pattern name */
+    ctx.fillStyle=TFT_MENU;ctx.font='11px sans-serif';
+    ctx.fillText(d.patternName||'',6,50);
+    /* [ODW] flag */
+    if(d.reversed){ctx.fillStyle=TFT_WARN;ctx.font='11px sans-serif';ctx.fillText('[ODW]',6,66);}
+    /* Status */
+    ctx.fillStyle=TFT_ACCENT;ctx.font='bold 11px sans-serif';ctx.fillText('Gotowy',6,84);
+    /* Mode */
+    let mTxt={auto:'AUTO',semi:'SEMI-AUTO',manual:'RECZNY'};
+    ctx.fillStyle=TFT_MENU;ctx.font='10px monospace';ctx.fillText(mTxt[d.mode]||'AUTO',6,100);
+
+    /* Center: pattern visualization */
+    tftPatViz(ctx,100,4,120,178,pi,d.reversed);
+
+    /* Right column: speed */
+    ctx.fillStyle=TFT_TEXT;ctx.font='bold 26px sans-serif';ctx.textAlign='right';
+    ctx.fillText(d.speed||'0.0',TFT_W-6,32);
+    ctx.fillStyle=TFT_MENU;ctx.font='11px sans-serif';ctx.fillText('km/h',TFT_W-6,48);
+    /* Area */
+    ctx.fillStyle=TFT_TEXT;ctx.font='bold 14px sans-serif';
+    ctx.fillText((d.area||'0.00')+' m2',TFT_W-6,72);
+    ctx.textAlign='left';
+
+    /* Bottom: gun rects */
+    let cfg=tftGunCfgFromPat(pi);
+    tftGunRects(ctx,196,cfg,null,false);
+}
+
+/* ---- Screen 1: PAINTING ---- */
+function tftDrawPainting(ctx,d){
+    tftClear(ctx);
+    let pi=d.patternIdx||0;
+    let paused=d.state==='paused';
+    /* Left column: pattern code */
+    ctx.fillStyle=TFT_ACCENT;ctx.font='bold 26px sans-serif';
+    ctx.textAlign='left';ctx.fillText(d.pattern||'P-1a',6,32);
+    /* Flags */
+    let fy=50;
+    if(d.gapStart){ctx.fillStyle=TFT_WARN;ctx.font='11px sans-serif';ctx.fillText('[GAP]',6,fy);fy+=16;}
+    if(d.reversed){ctx.fillStyle=TFT_WARN;ctx.font='11px sans-serif';ctx.fillText('[ODW]',6,fy);fy+=16;}
+    /* State */
+    let stC={painting:TFT_ACCENT,paused:TFT_WARN,stopped:TFT_ERR};
+    let stT={painting:'Malowanie',paused:'Pauza',stopped:'Zatrzymany'};
+    ctx.fillStyle=stC[d.state]||TFT_MENU;ctx.font='bold 11px sans-serif';
+    ctx.fillText(stT[d.state]||d.state,6,fy+14);
+    /* Session time */
+    ctx.fillStyle=TFT_MENU;ctx.font='10px monospace';
+    ctx.fillText(fmtTime(d.elapsed||0),6,fy+30);
+    /* Session distance */
+    let dist=parseFloat(d.distance)||0;
+    let distTxt=dist>=1000?(dist/1000).toFixed(2)+' km':dist.toFixed(1)+' m';
+    ctx.fillStyle=TFT_TEXT;ctx.font='11px sans-serif';
+    ctx.fillText(distTxt,6,fy+46);
+    /* Mode */
+    let mTxt={auto:'AUTO',semi:'SEMI-AUTO',manual:'RECZNY'};
+    ctx.fillStyle=TFT_MENU;ctx.font='10px monospace';ctx.fillText(mTxt[d.mode]||'AUTO',6,fy+62);
+
+    /* Center: pattern visualization */
+    tftPatViz(ctx,100,4,120,178,pi,d.reversed);
+
+    /* Right column: speed */
+    let spd=parseFloat(d.speed)||0;
+    let spdColor=TFT_TEXT;
+    if(d.overspeed) spdColor=TFT_ERR;
+    else if(d.lowSpeed) spdColor=TFT_WARN;
+    ctx.fillStyle=spdColor;ctx.font='bold 26px sans-serif';ctx.textAlign='right';
+    ctx.fillText(d.speed||'0.0',TFT_W-6,32);
+    ctx.fillStyle=d.overspeed?spdColor:TFT_MENU;ctx.font='11px sans-serif';
+    ctx.fillText('km/h',TFT_W-6,48);
+    /* Area */
+    ctx.fillStyle=TFT_TEXT;ctx.font='bold 14px sans-serif';
+    ctx.fillText((d.area||'0.00')+' m2',TFT_W-6,72);
+    ctx.textAlign='left';
+
+    /* Bottom: gun rects */
+    let cfg=tftGunCfgFromPat(pi);
+    let gs=d.guns||[0,0,0,0,0,0];
+    tftGunRects(ctx,196,cfg,gs,paused);
+}
+
+/* ---- Screen 2: SERVICE MENU ---- */
+function tftDrawServiceMenu(ctx,d){
+    tftClear(ctx);tftHeader(ctx,'SERWIS');
+    let items=['Kalibracja enkodera','Pomiar dystansu','Raporty',
+               'Czyszczenie dysz','Reset etapu','Reset licznikow'];
+    ctx.font='12px sans-serif';
+    for(let i=0;i<items.length;i++){
+        let iy=36+i*30;
+        ctx.fillStyle=TFT_MENU;ctx.fillText(items[i],28,iy+20);
+        ctx.fillStyle=TFT_DIV;ctx.fillRect(0,iy+28,TFT_W,1);
+    }
+    tftHint(ctx,'SEL=dalej STOP=cofnij SEL(1s)=wejdz');
+}
+
+/* ---- Screen 3: CALIBRATION ---- */
+function tftDrawCalibration(ctx,d){
+    tftClear(ctx);tftHeader(ctx,'KALIBRACJA ENKODERA');
+    ctx.fillStyle=TFT_TEXT;ctx.font='11px sans-serif';
+    ctx.fillText('Odmierz 10 m i przejdz maszyna po prostej.',12,44);
+    ctx.fillStyle=TFT_DIV;ctx.fillRect(12,56,TFT_W-24,1);
+    /* Status */
+    ctx.textAlign='center';ctx.font='bold 18px sans-serif';
+    if(d.calibrating){ctx.fillStyle=TFT_WARN;ctx.fillText('POMIAR...',TFT_W/2,90);}
+    else{ctx.fillStyle=TFT_MENU;ctx.fillText('GOTOWY',TFT_W/2,90);}
+    ctx.textAlign='left';
+    /* Pulses */
+    if(d.calibrating){
+        ctx.fillStyle=TFT_MENU;ctx.font='11px sans-serif';ctx.fillText('Impulsy:',12,120);
+        ctx.fillStyle=TFT_ACCENT;ctx.textAlign='right';
+        ctx.fillText(d.calPulses||'0',TFT_W-12,120);ctx.textAlign='left';
+    }
+    ctx.fillStyle=TFT_DIV;ctx.fillRect(12,138,TFT_W-24,1);
+    /* PPM + status */
+    ctx.fillStyle=TFT_MENU;ctx.font='11px sans-serif';ctx.fillText('Imp/metr:',12,154);
+    ctx.fillStyle=TFT_TEXT;ctx.fillText(d.ppm||'100.0',110,154);
+    ctx.fillStyle=TFT_MENU;ctx.fillText('Status:',190,154);
+    if(d.calibrated){ctx.fillStyle=TFT_ACCENT;ctx.fillText('OK',260,154);}
+    else{ctx.fillStyle=TFT_WARN;ctx.fillText('Domyslny',260,154);}
+    tftHint(ctx,d.calibrating?'START=zakoncz  STOP(1s)=powrot':'START=rozpocznij  STOP(1s)=powrot');
+}
+
+/* ---- Screen 4: DISTANCE METER ---- */
+function tftDrawDistMeter(ctx,d){
+    tftClear(ctx);tftHeader(ctx,'POMIAR DYSTANSU');
+    ctx.textAlign='center';ctx.font='bold 12px sans-serif';
+    ctx.fillStyle=TFT_MENU;ctx.fillText('GOTOWY',TFT_W/2,46);
+    ctx.fillStyle=TFT_DIV;ctx.fillRect(20,56,TFT_W-40,1);
+    ctx.font='bold 22px sans-serif';ctx.fillStyle=TFT_TEXT;
+    ctx.fillText('0.00 m',TFT_W/2,90);
+    ctx.fillStyle=TFT_DIV;ctx.fillRect(20,108,TFT_W-40,1);
+    ctx.font='11px sans-serif';ctx.fillStyle=TFT_MENU;
+    ctx.fillText('= 0 cm',TFT_W/2,126);
+    ctx.textAlign='left';
+    tftHint(ctx,'START=pomiar STOP=reset STOP(1s)=powrot');
+}
+
+/* ---- Screen 5: REPORTS ---- */
+function tftDrawReports(ctx,d){
+    tftClear(ctx);tftHeader(ctx,'RAPORTY');
+    ctx.fillStyle=TFT_MENU;ctx.font='11px sans-serif';ctx.fillText('SD:',12,44);
+    ctx.fillStyle=TFT_ACCENT;ctx.fillText('OK',38,44);
+    ctx.fillStyle=TFT_MENU;ctx.fillText('Plikow: ---',100,44);
+    ctx.fillStyle=TFT_DIV;ctx.fillRect(12,56,TFT_W-24,1);
+    ctx.fillStyle=TFT_ACCENT;ctx.font='bold 11px sans-serif';ctx.fillText('Ostatni wpis:',12,72);
+    ctx.fillStyle=TFT_MENU;ctx.font='10px monospace';ctx.fillText('Brak wpisow',12,92);
+    tftHint(ctx,'STOP(1s)=powrot');
+}
+
+/* ---- Screen 6: NOZZLE CLEAN ---- */
+function tftDrawNozzleClean(ctx,d){
+    tftClear(ctx);tftHeader(ctx,'CZYSZCZENIE DYSZ');
+    let pi=d.patternIdx||0;
+    ctx.fillStyle=TFT_ACCENT;ctx.font='bold 18px sans-serif';ctx.fillText(d.pattern||'P-1a',8,54);
+    ctx.fillStyle=TFT_MENU;ctx.font='11px sans-serif';ctx.fillText(d.patternName||'',8,74);
+    ctx.fillStyle=TFT_DIV;ctx.fillRect(4,86,152,1);
+    ctx.fillStyle=TFT_MENU;ctx.font='9px monospace';
+    ctx.fillText('SEL=wzorzec',6,100);ctx.fillText('TRZYMAJ START',6,116);ctx.fillText('STOP(1s)=powrot',6,132);
+    tftPatViz(ctx,164,28,152,136,pi,false);
+    let cfg=tftGunCfgFromPat(pi);
+    let gs=d.guns||[0,0,0,0,0,0];
+    tftGunRects(ctx,196,cfg,gs,false);
+}
+
+/* ---- Screen 7: SETUP ---- */
+function tftDrawSetup(ctx,d){
+    tftClear(ctx);tftHeader(ctx,'PRZYGOTOWANIE');
+    let labels=['Tryb pracy:','Przelaczanie:','Start:'];
+    let mTxt={auto:'AUTO',semi:'SEMI-AUTO',manual:'RECZNY'};
+    let vals=[mTxt[d.mode]||'AUTO',d.smartSwitch!==false?'Smart':'Instant',d.gapStart?'Od przerwy':'Normalny'];
+    let colors=[TFT_ACCENT,d.smartSwitch!==false?TFT_ACCENT:TFT_WARN,d.gapStart?TFT_WARN:TFT_ACCENT];
+    for(let i=0;i<3;i++){
+        let iy=36+i*48;
+        ctx.fillStyle=TFT_MENU;ctx.font='12px sans-serif';ctx.textAlign='left';
+        ctx.fillText(labels[i],24,iy+30);
+        ctx.fillStyle=colors[i];ctx.font='bold 14px sans-serif';ctx.textAlign='right';
+        ctx.fillText(vals[i],TFT_W-24,iy+30);
+        ctx.fillStyle=TFT_DIV;ctx.fillRect(0,iy+47,TFT_W,1);
+    }
+    ctx.textAlign='left';
+    tftHint(ctx,'SEL=dalej SEL(1s)=zmien START=maluj');
+}
+
+/* ---- Screen 8: SESSION RESET ---- */
+function tftDrawSessionReset(ctx,d){
+    tftClear(ctx);tftHeader(ctx,'RESET ETAPU');
+    ctx.fillStyle=TFT_TEXT;ctx.font='11px sans-serif';ctx.fillText('Biezacy etap pracy:',14,44);
+    ctx.fillStyle=TFT_DIV;ctx.fillRect(12,54,TFT_W-24,1);
+    let dist=parseFloat(d.distance)||0;
+    let distTxt=dist>=1000?(dist/1000).toFixed(2)+' km':dist.toFixed(1)+' m';
+    ctx.fillStyle=TFT_MENU;ctx.font='11px sans-serif';
+    ctx.fillText('Dystans:',14,74);ctx.fillStyle=TFT_TEXT;ctx.fillText(distTxt,110,74);
+    ctx.fillStyle=TFT_MENU;ctx.fillText('Powierzchnia:',14,94);ctx.fillStyle=TFT_TEXT;ctx.fillText((d.area||'0.00')+' m2',130,94);
+    ctx.fillStyle=TFT_MENU;ctx.fillText('Czas:',14,114);ctx.fillStyle=TFT_TEXT;ctx.fillText(fmtTime(d.elapsed||0),110,114);
+    ctx.fillStyle=TFT_DIV;ctx.fillRect(12,128,TFT_W-24,1);
+    ctx.fillStyle=TFT_WARN;ctx.font='bold 12px sans-serif';ctx.textAlign='center';
+    ctx.fillText('Wyzerowac liczniki sesji?',TFT_W/2,150);ctx.textAlign='left';
+    tftHint(ctx,'START = TAK    STOP = NIE');
+}
+
+/* ---- Screen 9: COUNTER RESET ---- */
+function tftDrawCounterReset(ctx,d){
+    tftClear(ctx);tftHeader(ctx,'RESET LICZNIKOW');
+    ctx.fillStyle=TFT_ERR;ctx.font='bold 11px sans-serif';
+    ctx.fillText('UWAGA! Zerowanie WSZYSTKICH licznikow.',8,42);
+    ctx.fillStyle=TFT_ACCENT;ctx.font='11px sans-serif';
+    ctx.fillText('Kalibracja NIE zostanie zmieniona.',8,60);
+    ctx.fillStyle=TFT_DIV;ctx.fillRect(12,68,TFT_W-24,1);
+    ctx.fillStyle=TFT_WARN;ctx.font='bold 12px sans-serif';ctx.textAlign='center';
+    ctx.fillText('Wyzerowac wszystkie liczniki?',TFT_W/2,130);ctx.textAlign='left';
+    tftHint(ctx,'START = TAK    STOP = NIE');
+}
+
+/* ---- Screen 10: SUMMARY ---- */
+function tftDrawSummary(ctx,d){
+    tftClear(ctx);tftHeader(ctx,'PODSUMOWANIE ETAPU');
+    /* Pattern */
+    ctx.fillStyle=TFT_ACCENT;ctx.font='bold 14px sans-serif';ctx.textAlign='center';
+    ctx.fillText(d.pattern||'P-1a',TFT_W/2,44);ctx.textAlign='left';
+    ctx.fillStyle=TFT_DIV;ctx.fillRect(12,52,TFT_W-24,1);
+    let y=64;
+    let dist=parseFloat(d.distance)||0;
+    let distTxt=dist>=1000?(dist/1000).toFixed(2)+' km':dist.toFixed(1)+' m';
+    let rows=[['Dystans:',distTxt],['Powierzchnia:',(d.area||'0.00')+' m2'],
+              ['Czas:',fmtTime(d.elapsed||0)],['Predkosc:',(d.speed||'0.0')+' km/h']];
+    if(d.gpsFix) rows.push(['GPS:',d.gpsLat+', '+d.gpsLng]);
+    ctx.font='11px sans-serif';
+    for(let i=0;i<rows.length;i++){
+        ctx.fillStyle=TFT_MENU;ctx.textAlign='left';ctx.fillText(rows[i][0],14,y);
+        ctx.fillStyle=TFT_TEXT;ctx.textAlign='right';ctx.fillText(rows[i][1],TFT_W-14,y);
+        y+=18;
+    }
+    ctx.textAlign='left';
+    tftHint(ctx,'START=kontynuuj STOP=nowy etap');
+}
+
+/* ---- Screen 11: LIFETIME STATS ---- */
+function tftDrawLifetimeStats(ctx,d){
+    tftClear(ctx);tftHeader(ctx,'STATYSTYKI LIFETIME');
+    ctx.fillStyle=TFT_MENU;ctx.font='11px sans-serif';
+    ctx.fillText('Dane dostepne w zakladce Serwis',14,60);
+    ctx.fillText('na panelu www (ponizej).',14,78);
+    ctx.fillStyle=TFT_ACCENT;ctx.font='bold 12px sans-serif';
+    ctx.fillText('Uzyj API /api/stats',14,110);
+    tftHint(ctx,'STOP(1s)=powrot');
+}
+
+/* ---- Screen 12: CUSTOM PATTERN ---- */
+function tftDrawCustomPattern(ctx,d){
+    tftClear(ctx);tftHeader(ctx,'WZORZEC WLASNY');
+    ctx.fillStyle=TFT_MENU;ctx.font='11px sans-serif';
+    ctx.fillText('Edycja wzorca wlasnego',14,50);
+    ctx.fillText('Konfiguracja dostepna na panelu www',14,68);
+    ctx.fillText('(sekcja Wzorzec wlasny powyzej).',14,86);
+    tftHint(ctx,'JOY:nawiguj SEL(1s)=zmien STOP(1s)=powrot');
+}
+
+/* ---- Screen 13: STATS EXPORT ---- */
+function tftDrawStatsExport(ctx,d){
+    tftClear(ctx);tftHeader(ctx,'EKSPORT STATYSTYK');
+    ctx.fillStyle=TFT_MENU;ctx.font='bold 14px sans-serif';ctx.textAlign='center';
+    ctx.fillText('Nacisnij START aby eksportowac',TFT_W/2,80);
+    ctx.fillText('statystyki na karte SD',TFT_W/2,102);
+    ctx.textAlign='left';
+    tftHint(ctx,'START=eksportuj  STOP(1s)=powrot');
+}
+
+/* ---- Main TFT draw dispatcher ---- */
+function tftDraw(d){
+    let cvs=document.getElementById('tftCvs');if(!cvs)return;
+    let ctx=cvs.getContext('2d');
+    let scr=d.screen!==undefined?d.screen:0;
+    switch(scr){
+        case 0:tftDrawHome(ctx,d);break;
+        case 1:tftDrawPainting(ctx,d);break;
+        case 2:tftDrawServiceMenu(ctx,d);break;
+        case 3:tftDrawCalibration(ctx,d);break;
+        case 4:tftDrawDistMeter(ctx,d);break;
+        case 5:tftDrawReports(ctx,d);break;
+        case 6:tftDrawNozzleClean(ctx,d);break;
+        case 7:tftDrawSetup(ctx,d);break;
+        case 8:tftDrawSessionReset(ctx,d);break;
+        case 9:tftDrawCounterReset(ctx,d);break;
+        case 10:tftDrawSummary(ctx,d);break;
+        case 11:tftDrawLifetimeStats(ctx,d);break;
+        case 12:tftDrawCustomPattern(ctx,d);break;
+        case 13:tftDrawStatsExport(ctx,d);break;
+        default:tftClear(ctx);tftHeader(ctx,SCR_NAMES[scr]||'Ekran '+scr);break;
+    }
+}
+
 /* ------- Apply status data to UI ------- */
 function applyStatus(d){
         /* State */
@@ -940,6 +1351,9 @@ function applyStatus(d){
                 else el.classList.remove('act');
             });
         }
+
+        /* TFT screen preview */
+        tftDraw(d);
 
 }
 /* ------- Fetch (REST fallback) ------- */
