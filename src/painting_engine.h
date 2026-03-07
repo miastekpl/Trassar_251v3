@@ -10,7 +10,7 @@ public:
     void begin();
     void update();  // Wywoływana w loop()
 
-    void start();
+    void start(float offsetDist = 0.0f);
     void startFromGap();  // Start od przerwy
     void pause();
     void resume();
@@ -27,9 +27,19 @@ public:
     unsigned long getLastGunUpdateMs() const { return lastGunUpdateMs; }
 
     // Progi predkosci (konfigurowalne z WWW)
-    void setMaxSpeed(float kmh) { maxSpeedKmh = kmh; }
+    void setMaxSpeed(float kmh) {
+        if (kmh < 1.0f) kmh = 1.0f;
+        if (kmh > 50.0f) kmh = 50.0f;
+        maxSpeedKmh = kmh;
+        if (minSpeedKmh > maxSpeedKmh) minSpeedKmh = maxSpeedKmh;
+    }
     float getMaxSpeed() const { return maxSpeedKmh; }
-    void setMinSpeed(float kmh) { minSpeedKmh = kmh; }
+    void setMinSpeed(float kmh) {
+        if (kmh < 0.0f) kmh = 0.0f;
+        if (kmh > 50.0f) kmh = 50.0f;
+        minSpeedKmh = kmh;
+        if (maxSpeedKmh < minSpeedKmh) maxSpeedKmh = minSpeedKmh;
+    }
     float getMinSpeed() const { return minSpeedKmh; }
     bool isOverspeed() const { return overspeedActive; }
     bool isLowSpeed() const { return lowSpeedActive; }

@@ -41,6 +41,24 @@ portMUX_TYPE g_stateMux = portMUX_INITIALIZER_UNLOCKED;
 // Stan detekcji anomalii pistoletow
 GunAnomalyState gunAnomaly;
 
+// Mutex dostepu do karty SD (SPI wspoldzielone miedzy TFT i SD)
+SemaphoreHandle_t g_sdMutex = nullptr;
+
+// Definicje tablic (extern const w config.h — jedna kopia w RAM)
+const float GUN_WIDTHS_M[NUM_GUNS] = {
+    0.12f,  // P1 - 12cm
+    0.12f,  // P2 - 12cm
+    0.12f,  // P3 - 12cm
+    0.24f,  // P4 - 24cm
+    0.12f,  // P5 - 12cm
+    0.24f   // P6 - 24cm
+};
+
+const uint8_t GUN_PINS[NUM_GUNS] = {
+    PIN_RELAY_P1, PIN_RELAY_P2, PIN_RELAY_P3,
+    PIN_RELAY_P4, PIN_RELAY_P5, PIN_RELAY_P6
+};
+
 // Timery
 unsigned long lastDisplayRefresh = 0;
 unsigned long lastDynamicUpdate = 0;
@@ -128,7 +146,8 @@ void setup() {
     stats.begin();
 
     // 10. Karta SD (raporty)
-    Serial.println("[INIT] Karta SD...");
+    Serial.println("[INIT] SD mutex + karta SD...");
+    g_sdMutex = xSemaphoreCreateMutex();
     if (!reportLogger.begin()) {
         Serial.println("[INIT] UWAGA: Karta SD niedostepna!");
         buzzer.play(BUZ_ERROR);
@@ -306,31 +325,42 @@ void loop() {
     }
 
     // 10. Detekcja anomalii pistoletow (co 10s podczas malowania)
-    if (g_state.machineState == STATE_PAINTING) {
+    STATE_LOCK();
+    MachineState snapState = g_state.machineState;
+    STATE_UNLOCK();
+
+    if (snapState == STATE_PAINTING) {
         if (now - gunAnomaly.lastCheckMs >= GUN_ANOMALY_CHECK_MS) {
             gunAnomaly.lastCheckMs = now;
             float sessionDist = stats.getSessionDistance();
             if (sessionDist >= GUN_ANOMALY_DISTANCE_M) {
                 bool anyAnomaly = false;
+                bool localAlert[NUM_GUNS];
                 for (int i = 0; i < NUM_GUNS; i++) {
                     GunPatternCfg cfg = patternMgr.getGunConfig((GunID)i);
                     if (cfg.mode != GUN_OFF && stats.getGunDistance(i) < 1.0f) {
-                        gunAnomaly.alert[i] = true;
+                        localAlert[i] = true;
                         anyAnomaly = true;
                     } else {
-                        gunAnomaly.alert[i] = false;
+                        localAlert[i] = false;
                     }
                 }
+                // Atomowa aktualizacja stanu anomalii (czytany z Core 0)
+                STATE_LOCK();
+                for (int i = 0; i < NUM_GUNS; i++) gunAnomaly.alert[i] = localAlert[i];
                 gunAnomaly.detected = anyAnomaly;
-                if (anyAnomaly && !gunAnomaly.alerted) {
-                    gunAnomaly.alerted = true;
+                bool wasAlerted = gunAnomaly.alerted;
+                if (anyAnomaly && !wasAlerted) gunAnomaly.alerted = true;
+                STATE_UNLOCK();
+
+                if (anyAnomaly && !wasAlerted) {
                     buzzer.play(BUZ_GUN_ANOMALY);
 
                     // Buduj liste pistoletow z anomalia
                     char anomList[32] = "";
                     int pos = 0;
                     for (int i = 0; i < NUM_GUNS; i++) {
-                        if (gunAnomaly.alert[i]) {
+                        if (localAlert[i]) {
                             pos += snprintf(anomList + pos, sizeof(anomList) - pos, " P%d", i + 1);
                         }
                     }
@@ -341,11 +371,14 @@ void loop() {
         }
     } else {
         // Reset anomalii przy zatrzymaniu
-        if (gunAnomaly.detected || gunAnomaly.alerted) {
+        STATE_LOCK();
+        bool needsReset = (gunAnomaly.detected || gunAnomaly.alerted);
+        if (needsReset) {
             gunAnomaly.detected = false;
             gunAnomaly.alerted = false;
             for (int i = 0; i < NUM_GUNS; i++) gunAnomaly.alert[i] = false;
         }
+        STATE_UNLOCK();
     }
 
     // 11. Odswiezanie cache listy raportow SD (co 15s, na Core 1 - bezpieczny dostep SPI)

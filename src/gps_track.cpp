@@ -69,10 +69,6 @@ void GpsTrack::stopRecording() {
             pointCount = 0;
             return;
         }
-        // Utworz katalog /tracks jesli nie istnieje
-        if (!SD.exists("/tracks")) {
-            SD.mkdir("/tracks");
-        }
 
         // Generuj spolna nazwe pliku (ten sam timestamp dla obu formatow)
         DateTime now = rtcModule.now();
@@ -84,8 +80,20 @@ void GpsTrack::stopRecording() {
                  now.year(), now.month(), now.day(),
                  now.hour(), now.minute(), now.second());
 
+        if (!SD_LOCK()) {
+            Serial.println("[GPX] Nie mozna zdobyc mutexu SD");
+            pointCount = 0;
+            return;
+        }
+
+        if (!SD.exists("/tracks")) {
+            SD.mkdir("/tracks");
+        }
+
         bool gpxOk = writeGpxFile(gpxPath);
         bool geoOk = writeGeoJsonFile(geoPath);
+        SD_UNLOCK();
+
         Serial.printf("[GPX] Trasa: %u pkt (GPX:%s GeoJSON:%s)\n",
                       pointCount, gpxOk ? "OK" : "BLAD", geoOk ? "OK" : "BLAD");
     } else {

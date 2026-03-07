@@ -35,21 +35,25 @@ void ReportLogger::logSession(const char* patCode, float distanceM, float areaM2
     snprintf(fname, sizeof(fname), "/reports/%04d%02d%02d.csv",
              now.year(), now.month(), now.day());
 
-    bool newFile = !SD.exists(fname);
-    File f = SD.open(fname, FILE_APPEND);
-    if (!f) return;
-
-    if (newFile) {
-        f.println("data,godzina,wzorzec,dystans_m,powierzchnia_m2,lat,lon");
-    }
-
     char line[160];
     snprintf(line, sizeof(line), "%04d-%02d-%02d,%02d:%02d:%02d,%s,%.1f,%.2f,%.6f,%.6f",
              now.year(), now.month(), now.day(),
              now.hour(), now.minute(), now.second(),
              patCode, distanceM, areaM2, lat, lng);
+
+    if (!SD_LOCK()) return;
+
+    bool newFile = !SD.exists(fname);
+    File f = SD.open(fname, FILE_APPEND);
+    if (!f) { SD_UNLOCK(); return; }
+
+    if (newFile) {
+        f.println("data,godzina,wzorzec,dystans_m,powierzchnia_m2,lat,lon");
+    }
+
     f.println(line);
     f.close();
+    SD_UNLOCK();
 
     Serial.printf("[SD] Raport: %s\n", line);
 }
@@ -57,8 +61,10 @@ void ReportLogger::logSession(const char* patCode, float distanceM, float areaM2
 int ReportLogger::getReportCount() {
     if (!sdReady) return 0;
 
+    if (!SD_LOCK()) return 0;
+
     File dir = SD.open("/reports");
-    if (!dir) return 0;
+    if (!dir) { SD_UNLOCK(); return 0; }
 
     int count = 0;
     while (true) {
@@ -68,14 +74,17 @@ int ReportLogger::getReportCount() {
         entry.close();
     }
     dir.close();
+    SD_UNLOCK();
     return count;
 }
 
 void ReportLogger::refreshReportCache() {
     if (!sdReady) { cachedReportList = "[]"; cacheValid = true; return; }
 
+    if (!SD_LOCK()) return;
+
     File dir = SD.open("/reports");
-    if (!dir) { cachedReportList = "[]"; cacheValid = true; return; }
+    if (!dir) { SD_UNLOCK(); cachedReportList = "[]"; cacheValid = true; return; }
 
     // Zbierz nazwy plikow (max 50 najnowszych)
     struct FileInfo { char name[32]; size_t size; };
@@ -94,6 +103,7 @@ void ReportLogger::refreshReportCache() {
         entry.close();
     }
     dir.close();
+    SD_UNLOCK();
 
     // Sortuj malejaco (najnowsze pliki pierwsze - nazwy RRRRMMDD sortuja chronologicznie)
     for (int i = 0; i < count - 1; i++) {
@@ -125,8 +135,10 @@ void ReportLogger::refreshReportCache() {
 bool ReportLogger::getLastReport(char* buf, size_t len) {
     if (!sdReady) { buf[0] = 0; return false; }
 
+    if (!SD_LOCK()) { buf[0] = 0; return false; }
+
     File dir = SD.open("/reports");
-    if (!dir) { buf[0] = 0; return false; }
+    if (!dir) { SD_UNLOCK(); buf[0] = 0; return false; }
 
     // Znajdz najnowszy plik (nazwy sortuja sie chronologicznie)
     char latestName[32] = {};
@@ -143,12 +155,12 @@ bool ReportLogger::getLastReport(char* buf, size_t len) {
     }
     dir.close();
 
-    if (latestName[0] == 0) { buf[0] = 0; return false; }
+    if (latestName[0] == 0) { SD_UNLOCK(); buf[0] = 0; return false; }
 
     char path[48];
     snprintf(path, sizeof(path), "/reports/%s", latestName);
     File f = SD.open(path, FILE_READ);
-    if (!f) { buf[0] = 0; return false; }
+    if (!f) { SD_UNLOCK(); buf[0] = 0; return false; }
 
     // Odczytaj ostatnia linie (pomijajac naglowek)
     char line[128] = {};
@@ -157,6 +169,7 @@ bool ReportLogger::getLastReport(char* buf, size_t len) {
         line[r] = 0;
     }
     f.close();
+    SD_UNLOCK();
 
     strncpy(buf, line, len - 1);
     buf[len - 1] = 0;

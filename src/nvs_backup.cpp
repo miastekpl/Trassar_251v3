@@ -72,7 +72,10 @@ void NvsBackup::begin() {
 // ============================================================
 bool NvsBackup::isBackupAvailable() {
     if (!reportLogger.isReady()) return false;
-    return SD.exists(BACKUP_PATH);
+    if (!SD_LOCK()) return false;
+    bool exists = SD.exists(BACKUP_PATH);
+    SD_UNLOCK();
+    return exists;
 }
 
 // ============================================================
@@ -132,19 +135,26 @@ bool NvsBackup::backupToSD() {
         }
     }
 
-    // Zapis na SD
+    // Zapis na SD (pod mutexem)
+    if (!SD_LOCK()) {
+        Serial.println("[BACKUP] Nie mozna zdobyc mutexu SD");
+        return false;
+    }
+
     if (!SD.exists("/backup")) {
         SD.mkdir("/backup");
     }
 
     File f = SD.open(BACKUP_PATH, FILE_WRITE);
     if (!f) {
+        SD_UNLOCK();
         Serial.println("[BACKUP] Blad otwarcia pliku backup");
         return false;
     }
 
     size_t written = serializeJson(doc, f);
     f.close();
+    SD_UNLOCK();
 
     if (written > 0) {
         lastBackupMs = millis();
@@ -159,14 +169,18 @@ bool NvsBackup::backupToSD() {
 // Restore NVS z JSON na SD
 // ============================================================
 bool NvsBackup::restoreFromSD() {
-    if (!reportLogger.isReady() || !SD.exists(BACKUP_PATH)) return false;
+    if (!reportLogger.isReady()) return false;
+
+    if (!SD_LOCK()) return false;
+    if (!SD.exists(BACKUP_PATH)) { SD_UNLOCK(); return false; }
 
     File f = SD.open(BACKUP_PATH, FILE_READ);
-    if (!f) return false;
+    if (!f) { SD_UNLOCK(); return false; }
 
     JsonDocument doc;
     DeserializationError err = deserializeJson(doc, f);
     f.close();
+    SD_UNLOCK();
 
     if (err) {
         Serial.printf("[BACKUP] Blad parsowania JSON: %s\n", err.c_str());

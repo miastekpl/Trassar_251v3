@@ -139,10 +139,24 @@ const PatternDef& PatternManager::getPattern(PatternID id) const {
 }
 
 GunPatternCfg PatternManager::getGunConfig(GunID gun) const {
-    const PatternDef& pat = getCurrent();
+    STATE_LOCK();
+    PatternID curPat = g_state.currentPattern;
+    bool reversed = g_state.patternReversed;
+    STATE_UNLOCK();
+
+    // Dla wzorca wlasnego: odczyt pod customMux
+    if (curPat == PAT_CUSTOM) {
+        taskENTER_CRITICAL(&customMux);
+        GunPatternCfg cfg = customPatDef.guns[gun];
+        taskEXIT_CRITICAL(&customMux);
+        return cfg;
+    }
+
+    const PatternDef& pat = (curPat < PREDEFINED_PAT_COUNT)
+                            ? patterns[curPat] : patterns[0];
 
     // Dla wzorców z odwróceniem (P-3a, P-3b): zamień P1 <-> P3
-    if (g_state.patternReversed && pat.hasReverse) {
+    if (reversed && pat.hasReverse) {
         if (gun == GUN_P1) return pat.guns[GUN_P3];
         if (gun == GUN_P3) return pat.guns[GUN_P1];
     }
@@ -154,27 +168,33 @@ GunPatternCfg PatternManager::getGunConfig(GunID gun) const {
 // Wzorzec wlasny - budowanie PatternDef z CustomPatternCfg
 // ============================================================
 void PatternManager::setCustomPattern(const CustomPatternCfg& cfg) {
-    customValid = cfg.valid;
-    customPatDef.code = "WLASNY";
-    customPatDef.name = "Wzorzec wlasny";
-    customPatDef.nominalWidth_cm = 12;
-    customPatDef.hasReverse = false;
+    // Buduj lokalna kopie PatternDef, potem atomowo podmien
+    PatternDef newDef;
+    newDef.code = "WLASNY";
+    newDef.name = "Wzorzec wlasny";
+    newDef.nominalWidth_cm = 12;
+    newDef.hasReverse = false;
 
     for (int i = 0; i < NUM_GUNS; i++) {
         GunMode gm = (GunMode)cfg.gunModes[i];
         if (gm == GUN_DASHED) {
-            customPatDef.guns[i] = {GUN_DASHED, cfg.lineLen[i], cfg.gapLen[i]};
+            newDef.guns[i] = {GUN_DASHED, cfg.lineLen[i], cfg.gapLen[i]};
         } else if (gm == GUN_CONTINUOUS) {
-            customPatDef.guns[i] = {GUN_CONTINUOUS, 0, 0};
+            newDef.guns[i] = {GUN_CONTINUOUS, 0, 0};
         } else {
-            customPatDef.guns[i] = {GUN_OFF, 0, 0};
+            newDef.guns[i] = {GUN_OFF, 0, 0};
         }
-        // Aktualizuj szerokosc nominalna
         if (gm != GUN_OFF) {
             float w = GUN_WIDTHS_M[i] * 100.0f;  // cm
-            if (w > customPatDef.nominalWidth_cm) customPatDef.nominalWidth_cm = w;
+            if (w > newDef.nominalWidth_cm) newDef.nominalWidth_cm = w;
         }
     }
+
+    // Atomowa podmiana pod mutexem (Core 1 czyta getCurrent/getGunConfig)
+    taskENTER_CRITICAL(&customMux);
+    customPatDef = newDef;
+    customValid = cfg.valid;
+    taskEXIT_CRITICAL(&customMux);
 
     Serial.printf("[PAT] Wzorzec wlasny %s: %d pistoletow aktywnych\n",
                   cfg.valid ? "zapisany" : "niewazny",

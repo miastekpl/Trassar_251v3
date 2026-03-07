@@ -51,7 +51,13 @@ bool PaintingEngine::shouldGunFire(GunID gun, float distFromPatternStart) const 
 }
 
 void PaintingEngine::update() {
-    if (g_state.machineState != STATE_PAINTING) {
+    // Atomowy snapshot stanu (g_state modyfikowany z Core 0 przez web server)
+    STATE_LOCK();
+    MachineState snapState = g_state.machineState;
+    MachineMode  snapMode  = g_state.machineMode;
+    STATE_UNLOCK();
+
+    if (snapState != STATE_PAINTING) {
         overspeedActive = false;
         lowSpeedActive = false;
         return;
@@ -68,7 +74,7 @@ void PaintingEngine::update() {
     if (distFromPatternStart < 0) distFromPatternStart = 0;
 
     // --- Inteligentne przelaczanie: sprawdz granice cyklu (tylko AUTO) ---
-    if (patternChangePending && g_state.machineMode == MODE_AUTO) {
+    if (patternChangePending && snapMode == MODE_AUTO) {
         float cycle = getPrimaryCycle();
         if (cycle <= 0 || pendingCycleCount < 0) {
             // Wzorzec ciagly - przelacz natychmiast
@@ -97,7 +103,7 @@ void PaintingEngine::update() {
     // ============================================================
     bool gunStates[NUM_GUNS];
 
-    if (g_state.machineMode == MODE_MANUAL) {
+    if (snapMode == MODE_MANUAL) {
         // --- TRYB RECZNY ---
         // Pistolety strzelaja gdy operator trzyma START i predkosc OK
         bool held = buttons.isStartHeld();
@@ -108,7 +114,7 @@ void PaintingEngine::update() {
             gunStates[i] = fire;
         }
 
-    } else if (g_state.machineMode == MODE_SEMI_AUTO) {
+    } else if (snapMode == MODE_SEMI_AUTO) {
         // --- TRYB POLAUTOMATYCZNY ---
         // Kazdy pistolet DASHED maluje do swojego lineLen niezaleznie,
         // semiLineComplete dopiero gdy wszystkie pistolety DASHED skonczyly
@@ -188,39 +194,53 @@ void PaintingEngine::update() {
     }
 }
 
-void PaintingEngine::start() {
-    if (g_state.machineState == STATE_IDLE || g_state.machineState == STATE_STOPPED) {
+void PaintingEngine::start(float offsetDist) {
+    STATE_LOCK();
+    MachineState curState = g_state.machineState;
+    STATE_UNLOCK();
+
+    if (curState == STATE_IDLE || curState == STATE_STOPPED) {
         encoderDist.resetDistance();
         stats.resetSession();
         lastEncoderDist = 0;
-        patternStartDist = 0;
-        gapStartActive = false;
+        patternStartDist = offsetDist;
+        gapStartActive = (offsetDist != 0.0f);
         patternChangePending = false;
         semiLineDist = 0;
         semiLineComplete = false;
+
+        STATE_LOCK();
         g_state.machineState = STATE_PAINTING;
-        stats.startSessionTimer();
         g_state.currentScreen = SCREEN_PAINTING;
         g_state.displayNeedsUpdate = true;
         g_state.forceFullRedraw = true;
+        MachineMode snapMode = g_state.machineMode;
+        STATE_UNLOCK();
+
+        stats.startSessionTimer();
         lastGunUpdateMs = millis();
         buzzer.play(BUZ_PAINT_START);
         gpsTrack.startRecording();
 
         const char* modeStr = "AUTO";
-        if (g_state.machineMode == MODE_SEMI_AUTO) modeStr = "SEMI";
-        else if (g_state.machineMode == MODE_MANUAL) modeStr = "MANUAL";
+        if (snapMode == MODE_SEMI_AUTO) modeStr = "SEMI";
+        else if (snapMode == MODE_MANUAL) modeStr = "MANUAL";
         eventLog.logf("ENGINE", "START malowania | wzorzec=%s tryb=%s",
                       patternMgr.getCurrent().code, modeStr);
     }
 }
 
 void PaintingEngine::startFromGap() {
-    if (g_state.machineState != STATE_IDLE && g_state.machineState != STATE_STOPPED)
+    STATE_LOCK();
+    MachineState curState = g_state.machineState;
+    MachineMode  curMode  = g_state.machineMode;
+    STATE_UNLOCK();
+
+    if (curState != STATE_IDLE && curState != STATE_STOPPED)
         return;
 
     // W trybie SEMI_AUTO: start od przerwy = semiLineComplete od razu
-    if (g_state.machineMode == MODE_SEMI_AUTO) {
+    if (curMode == MODE_SEMI_AUTO) {
         start();
         semiLineComplete = true;  // Zaczyna od przerwy - czeka na START
         gapStartActive = true;
@@ -229,12 +249,12 @@ void PaintingEngine::startFromGap() {
     }
 
     // W trybie MANUAL: brak przerw - normalny start
-    if (g_state.machineMode == MODE_MANUAL) {
+    if (curMode == MODE_MANUAL) {
         start();
         return;
     }
 
-    // Tryb AUTO: oryginalna logika
+    // Tryb AUTO: oblicz offset od lineLen
     const PatternDef& pat = patternMgr.getCurrent();
     float lineLen = 0;
     for (int i = 0; i < NUM_GUNS; i++) {
@@ -246,58 +266,58 @@ void PaintingEngine::startFromGap() {
     }
 
     if (lineLen <= 0) {
-        // Brak przerw we wzorcu - normalny start
         start();
         return;
     }
 
-    encoderDist.resetDistance();
-    stats.resetSession();
-    lastEncoderDist = 0;
     // Przesuniecie o lineLen sprawia, ze cykl zaczyna od przerwy
-    // shouldGunFire: pos = fmod(dist + lineLen, cycle) = lineLen → gap
-    patternStartDist = -lineLen;
-    gapStartActive = true;
-    patternChangePending = false;
-    semiLineDist = 0;
-    semiLineComplete = false;
-    g_state.machineState = STATE_PAINTING;
-    stats.startSessionTimer();
-    g_state.currentScreen = SCREEN_PAINTING;
-    g_state.displayNeedsUpdate = true;
-    g_state.forceFullRedraw = true;
-    lastGunUpdateMs = millis();
-    buzzer.play(BUZ_PAINT_START);
-    gpsTrack.startRecording();
+    start(-lineLen);
     Serial.printf("[ENGINE] Start OD PRZERWY - wzorzec %s, offset %.1fm\n",
                   pat.code, lineLen);
 }
 
 void PaintingEngine::pause() {
-    if (g_state.machineState == STATE_PAINTING) {
-        g_state.machineState = STATE_PAUSED;
+    STATE_LOCK();
+    bool canPause = (g_state.machineState == STATE_PAINTING);
+    if (canPause) g_state.machineState = STATE_PAUSED;
+    STATE_UNLOCK();
+
+    if (canPause) {
         guns.allOff();
         stats.pauseSessionTimer();
         buzzer.play(BUZ_PAINT_STOP);
+        STATE_LOCK();
         g_state.displayNeedsUpdate = true;
+        STATE_UNLOCK();
         eventLog.log("ENGINE", "PAUZA");
     }
 }
 
 void PaintingEngine::resume() {
-    if (g_state.machineState == STATE_PAUSED) {
-        g_state.machineState = STATE_PAINTING;
+    STATE_LOCK();
+    bool canResume = (g_state.machineState == STATE_PAUSED);
+    if (canResume) g_state.machineState = STATE_PAINTING;
+    STATE_UNLOCK();
+
+    if (canResume) {
         lastGunUpdateMs = millis();
         stats.resumeSessionTimer();
         buzzer.play(BUZ_PAINT_START);
+        STATE_LOCK();
         g_state.displayNeedsUpdate = true;
+        STATE_UNLOCK();
         eventLog.log("ENGINE", "WZNOWIENIE");
     }
 }
 
 void PaintingEngine::stop() {
-    if (g_state.machineState == STATE_PAINTING ||
-        g_state.machineState == STATE_PAUSED) {
+    STATE_LOCK();
+    bool canStop = (g_state.machineState == STATE_PAINTING ||
+                    g_state.machineState == STATE_PAUSED);
+    if (canStop) g_state.machineState = STATE_STOPPED;
+    STATE_UNLOCK();
+
+    if (canStop) {
         // Zastosuj oczekujacy wzorzec (zeby po STOP byl aktywny)
         if (patternChangePending) {
             patternMgr.setPattern(pendingPattern);
@@ -306,7 +326,6 @@ void PaintingEngine::stop() {
             Serial.printf("[ENGINE] Stop: zastosowano oczekujacy wzorzec %s\n",
                           patternMgr.getCurrent().code);
         }
-        g_state.machineState = STATE_STOPPED;
         guns.allOff();
         stats.pauseSessionTimer();
         stats.saveLifetime();
@@ -324,9 +343,12 @@ void PaintingEngine::stop() {
             gpsHandler.hasFix() ? gpsHandler.getLng() : 0
         );
 
+        STATE_LOCK();
         g_state.currentScreen = SCREEN_HOME;
         g_state.displayNeedsUpdate = true;
         g_state.forceFullRedraw = true;
+        STATE_UNLOCK();
+
         eventLog.logf("ENGINE", "STOP | dist=%.1fm area=%.2fm2 czas=%us",
                       stats.getSessionDistance(), stats.getSessionArea(),
                       stats.getSessionTimeSec());
@@ -335,7 +357,11 @@ void PaintingEngine::stop() {
 
 void PaintingEngine::setPattern(PatternID pat) {
     // --- Przelaczanie wzorcow (smart lub instant) ---
-    if (g_state.machineState == STATE_PAINTING) {
+    STATE_LOCK();
+    MachineState snapState = g_state.machineState;
+    STATE_UNLOCK();
+
+    if (snapState == STATE_PAINTING) {
         if (pat == g_state.currentPattern) {
             // Kliknieto biezacy wzorzec → anuluj pending
             if (patternChangePending) {
@@ -420,7 +446,10 @@ void PaintingEngine::toggleReverse() {
 // Wywolywane z menu po wcisnieciu START na ekranie malowania
 // ============================================================
 void PaintingEngine::semiNextLine() {
-    if (g_state.machineMode != MODE_SEMI_AUTO) return;
+    STATE_LOCK();
+    MachineMode snapMode = g_state.machineMode;
+    STATE_UNLOCK();
+    if (snapMode != MODE_SEMI_AUTO) return;
     if (!semiLineComplete) return;
     semiLineDist = 0;
     semiLineComplete = false;
@@ -429,8 +458,10 @@ void PaintingEngine::semiNextLine() {
 }
 
 float PaintingEngine::getPatternDistance() const {
-    if (g_state.machineState != STATE_PAINTING &&
-        g_state.machineState != STATE_PAUSED) return 0;
+    STATE_LOCK();
+    MachineState snapState = g_state.machineState;
+    STATE_UNLOCK();
+    if (snapState != STATE_PAINTING && snapState != STATE_PAUSED) return 0;
     float totalDist = encoderDist.getDistanceMeters();
     return totalDist - patternStartDist;
 }
@@ -441,7 +472,10 @@ float PaintingEngine::getPatternDistance() const {
 // Jesli update() nie bylo wywolane >300ms a pistolety sa otwarte
 // ============================================================
 void PaintingEngine::checkGunKeepAlive() {
-    if (g_state.machineState != STATE_PAINTING) return;
+    STATE_LOCK();
+    MachineState snapState = g_state.machineState;
+    STATE_UNLOCK();
+    if (snapState != STATE_PAINTING) return;
 
     unsigned long now = millis();
     if (now - lastGunUpdateMs > GUN_KEEPALIVE_TIMEOUT_MS) {

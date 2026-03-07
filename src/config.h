@@ -264,6 +264,13 @@ extern portMUX_TYPE g_stateMux;
 #define STATE_LOCK()   taskENTER_CRITICAL(&g_stateMux)
 #define STATE_UNLOCK() taskEXIT_CRITICAL(&g_stateMux)
 
+// ============ Mutex dostepu do karty SD (SPI wspoldzielone) ============
+extern SemaphoreHandle_t g_sdMutex;
+
+// Makra bezpiecznego dostepu do SD (timeout 5s)
+#define SD_LOCK()   (g_sdMutex && xSemaphoreTake(g_sdMutex, pdMS_TO_TICKS(5000)))
+#define SD_UNLOCK() do { if (g_sdMutex) xSemaphoreGive(g_sdMutex); } while(0)
+
 // ============ Wersja formatu danych NVS ============
 #define NVS_DATA_VERSION  3  // Inkrementuj przy zmianie struktur NVS
 
@@ -289,17 +296,7 @@ struct GunAnomalyState {
 extern GunAnomalyState gunAnomaly;
 
 // ============ Szerokości pistoletów [m] ============
-static const float GUN_WIDTHS_M[NUM_GUNS] = {
-    0.12f,  // P1 - 12cm
-    0.12f,  // P2 - 12cm
-    0.12f,  // P3 - 12cm
-    0.24f,  // P4 - 24cm
-    0.12f,  // P5 - 12cm
-    0.24f   // P6 - 24cm
-};
+extern const float GUN_WIDTHS_M[NUM_GUNS];
 
 // ============ Piny przekaźników ============
-static const uint8_t GUN_PINS[NUM_GUNS] = {
-    PIN_RELAY_P1, PIN_RELAY_P2, PIN_RELAY_P3,
-    PIN_RELAY_P4, PIN_RELAY_P5, PIN_RELAY_P6
-};
+extern const uint8_t GUN_PINS[NUM_GUNS];

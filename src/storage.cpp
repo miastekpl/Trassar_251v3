@@ -8,6 +8,37 @@
 StorageManager storage;
 
 static Preferences prefs;
+static bool nvsOpen = false;
+static bool nvsReadOnly = false;
+
+// RAII helper — otwiera NVS jesli nie jest juz otwarty
+// Zamyka w destruktorze jesli sam otwarl
+struct NvsSession {
+    bool owned;
+    NvsSession(bool readOnly) {
+        if (nvsOpen) {
+            // Juz otwarty (batch mode) — nie zamykaj
+            // Jesli batch jest readOnly a my chcemy write → reopen
+            if (!readOnly && nvsReadOnly) {
+                prefs.end();
+                prefs.begin("trassar", false);
+                nvsReadOnly = false;
+            }
+            owned = false;
+        } else {
+            prefs.begin("trassar", readOnly);
+            nvsOpen = true;
+            nvsReadOnly = readOnly;
+            owned = true;
+        }
+    }
+    ~NvsSession() {
+        if (owned) {
+            prefs.end();
+            nvsOpen = false;
+        }
+    }
+};
 
 void StorageManager::begin() {
     Serial.println("[NVS] Inicjalizacja pamieci trwalej");
@@ -15,115 +46,95 @@ void StorageManager::begin() {
 }
 
 void StorageManager::checkNvsVersion() {
-    prefs.begin("trassar", false);
+    NvsSession s(false);
     uint8_t ver = prefs.getUChar("nvs_ver", 0);
     if (ver != NVS_DATA_VERSION) {
         Serial.printf("[NVS] Wersja NVS: %d -> %d (migracja)\n", ver, NVS_DATA_VERSION);
-        // Kasuj dane niekompatybilne ze starszymi wersjami
         if (ver < 2) {
-            // v1->v2: zmiana CustomPatternCfg (lineLen/gapLen -> tablice per-gun)
-            // + dodanie slotow + gun shot counts
-            prefs.remove("cust_pat");   // Stary jednosotowy wzorzec
+            prefs.remove("cust_pat");
             prefs.remove("cust_p0");
             prefs.remove("cust_p1");
             prefs.remove("cust_p2");
             Serial.println("[NVS] Wyczyszczono wzorce wlasne (zmiana formatu)");
         }
-        // v2->v3: dodano MTH (mth_sec) i night_mode — brak migracji (nowe klucze)
         prefs.putUChar("nvs_ver", NVS_DATA_VERSION);
     } else {
         Serial.printf("[NVS] Wersja NVS: %d (OK)\n", ver);
     }
-    prefs.end();
 }
 
 void StorageManager::saveCalibration(float pulsesPerMeter) {
-    prefs.begin("trassar", false);
+    NvsSession s(false);
     prefs.putFloat("cal_ppm", pulsesPerMeter);
     prefs.putBool("cal_done", true);
-    prefs.end();
     Serial.printf("[NVS] Zapisano kalibracje: %.1f imp/m\n", pulsesPerMeter);
 }
 
 float StorageManager::loadCalibration(bool& calibrated) {
-    prefs.begin("trassar", true);
+    NvsSession s(true);
     calibrated = prefs.getBool("cal_done", false);
-    float val = prefs.getFloat("cal_ppm", DEFAULT_PULSES_PER_METER);
-    prefs.end();
-    return val;
+    return prefs.getFloat("cal_ppm", DEFAULT_PULSES_PER_METER);
 }
 
-void StorageManager::saveLifetimeStats(const LifetimeStats& s) {
-    prefs.begin("trassar", false);
-    prefs.putFloat("lt_dist", s.totalDistance);
-    prefs.putFloat("lt_area", s.totalArea);
-    prefs.putUInt("lt_time", s.totalPaintTimeSec);
-    prefs.end();
+void StorageManager::saveLifetimeStats(const LifetimeStats& st) {
+    NvsSession s(false);
+    prefs.putFloat("lt_dist", st.totalDistance);
+    prefs.putFloat("lt_area", st.totalArea);
+    prefs.putUInt("lt_time", st.totalPaintTimeSec);
 }
 
 LifetimeStats StorageManager::loadLifetimeStats() {
-    LifetimeStats s;
-    prefs.begin("trassar", true);
-    s.totalDistance = prefs.getFloat("lt_dist", 0);
-    s.totalArea = prefs.getFloat("lt_area", 0);
-    s.totalPaintTimeSec = prefs.getUInt("lt_time", 0);
-    prefs.end();
-    return s;
+    NvsSession s(true);
+    LifetimeStats st;
+    st.totalDistance = prefs.getFloat("lt_dist", 0);
+    st.totalArea = prefs.getFloat("lt_area", 0);
+    st.totalPaintTimeSec = prefs.getUInt("lt_time", 0);
+    return st;
 }
 
 void StorageManager::saveLastPattern(PatternID pat) {
-    prefs.begin("trassar", false);
+    NvsSession s(false);
     prefs.putUChar("last_pat", (uint8_t)pat);
-    prefs.end();
 }
 
 PatternID StorageManager::loadLastPattern() {
-    prefs.begin("trassar", true);
+    NvsSession s(true);
     uint8_t val = prefs.getUChar("last_pat", 0);
-    prefs.end();
     if (val >= PAT_COUNT) val = 0;
     return (PatternID)val;
 }
 
 void StorageManager::saveMaxSpeed(float kmh) {
-    prefs.begin("trassar", false);
+    NvsSession s(false);
     prefs.putFloat("max_spd", kmh);
-    prefs.end();
     Serial.printf("[NVS] Zapisano max predkosc: %.1f km/h\n", kmh);
 }
 
 float StorageManager::loadMaxSpeed() {
-    prefs.begin("trassar", true);
-    float val = prefs.getFloat("max_spd", DEFAULT_MAX_PAINT_SPEED_KMH);
-    prefs.end();
-    return val;
+    NvsSession s(true);
+    return prefs.getFloat("max_spd", DEFAULT_MAX_PAINT_SPEED_KMH);
 }
 
 void StorageManager::saveMinSpeed(float kmh) {
-    prefs.begin("trassar", false);
+    NvsSession s(false);
     prefs.putFloat("min_spd", kmh);
-    prefs.end();
     Serial.printf("[NVS] Zapisano min predkosc: %.1f km/h\n", kmh);
 }
 
 float StorageManager::loadMinSpeed() {
-    prefs.begin("trassar", true);
-    float val = prefs.getFloat("min_spd", DEFAULT_MIN_PAINT_SPEED_KMH);
-    prefs.end();
-    return val;
+    NvsSession s(true);
+    return prefs.getFloat("min_spd", DEFAULT_MIN_PAINT_SPEED_KMH);
 }
 
 void StorageManager::saveMode(MachineMode mode) {
-    prefs.begin("trassar", false);
+    NvsSession s(false);
     prefs.putUChar("mode", (uint8_t)mode);
-    prefs.end();
     Serial.printf("[NVS] Zapisano tryb: %d\n", mode);
 }
 
 MachineMode StorageManager::loadMode() {
-    prefs.begin("trassar", true);
+    NvsSession s(true);
     uint8_t val = prefs.getUChar("mode", 0);
-    prefs.end();
     if (val > MODE_MANUAL) val = 0;
     return (MachineMode)val;
 }
@@ -132,9 +143,8 @@ void StorageManager::saveCustomPattern(const CustomPatternCfg& cfg, int slot) {
     if (slot < 0 || slot >= NUM_CUSTOM_SLOTS) slot = 0;
     char key[12];
     snprintf(key, sizeof(key), "cust_p%d", slot);
-    prefs.begin("trassar", false);
+    NvsSession s(false);
     prefs.putBytes(key, &cfg, sizeof(cfg));
-    prefs.end();
     Serial.printf("[NVS] Zapisano wzorzec wlasny slot %d\n", slot);
 }
 
@@ -143,9 +153,8 @@ CustomPatternCfg StorageManager::loadCustomPattern(int slot) {
     CustomPatternCfg cfg = {};
     char key[12];
     snprintf(key, sizeof(key), "cust_p%d", slot);
-    prefs.begin("trassar", true);
+    NvsSession s(true);
     size_t len = prefs.getBytes(key, &cfg, sizeof(cfg));
-    prefs.end();
     if (len != sizeof(cfg)) {
         cfg.valid = false;
     }
@@ -153,58 +162,47 @@ CustomPatternCfg StorageManager::loadCustomPattern(int slot) {
 }
 
 void StorageManager::saveGunShotCounts(const uint32_t counts[NUM_GUNS]) {
-    prefs.begin("trassar", false);
+    NvsSession s(false);
     prefs.putBytes("gun_shots", counts, sizeof(uint32_t) * NUM_GUNS);
-    prefs.end();
 }
 
 void StorageManager::loadGunShotCounts(uint32_t counts[NUM_GUNS]) {
-    prefs.begin("trassar", true);
+    NvsSession s(true);
     size_t len = prefs.getBytes("gun_shots", counts, sizeof(uint32_t) * NUM_GUNS);
-    prefs.end();
     if (len != sizeof(uint32_t) * NUM_GUNS) {
         for (int i = 0; i < NUM_GUNS; i++) counts[i] = 0;
     }
 }
 
 void StorageManager::saveSwitchMode(bool smart) {
-    prefs.begin("trassar", false);
+    NvsSession s(false);
     prefs.putBool("sw_smart", smart);
-    prefs.end();
     Serial.printf("[NVS] Tryb przelaczania: %s\n", smart ? "SMART" : "INSTANT");
 }
 
 bool StorageManager::loadSwitchMode() {
-    prefs.begin("trassar", true);
-    bool val = prefs.getBool("sw_smart", true);  // Domyslnie smart
-    prefs.end();
-    return val;
+    NvsSession s(true);
+    return prefs.getBool("sw_smart", true);
 }
 
 void StorageManager::saveMTH(uint32_t totalSec) {
-    prefs.begin("trassar", false);
+    NvsSession s(false);
     prefs.putUInt("mth_sec", totalSec);
-    prefs.end();
 }
 
 uint32_t StorageManager::loadMTH() {
-    prefs.begin("trassar", true);
-    uint32_t val = prefs.getUInt("mth_sec", 0);
-    prefs.end();
-    return val;
+    NvsSession s(true);
+    return prefs.getUInt("mth_sec", 0);
 }
 
 void StorageManager::saveNightMode(bool enabled) {
-    prefs.begin("trassar", false);
+    NvsSession s(false);
     prefs.putBool("night_mode", enabled);
-    prefs.end();
 }
 
 bool StorageManager::loadNightMode() {
-    prefs.begin("trassar", true);
-    bool val = prefs.getBool("night_mode", false);
-    prefs.end();
-    return val;
+    NvsSession s(true);
+    return prefs.getBool("night_mode", false);
 }
 
 void StorageManager::resetAllExceptCalibration() {
@@ -214,7 +212,7 @@ void StorageManager::resetAllExceptCalibration() {
     uint32_t mth = loadMTH();
 
     // Wyczysc cala przestrzen NVS
-    prefs.begin("trassar", false);
+    NvsSession s(false);
     prefs.clear();
 
     // Przywroc wersje NVS, kalibracje i MTH
@@ -224,6 +222,5 @@ void StorageManager::resetAllExceptCalibration() {
         prefs.putBool("cal_done", true);
     }
     prefs.putUInt("mth_sec", mth);
-    prefs.end();
     Serial.println("[NVS] Reset wszystkich danych (kalibracja + MTH zachowane)");
 }

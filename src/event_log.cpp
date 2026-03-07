@@ -32,27 +32,30 @@ void EventLog::log(const char* category, const char* message) {
     snprintf(path, sizeof(path), "/logs/%04d%02d%02d.log",
              now.year(), now.month(), now.day());
 
-    // Utworz katalog przy pierwszym zapisie
-    if (!SD.exists("/logs")) {
-        SD.mkdir("/logs");
-    }
-
-    File f = SD.open(path, FILE_APPEND);
-    if (!f) return;
-
-    // Limit rozmiaru pliku
-    if (f.size() > EVENT_LOG_MAX_SIZE) {
-        f.close();
-        return;
-    }
-
     // Zapis linii: HH:MM:SS [KAT] wiadomosc
     char line[200];
     snprintf(line, sizeof(line), "%02d:%02d:%02d [%s] %s\n",
              now.hour(), now.minute(), now.second(),
              category, message);
+
+    if (!SD_LOCK()) return;
+
+    if (!SD.exists("/logs")) {
+        SD.mkdir("/logs");
+    }
+
+    File f = SD.open(path, FILE_APPEND);
+    if (!f) { SD_UNLOCK(); return; }
+
+    if (f.size() > EVENT_LOG_MAX_SIZE) {
+        f.close();
+        SD_UNLOCK();
+        return;
+    }
+
     f.print(line);
     f.close();
+    SD_UNLOCK();
 }
 
 void EventLog::logf(const char* category, const char* fmt, ...) {

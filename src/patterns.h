@@ -38,6 +38,9 @@ public:
 
     static const PatternDef patterns[PREDEFINED_PAT_COUNT];
 
+    // Mutex chroniacy customPatDef (Core 0 pisze, Core 1 czyta)
+    mutable portMUX_TYPE customMux = portMUX_INITIALIZER_UNLOCKED;
+
 private:
     PatternDef customPatDef;
     bool customValid = false;

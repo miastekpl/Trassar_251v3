@@ -145,24 +145,24 @@ void TrassarWebServer::handleControl() {
     String action = server.arg("action");
     String result = "ok";
 
+    // Atomowy snapshot stanu (wymagany do decyzji o akcji)
+    STATE_LOCK();
+    MachineState snapState = g_state.machineState;
+    STATE_UNLOCK();
+
     if (action == "start") {
-        if (g_state.machineState == STATE_PAUSED) {
+        // start/resume/pause/stop maja wewnetrzne locki i sprawdzaja stan ponownie
+        if (snapState == STATE_PAUSED) {
             paintEngine.resume();
-        } else if (g_state.machineState == STATE_IDLE || g_state.machineState == STATE_STOPPED) {
+        } else if (snapState == STATE_IDLE || snapState == STATE_STOPPED) {
             paintEngine.start();
         }
     } else if (action == "start_from_gap") {
-        if (g_state.machineState == STATE_IDLE || g_state.machineState == STATE_STOPPED) {
-            paintEngine.startFromGap();
-        }
+        paintEngine.startFromGap();
     } else if (action == "pause") {
-        if (g_state.machineState == STATE_PAINTING) {
-            paintEngine.pause();
-        }
+        paintEngine.pause();
     } else if (action == "stop") {
-        if (g_state.machineState == STATE_PAINTING || g_state.machineState == STATE_PAUSED) {
-            paintEngine.stop();
-        }
+        paintEngine.stop();
     } else if (action == "set_pattern") {
         if (server.hasArg("value")) {
             int val = server.arg("value").toInt();
@@ -415,11 +415,17 @@ String TrassarWebServer::getStateJson() {
     doc["gpxRec"] = gpsTrack.isRecording();
     doc["gpxPts"] = gpsTrack.getPointCount();
 
-    // Anomalia pistoletow
-    doc["gunAnomalyDetected"] = gunAnomaly.detected;
+    // Anomalia pistoletow (odczyt pod lockiem — modyfikowane z Core 1)
+    STATE_LOCK();
+    bool snapAnomalyDetected = gunAnomaly.detected;
+    bool snapAnomalyAlert[NUM_GUNS];
+    for (int i = 0; i < NUM_GUNS; i++) snapAnomalyAlert[i] = gunAnomaly.alert[i];
+    STATE_UNLOCK();
+
+    doc["gunAnomalyDetected"] = snapAnomalyDetected;
     JsonArray anomArr = doc["gunAnomaly"].to<JsonArray>();
     for (int i = 0; i < NUM_GUNS; i++) {
-        anomArr.add(gunAnomaly.alert[i]);
+        anomArr.add(snapAnomalyAlert[i]);
     }
 
     String output;
@@ -515,13 +521,25 @@ void TrassarWebServer::handleReportDownload() {
     }
 
     String path = "/reports/" + fname;
-    if (!reportLogger.isReady() || !SD.exists(path.c_str())) {
+    if (!reportLogger.isReady()) {
+        server.send(404, "text/plain", "Plik nie znaleziony");
+        return;
+    }
+
+    if (!SD_LOCK()) {
+        server.send(503, "text/plain", "SD zajeta");
+        return;
+    }
+
+    if (!SD.exists(path.c_str())) {
+        SD_UNLOCK();
         server.send(404, "text/plain", "Plik nie znaleziony");
         return;
     }
 
     File f = SD.open(path.c_str(), FILE_READ);
     if (!f) {
+        SD_UNLOCK();
         server.send(500, "text/plain", "Blad otwarcia pliku");
         return;
     }
@@ -538,6 +556,7 @@ void TrassarWebServer::handleReportDownload() {
         if (r > 0) server.sendContent((const char*)buf, r);
     }
     f.close();
+    SD_UNLOCK();
     Serial.printf("[WWW] Pobranie raportu: %s\n", fname.c_str());
 }
 
@@ -561,13 +580,25 @@ void TrassarWebServer::handleGeoJson() {
     }
 
     String path = "/reports/" + fname;
-    if (!reportLogger.isReady() || !SD.exists(path.c_str())) {
+    if (!reportLogger.isReady()) {
+        server.send(404, "application/json", "{\"error\":\"plik nie znaleziony\"}");
+        return;
+    }
+
+    if (!SD_LOCK()) {
+        server.send(503, "application/json", "{\"error\":\"SD zajeta\"}");
+        return;
+    }
+
+    if (!SD.exists(path.c_str())) {
+        SD_UNLOCK();
         server.send(404, "application/json", "{\"error\":\"plik nie znaleziony\"}");
         return;
     }
 
     File f = SD.open(path.c_str(), FILE_READ);
     if (!f) {
+        SD_UNLOCK();
         server.send(500, "application/json", "{\"error\":\"blad otwarcia\"}");
         return;
     }
@@ -611,6 +642,7 @@ void TrassarWebServer::handleGeoJson() {
     }
 
     f.close();
+    SD_UNLOCK();
     server.sendContent("]}");
     server.sendContent("");  // End chunked
     Serial.printf("[WWW] GeoJSON: %s\n", fname.c_str());
@@ -620,13 +652,25 @@ void TrassarWebServer::handleGeoJson() {
 // GET /api/tracks - Lista plikow GPS track (GPX + GeoJSON)
 // ============================================================
 void TrassarWebServer::handleTrackList() {
-    if (!reportLogger.isReady() || !SD.exists("/tracks")) {
+    if (!reportLogger.isReady()) {
+        server.send(200, "application/json", "[]");
+        return;
+    }
+
+    if (!SD_LOCK()) {
+        server.send(200, "application/json", "[]");
+        return;
+    }
+
+    if (!SD.exists("/tracks")) {
+        SD_UNLOCK();
         server.send(200, "application/json", "[]");
         return;
     }
 
     File dir = SD.open("/tracks");
     if (!dir) {
+        SD_UNLOCK();
         server.send(200, "application/json", "[]");
         return;
     }
@@ -648,6 +692,7 @@ void TrassarWebServer::handleTrackList() {
         entry.close();
     }
     dir.close();
+    SD_UNLOCK();
     json += "]";
 
     server.send(200, "application/json", json);
@@ -671,13 +716,25 @@ void TrassarWebServer::handleTrackDownload() {
     }
 
     String path = "/tracks/" + fname;
-    if (!reportLogger.isReady() || !SD.exists(path.c_str())) {
+    if (!reportLogger.isReady()) {
+        server.send(404, "text/plain", "Plik nie znaleziony");
+        return;
+    }
+
+    if (!SD_LOCK()) {
+        server.send(503, "text/plain", "SD zajeta");
+        return;
+    }
+
+    if (!SD.exists(path.c_str())) {
+        SD_UNLOCK();
         server.send(404, "text/plain", "Plik nie znaleziony");
         return;
     }
 
     File f = SD.open(path.c_str(), FILE_READ);
     if (!f) {
+        SD_UNLOCK();
         server.send(500, "text/plain", "Blad otwarcia pliku");
         return;
     }
@@ -697,6 +754,7 @@ void TrassarWebServer::handleTrackDownload() {
         if (r > 0) server.sendContent((const char*)buf, r);
     }
     f.close();
+    SD_UNLOCK();
     Serial.printf("[WWW] Track download: %s\n", fname.c_str());
 }
 
