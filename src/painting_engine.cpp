@@ -15,6 +15,8 @@
 #include "buzzer.h"
 #include "button_handler.h"
 #include "event_log.h"
+#include "session_report.h"
+#include "paint_consumption.h"
 #include <math.h>
 
 PaintingEngine paintEngine;
@@ -150,6 +152,16 @@ void PaintingEngine::update() {
         if (anyDashed && !semiLineComplete && allDashedDone) {
             semiLineComplete = true;
             buzzer.beep(1000, 50);  // Krotki sygnal: linia gotowa
+        }
+
+    } else if (snapMode == MODE_DEMO) {
+        // --- TRYB DEMO (nauka operatora) ---
+        // Logika identyczna jak AUTO, ale pistolety NIE strzelaja fizycznie
+        // gunStates ustawiane dla wizualizacji na TFT i panelu WWW
+        for (int i = 0; i < NUM_GUNS; i++) {
+            bool wouldFire = speedOK && shouldGunFire((GunID)i, distFromPatternStart);
+            guns.setGun((GunID)i, false);  // Fizycznie zawsze OFF
+            gunStates[i] = wouldFire;       // Wizualnie: co by strzelalo
         }
 
     } else {
@@ -334,13 +346,31 @@ void PaintingEngine::stop() {
         // Zapis trasy GPS jako plik .gpx na karte SD
         gpsTrack.stopRecording();
 
-        // Zapis raportu na karte SD (z koordynatami GPS jesli dostepne)
+        // Zapis raportu CSV na karte SD (z koordynatami GPS jesli dostepne)
+        bool gFix = gpsHandler.hasFix();
+        double gLat = gFix ? gpsHandler.getLat() : 0;
+        double gLon = gFix ? gpsHandler.getLng() : 0;
         reportLogger.logSession(
             patternMgr.getCurrent().code,
             stats.getSessionDistance(),
             stats.getSessionArea(),
-            gpsHandler.hasFix() ? gpsHandler.getLat() : 0,
-            gpsHandler.hasFix() ? gpsHandler.getLng() : 0
+            gLat, gLon
+        );
+
+        // Automatyczny raport HTML
+        float sessionDist = stats.getSessionDistance();
+        float sessionArea = stats.getSessionArea();
+        unsigned long sessionTime = stats.getSessionTimeSec();
+        float avgSpeed = 0;
+        if (sessionTime > 0) {
+            avgSpeed = (sessionDist / 1000.0f) / ((float)sessionTime / 3600.0f);
+        }
+        sessionReport.generateReport(
+            patternMgr.getCurrent().code,
+            sessionDist, sessionArea, sessionTime, avgSpeed,
+            gFix, gLat, gLon,
+            paintConsumption.getUsedLiters(sessionArea),
+            paintConsumption.getRemainingLiters(stats.getLifetimeArea() + sessionArea)
         );
 
         STATE_LOCK();

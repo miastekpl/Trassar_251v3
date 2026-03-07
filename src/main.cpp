@@ -1,6 +1,6 @@
 // ============================================================
 // TrassarV3 - Komputer pokładowy malowarki pasów drogowych
-// Firmware v2.22.0
+// Firmware - wersja definiowana w platformio.ini (FW_VERSION)
 //
 // Platforma:    ESP32-S3 N16R8 (dual-core)
 // Wyświetlacz:  ILI9341 2.8" 240x320 SPI
@@ -31,6 +31,7 @@
 #include "event_log.h"
 #include "nvs_backup.h"
 #include "pattern_buttons.h"
+#include "paint_consumption.h"
 #include <esp_task_wdt.h>
 #include <esp_heap_caps.h>
 
@@ -168,6 +169,10 @@ void setup() {
     // 11b. GPS Track recorder (bufor PSRAM + zapis GPX)
     Serial.println("[INIT] GPS Track (GPX)...");
     gpsTrack.begin();
+
+    // 11c. Predykcja zuzycia farby
+    Serial.println("[INIT] Paint consumption...");
+    paintConsumption.begin();
 
     // 12. System menu
     Serial.println("[INIT] System menu...");

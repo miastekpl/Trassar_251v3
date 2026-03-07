@@ -71,7 +71,8 @@
 #define SMENU_START_Y       34      // Y pierwszej pozycji
 #define SMENU_INDENT        24      // X wciecie tekstu
 #define SMENU_MARKER_X      8       // X wskaznika ">"
-#define SMENU_COUNT         6       // Liczba pozycji menu
+#define SMENU_COUNT         9       // Liczba pozycji menu (SERVICE_MENU_ITEMS)
+#define SMENU_VISIBLE       6       // Max pozycji widocznych na ekranie
 
 // Ekran splasha
 #define SPLASH_TITLE_OFS    (-40)   // Offset Y tytulu od srodka ekranu

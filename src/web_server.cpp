@@ -18,6 +18,7 @@
 #include "report_logger.h"
 #include "gps_handler.h"
 #include "gps_track.h"
+#include "paint_consumption.h"
 #include <SD.h>
 
 TrassarWebServer webServer;
@@ -123,6 +124,8 @@ void TrassarWebServer::setupRoutes() {
     server.on("/api/tracks", HTTP_GET, [this]() { handleTrackList(); });
     server.on("/api/tracks/download", HTTP_GET, [this]() { handleTrackDownload(); });
     server.on("/api/control", HTTP_POST, [this]() { handleControl(); });
+    server.on("/api/html_reports", HTTP_GET, [this]() { handleHtmlReports(); });
+    server.on("/api/html_reports/download", HTTP_GET, [this]() { handleHtmlReportDownload(); });
     server.onNotFound([this]() { handleNotFound(); });
 }
 
@@ -207,7 +210,7 @@ void TrassarWebServer::handleControl() {
     } else if (action == "set_mode") {
         if (server.hasArg("value")) {
             int val = server.arg("value").toInt();
-            if (val >= 0 && val <= 2) {
+            if (val >= 0 && val <= 3) {
                 MachineMode newMode = (MachineMode)val;
                 STATE_LOCK();
                 g_state.machineMode = newMode;
@@ -215,7 +218,7 @@ void TrassarWebServer::handleControl() {
                 storage.saveMode(newMode);
                 Serial.printf("[WWW] Tryb pracy: %d\n", val);
             } else {
-                result = "nieprawidlowy tryb (0-2)";
+                result = "nieprawidlowy tryb (0-3)";
             }
         } else {
             result = "brak parametru value";
@@ -295,6 +298,24 @@ void TrassarWebServer::handleControl() {
             storage.saveSwitchMode(smart);
             Serial.printf("[WWW] Tryb przelaczania: %s\n", smart ? "SMART" : "INSTANT");
         }
+    } else if (action == "set_tank_capacity") {
+        if (server.hasArg("value")) {
+            float val = server.arg("value").toFloat();
+            if (val >= 1.0f && val <= 1000.0f) {
+                paintConsumption.setTankCapacity(val);
+            } else {
+                result = "zakres 1-1000 litrow";
+            }
+        }
+    } else if (action == "set_paint_rate") {
+        if (server.hasArg("value")) {
+            float val = server.arg("value").toFloat();
+            if (val >= 0.1f && val <= 5.0f) {
+                paintConsumption.setConsumptionRate(val);
+            } else {
+                result = "zakres 0.1-5.0 l/m2";
+            }
+        }
     } else {
         result = "nieznana akcja";
     }
@@ -349,6 +370,7 @@ String TrassarWebServer::getStateJson() {
         case MODE_AUTO:      modeStr = "auto";      break;
         case MODE_SEMI_AUTO: modeStr = "semi";       break;
         case MODE_MANUAL:    modeStr = "manual";     break;
+        case MODE_DEMO:      modeStr = "demo";       break;
         default:             modeStr = "auto";        break;
     }
     doc["mode"] = modeStr;
@@ -484,6 +506,13 @@ String TrassarWebServer::getStatsJson() {
     // Raporty SD
     doc["sdReady"] = reportLogger.isReady();
     doc["reportCount"] = reportLogger.getReportCount();
+
+    // Predykcja zuzycia farby
+    float totalArea = stats.getLifetimeArea() + stats.getSessionArea();
+    doc["paintUsedL"] = serialized(String(paintConsumption.getUsedLiters(stats.getSessionArea()), 1));
+    doc["paintRemainingL"] = serialized(String(paintConsumption.getRemainingLiters(totalArea), 1));
+    doc["paintTankL"] = serialized(String(paintConsumption.getTankCapacity(), 0));
+    doc["paintUsedPct"] = paintConsumption.getUsedPercent(totalArea);
 
     String output;
     serializeJson(doc, output);

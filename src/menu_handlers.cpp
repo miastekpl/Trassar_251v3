@@ -153,9 +153,9 @@ void MenuSystem::handleSetup(ButtonEvent e) {
 
         case EVT_SELECT_LONG:
             switch (setupCursor) {
-                case 0:  // Tryb pracy: AUTO -> SEMI -> RECZNY -> AUTO
+                case 0:  // Tryb pracy: AUTO -> SEMI -> RECZNY -> DEMO -> AUTO
                     setupMode++;
-                    if (setupMode > 2) setupMode = 0;
+                    if (setupMode > 3) setupMode = 0;
                     break;
                 case 1:  // Przelaczanie: Smart <-> Instant
                     setupSmart = !setupSmart;

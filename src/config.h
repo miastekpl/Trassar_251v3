@@ -1,13 +1,16 @@
 #pragma once
 // ============================================================
-// TrassarV3 - Konfiguracja sprzętowa v2.22.0
+// TrassarV3 - Konfiguracja sprzętowa v2.23.0
 // Komputer pokładowy malowarki pasów drogowych
 // ============================================================
 
 #include <Arduino.h>
 
 // ============ WERSJA FIRMWARE ============
-#define FW_VERSION      "2.23.0"
+// FW_VERSION definiowane w platformio.ini (build_flags) — jedno zrodlo prawdy
+#ifndef FW_VERSION
+  #define FW_VERSION    "2.23.0"
+#endif
 #define FW_NAME         "TrassarV3"
 #define FW_DATE         __DATE__
 
@@ -164,7 +167,8 @@ enum MachineState : uint8_t {
 enum MachineMode : uint8_t {
     MODE_AUTO = 0,       // Pelna automatyka (dystans steruje pistoletami)
     MODE_SEMI_AUTO,      // Automatyczna linia, reczna przerwa
-    MODE_MANUAL          // Reczne sterowanie (START = strzelaj)
+    MODE_MANUAL,         // Reczne sterowanie (START = strzelaj)
+    MODE_DEMO            // Tryb nauki operatora (bez pistoletow, wizualizacja)
 };
 
 // ============ Ekrany ============

@@ -168,6 +168,7 @@ const char* DisplayManager::modeStr(MachineMode m) {
         case MODE_AUTO:      return "[AUTO]";
         case MODE_SEMI_AUTO: return "[SEMI]";
         case MODE_MANUAL:    return "[RECZNY]";
+        case MODE_DEMO:      return "[DEMO]";
         default:             return "[?]";
     }
 }
@@ -182,6 +183,32 @@ void DisplayManager::fmtTime(unsigned long sec, char* buf, size_t len) {
     } else {
         snprintf(buf, len, "%02lu:%02lu", m, s);
     }
+}
+
+// ============================================================
+//  Formatowanie dystansu (>=1000 -> km, else -> m)
+// ============================================================
+void DisplayManager::fmtDist(float meters, char* buf, size_t len) {
+    if (meters >= 1000.0f) {
+        snprintf(buf, len, "%.2f km", meters / 1000.0f);
+    } else {
+        snprintf(buf, len, "%.1f m", meters);
+    }
+}
+
+// ============================================================
+//  Wiersz statystyk: label po lewej, value po prawej (TR_DATUM)
+// ============================================================
+void DisplayManager::drawStatRow(const char* label, const char* value, int y) {
+    tft.setTextColor(cMenuTxt, cBg);
+    tft.setTextDatum(TL_DATUM);
+    tft.drawString(label, MARGIN_X + 4, y);
+    tft.setTextColor(cText, cBg);
+    tft.setTextPadding(140);
+    tft.setTextDatum(TR_DATUM);
+    tft.drawString(value, TFT_SCREEN_W - MARGIN_X, y);
+    tft.setTextPadding(0);
+    tft.setTextDatum(TL_DATUM);
 }
 
 // ============================================================

@@ -36,6 +36,8 @@ private:
     void handleGeoJson();
     void handleTrackList();
     void handleTrackDownload();
+    void handleHtmlReports();
+    void handleHtmlReportDownload();
     void handleNotFound();
 
     String buildHtmlPage();

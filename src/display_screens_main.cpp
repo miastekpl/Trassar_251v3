@@ -308,11 +308,7 @@ void DisplayManager::drawPaintingScreen(MachineState state, const char* patCode,
     // Dystans sesji
     tft.setFreeFont(FS9);
     tft.setTextColor(cText, cBg);
-    if (sessionDistM >= 1000.0f) {
-        snprintf(buf, sizeof(buf), "%.2f km", sessionDistM / 1000.0f);
-    } else {
-        snprintf(buf, sizeof(buf), "%.1f m", sessionDistM);
-    }
+    fmtDist(sessionDistM, buf, sizeof(buf));
     tft.setTextPadding(COL_L_PAD);
     tft.drawString(buf, MARGIN_X, ROW_DIST_Y);
     tft.setTextPadding(0);

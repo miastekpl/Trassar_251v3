@@ -6,7 +6,7 @@
 #include "display_internal.h"
 
 // ============================================================
-//  MENU SERWISOWE  (6 pozycji) - landscape, bez clear()
+//  MENU SERWISOWE  (9 pozycji, scrollowane) - landscape, bez clear()
 //  fillRect na kazdy item eliminuje miganie
 // ============================================================
 void DisplayManager::drawServiceMenu(int selectedIndex) {
@@ -17,14 +17,29 @@ void DisplayManager::drawServiceMenu(int selectedIndex) {
         "Pomiar dystansu",
         "Raporty",
         "Czyszczenie dysz",
+        "Statystyki lifetime",
+        "Wzorzec wlasny",
+        "Eksport statystyk",
         "Reset etapu",
         "Reset licznikow"
     };
 
+    // Oblicz okno przewijania (viewport)
+    int scrollTop = 0;
+    if (selectedIndex >= SMENU_VISIBLE) {
+        scrollTop = selectedIndex - SMENU_VISIBLE + 1;
+    }
+    if (scrollTop > SMENU_COUNT - SMENU_VISIBLE) {
+        scrollTop = SMENU_COUNT - SMENU_VISIBLE;
+    }
+
     tft.setFreeFont(FS9);
 
-    for (int i = 0; i < SMENU_COUNT; i++) {
-        int iy = SMENU_START_Y + i * SMENU_ITEM_H;
+    for (int v = 0; v < SMENU_VISIBLE; v++) {
+        int i = scrollTop + v;
+        if (i >= SMENU_COUNT) break;
+
+        int iy = SMENU_START_Y + v * SMENU_ITEM_H;
         bool sel = (i == selectedIndex);
         uint16_t bg = sel ? cMenuSel : cBg;
         uint16_t fg = sel ? cText      : cMenuTxt;
@@ -38,12 +53,24 @@ void DisplayManager::drawServiceMenu(int selectedIndex) {
         }
         tft.drawString(labels[i], SMENU_INDENT, iy + SMENU_ITEM_H / 2);
 
+        // Wskazniki przewijania
+        if (v == 0 && scrollTop > 0) {
+            tft.setTextColor(cAccent, bg);
+            tft.drawString("^", TFT_SCREEN_W - 20, iy + SMENU_ITEM_H / 2);
+            tft.setTextColor(fg, bg);
+        }
+        if (v == SMENU_VISIBLE - 1 && scrollTop + SMENU_VISIBLE < SMENU_COUNT) {
+            tft.setTextColor(cAccent, bg);
+            tft.drawString("v", TFT_SCREEN_W - 20, iy + SMENU_ITEM_H / 2);
+            tft.setTextColor(fg, bg);
+        }
+
         tft.setTextDatum(TL_DATUM);
         tft.drawFastHLine(0, iy + SMENU_ITEM_H - 1, TFT_SCREEN_W, cDivider);
     }
 
     // Wyczysc reszte ekranu pod menu (unikniecie artefaktow)
-    int bottomY = SMENU_START_Y + SMENU_COUNT * SMENU_ITEM_H;
+    int bottomY = SMENU_START_Y + SMENU_VISIBLE * SMENU_ITEM_H;
     if (bottomY < HINT_Y) {
         tft.fillRect(0, bottomY, TFT_SCREEN_W, HINT_Y - bottomY, cBg);
     }
@@ -178,11 +205,7 @@ void DisplayManager::drawDistanceMeter(float distanceM, bool measuring) {
     tft.setTextColor(cText, cBg);
     tft.setTextDatum(MC_DATUM);
     tft.setTextPadding(240);
-    if (distanceM >= 1000.0f) {
-        snprintf(buf, sizeof(buf), "%.2f km", distanceM / 1000.0f);
-    } else {
-        snprintf(buf, sizeof(buf), "%.2f m", distanceM);
-    }
+    fmtDist(distanceM, buf, sizeof(buf));
     tft.drawString(buf, TFT_SCREEN_W / 2, y + 16);
     tft.setTextPadding(0);
     tft.setTextDatum(TL_DATUM);
@@ -413,37 +436,18 @@ void DisplayManager::drawSessionResetScreen(float distM, float areaM2, unsigned 
 
     // Dystans
     tft.setFreeFont(FS9);
-    tft.setTextColor(cMenuTxt, cBg);
-    tft.drawString("Dystans:", MARGIN_X + 4, y);
-    if (distM >= 1000.0f) {
-        snprintf(buf, sizeof(buf), "%.2f km", distM / 1000.0f);
-    } else {
-        snprintf(buf, sizeof(buf), "%.1f m", distM);
-    }
-    tft.setTextColor(cText, cBg);
-    tft.setTextPadding(120);
-    tft.drawString(buf, 110, y);
-    tft.setTextPadding(0);
+    fmtDist(distM, buf, sizeof(buf));
+    drawStatRow("Dystans:", buf, y);
     y += 20;
 
     // Powierzchnia
-    tft.setTextColor(cMenuTxt, cBg);
-    tft.drawString("Powierzchnia:", MARGIN_X + 4, y);
     snprintf(buf, sizeof(buf), "%.2f m2", areaM2);
-    tft.setTextColor(cText, cBg);
-    tft.setTextPadding(120);
-    tft.drawString(buf, 130, y);
-    tft.setTextPadding(0);
+    drawStatRow("Powierzchnia:", buf, y);
     y += 20;
 
     // Czas
-    tft.setTextColor(cMenuTxt, cBg);
-    tft.drawString("Czas:", MARGIN_X + 4, y);
     fmtTime(timeSec, buf, sizeof(buf));
-    tft.setTextColor(cText, cBg);
-    tft.setTextPadding(120);
-    tft.drawString(buf, 110, y);
-    tft.setTextPadding(0);
+    drawStatRow("Czas:", buf, y);
     y += 24;
 
     tft.drawFastHLine(12, y, TFT_SCREEN_W - 24, cDivider);
@@ -492,44 +496,16 @@ void DisplayManager::drawCounterResetScreen(float ltDistM, float ltAreaM2,
     // Statystyki lifetime
     tft.setFreeFont(FS9);
 
-    // Dystans
-    tft.setTextColor(cMenuTxt, cBg);
-    tft.drawString("Dystans:", MARGIN_X + 4, y);
-    if (ltDistM >= 1000.0f) {
-        snprintf(buf, sizeof(buf), "%.2f km", ltDistM / 1000.0f);
-    } else {
-        snprintf(buf, sizeof(buf), "%.1f m", ltDistM);
-    }
-    tft.setTextColor(cText, cBg);
-    tft.setTextPadding(140);
-    tft.setTextDatum(TR_DATUM);
-    tft.drawString(buf, TFT_SCREEN_W - MARGIN_X, y);
-    tft.setTextPadding(0);
-    tft.setTextDatum(TL_DATUM);
+    fmtDist(ltDistM, buf, sizeof(buf));
+    drawStatRow("Dystans:", buf, y);
     y += 18;
 
-    // Powierzchnia
-    tft.setTextColor(cMenuTxt, cBg);
-    tft.drawString("Powierzchnia:", MARGIN_X + 4, y);
     snprintf(buf, sizeof(buf), "%.2f m2", ltAreaM2);
-    tft.setTextColor(cText, cBg);
-    tft.setTextPadding(140);
-    tft.setTextDatum(TR_DATUM);
-    tft.drawString(buf, TFT_SCREEN_W - MARGIN_X, y);
-    tft.setTextPadding(0);
-    tft.setTextDatum(TL_DATUM);
+    drawStatRow("Powierzchnia:", buf, y);
     y += 18;
 
-    // Czas
-    tft.setTextColor(cMenuTxt, cBg);
-    tft.drawString("Czas malowania:", MARGIN_X + 4, y);
     fmtTime(ltTimeSec, buf, sizeof(buf));
-    tft.setTextColor(cText, cBg);
-    tft.setTextPadding(140);
-    tft.setTextDatum(TR_DATUM);
-    tft.drawString(buf, TFT_SCREEN_W - MARGIN_X, y);
-    tft.setTextPadding(0);
-    tft.setTextDatum(TL_DATUM);
+    drawStatRow("Czas malowania:", buf, y);
     y += 18;
 
     // Strzaly pistoletow
@@ -589,69 +565,26 @@ void DisplayManager::drawSummaryScreen(const char* patCode, float distM, float a
     // Tabela statystyk
     tft.setFreeFont(FS9);
 
-    // Dystans
-    tft.setTextColor(cMenuTxt, cBg);
-    tft.drawString("Dystans:", MARGIN_X + 4, y);
-    if (distM >= 1000.0f) {
-        snprintf(buf, sizeof(buf), "%.2f km", distM / 1000.0f);
-    } else {
-        snprintf(buf, sizeof(buf), "%.1f m", distM);
-    }
-    tft.setTextColor(cText, cBg);
-    tft.setTextPadding(140);
-    tft.setTextDatum(TR_DATUM);
-    tft.drawString(buf, TFT_SCREEN_W - MARGIN_X, y);
-    tft.setTextPadding(0);
-    tft.setTextDatum(TL_DATUM);
+    fmtDist(distM, buf, sizeof(buf));
+    drawStatRow("Dystans:", buf, y);
     y += 18;
 
-    // Powierzchnia
-    tft.setTextColor(cMenuTxt, cBg);
-    tft.drawString("Powierzchnia:", MARGIN_X + 4, y);
     snprintf(buf, sizeof(buf), "%.2f m2", areaM2);
-    tft.setTextColor(cText, cBg);
-    tft.setTextPadding(140);
-    tft.setTextDatum(TR_DATUM);
-    tft.drawString(buf, TFT_SCREEN_W - MARGIN_X, y);
-    tft.setTextPadding(0);
-    tft.setTextDatum(TL_DATUM);
+    drawStatRow("Powierzchnia:", buf, y);
     y += 18;
 
-    // Czas
-    tft.setTextColor(cMenuTxt, cBg);
-    tft.drawString("Czas:", MARGIN_X + 4, y);
     fmtTime(timeSec, buf, sizeof(buf));
-    tft.setTextColor(cText, cBg);
-    tft.setTextPadding(140);
-    tft.setTextDatum(TR_DATUM);
-    tft.drawString(buf, TFT_SCREEN_W - MARGIN_X, y);
-    tft.setTextPadding(0);
-    tft.setTextDatum(TL_DATUM);
+    drawStatRow("Czas:", buf, y);
     y += 18;
 
-    // Srednia predkosc
-    tft.setTextColor(cMenuTxt, cBg);
-    tft.drawString("Sred. predkosc:", MARGIN_X + 4, y);
     snprintf(buf, sizeof(buf), "%.1f km/h", speedAvg);
-    tft.setTextColor(cText, cBg);
-    tft.setTextPadding(140);
-    tft.setTextDatum(TR_DATUM);
-    tft.drawString(buf, TFT_SCREEN_W - MARGIN_X, y);
-    tft.setTextPadding(0);
-    tft.setTextDatum(TL_DATUM);
+    drawStatRow("Sred. predkosc:", buf, y);
     y += 18;
 
     // GPS (jesli dostepny)
     if (hasGps) {
-        tft.setTextColor(cMenuTxt, cBg);
-        tft.drawString("GPS:", MARGIN_X + 4, y);
         snprintf(buf, sizeof(buf), "%.6f, %.6f", lat, lon);
-        tft.setTextColor(cAccent, cBg);
-        tft.setTextPadding(200);
-        tft.setTextDatum(TR_DATUM);
-        tft.drawString(buf, TFT_SCREEN_W - MARGIN_X, y);
-        tft.setTextPadding(0);
-        tft.setTextDatum(TL_DATUM);
+        drawStatRow("GPS:", buf, y);
     }
 
     // --- Podpowiedzi ---
@@ -677,9 +610,9 @@ void DisplayManager::drawSetupScreen(int cursor, MachineMode mode,
         "Przelaczanie:",
         "Start:"
     };
-    const char* modeVals[3] = { "AUTO", "SEMI-AUTO", "RECZNY" };
+    const char* modeVals[4] = { "AUTO", "SEMI-AUTO", "RECZNY", "DEMO" };
     const char* values[3] = {
-        modeVals[(int)mode],
+        modeVals[(int)mode < 4 ? (int)mode : 0],
         smartSwitch ? "Smart" : "Instant",
         gapStart    ? "Od przerwy" : "Normalny"
     };
@@ -753,56 +686,20 @@ void DisplayManager::drawLifetimeStatsScreen(float ltDistM, float ltAreaM2,
 
     tft.setFreeFont(FS9);
 
-    // Dystans
-    tft.setTextColor(cMenuTxt, cBg);
-    tft.drawString("Dystans:", MARGIN_X + 4, y);
-    if (ltDistM >= 1000.0f) {
-        snprintf(buf, sizeof(buf), "%.2f km", ltDistM / 1000.0f);
-    } else {
-        snprintf(buf, sizeof(buf), "%.1f m", ltDistM);
-    }
-    tft.setTextColor(cText, cBg);
-    tft.setTextPadding(140);
-    tft.setTextDatum(TR_DATUM);
-    tft.drawString(buf, TFT_SCREEN_W - MARGIN_X, y);
-    tft.setTextPadding(0);
-    tft.setTextDatum(TL_DATUM);
+    fmtDist(ltDistM, buf, sizeof(buf));
+    drawStatRow("Dystans:", buf, y);
     y += 18;
 
-    // Powierzchnia
-    tft.setTextColor(cMenuTxt, cBg);
-    tft.drawString("Powierzchnia:", MARGIN_X + 4, y);
     snprintf(buf, sizeof(buf), "%.2f m2", ltAreaM2);
-    tft.setTextColor(cText, cBg);
-    tft.setTextPadding(140);
-    tft.setTextDatum(TR_DATUM);
-    tft.drawString(buf, TFT_SCREEN_W - MARGIN_X, y);
-    tft.setTextPadding(0);
-    tft.setTextDatum(TL_DATUM);
+    drawStatRow("Powierzchnia:", buf, y);
     y += 18;
 
-    // Czas malowania
-    tft.setTextColor(cMenuTxt, cBg);
-    tft.drawString("Czas malowania:", MARGIN_X + 4, y);
     fmtTime(ltTimeSec, buf, sizeof(buf));
-    tft.setTextColor(cText, cBg);
-    tft.setTextPadding(140);
-    tft.setTextDatum(TR_DATUM);
-    tft.drawString(buf, TFT_SCREEN_W - MARGIN_X, y);
-    tft.setTextPadding(0);
-    tft.setTextDatum(TL_DATUM);
+    drawStatRow("Czas malowania:", buf, y);
     y += 18;
 
-    // MTH
-    tft.setTextColor(cMenuTxt, cBg);
-    tft.drawString("Motogodziny:", MARGIN_X + 4, y);
     fmtMTH(mthSec, buf, sizeof(buf));
-    tft.setTextColor(cAccent, cBg);
-    tft.setTextPadding(140);
-    tft.setTextDatum(TR_DATUM);
-    tft.drawString(buf, TFT_SCREEN_W - MARGIN_X, y);
-    tft.setTextPadding(0);
-    tft.setTextDatum(TL_DATUM);
+    drawStatRow("Motogodziny:", buf, y);
     y += 22;
 
     tft.drawFastHLine(12, y, TFT_SCREEN_W - 24, cDivider);

@@ -95,7 +95,9 @@ private:
     uint16_t stateColor(MachineState s);
     const char* modeStr(MachineMode m);
     void fmtTime(unsigned long sec, char* buf, size_t len);
+    void fmtDist(float meters, char* buf, size_t len);
     void fmtMTH(uint32_t sec, char* buf, size_t len);
+    void drawStatRow(const char* label, const char* value, int y);
     void drawPatternVisualization(int vizX, int vizY, int vizW, int vizH,
                                   const GunPatternCfg gunsCfg[6],
                                   bool reversed, bool gapStart,
