@@ -53,6 +53,12 @@ public:
     // Tryb polautomatyczny - wyzwolenie kolejnej linii
     void semiNextLine();
     bool isSemiLineComplete() const { return semiLineComplete; }
+    int  getSemiSegmentNum() const { return semiSegmentNum; }
+
+    // Auto-pauza / auto-resume
+    bool isAutoPaused() const { return autoPaused; }
+    void setAutoResumeEnabled(bool en) { autoResumeEnabled = en; }
+    bool isAutoResumeEnabled() const { return autoResumeEnabled; }
 
     // Dystans od startu wzorca (do podgladu na TFT)
     float getPatternDistance() const;
@@ -73,6 +79,13 @@ private:
     // Tryb polautomatyczny (SEMI_AUTO)
     float semiLineDist = 0;        // Dystans w biezacej linii
     bool  semiLineComplete = false; // Linia zakonczona, czeka na START
+    int   semiSegmentNum = 0;      // Numer segmentu (linia) w sesji
+
+    // Auto-pauza przy zatrzymaniu
+    bool  autoPaused = false;          // Czy auto-pauza aktywna
+    bool  autoResumeEnabled = true;    // Czy auto-resume po ruszeniu
+    unsigned long lowSpeedStartMs = 0; // Kiedy predkosc spadla < progu
+    bool  autoPauseTracking = false;   // Czy liczymy czas do auto-pauzy
 
     // Gun keepalive
     unsigned long lastGunUpdateMs = 0;

@@ -560,6 +560,15 @@ void MenuSystem::handleCustomPattern(ButtonEvent e) {
     }
 }
 
+// ============ SCREEN_POST ============
+
+void MenuSystem::handlePost(ButtonEvent e) {
+    // POST jest obslugiwany w setup(), ale gdyby uzytkownik tu trafil:
+    if (e == EVT_START_SHORT || e == EVT_START_LONG || e == EVT_STOP_LONG) {
+        goToScreen(SCREEN_HOME);
+    }
+}
+
 // ============ SCREEN_STATS_EXPORT ============
 
 void MenuSystem::handleStatsExport(ButtonEvent e) {

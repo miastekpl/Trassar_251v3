@@ -186,7 +186,8 @@ enum ScreenID : uint8_t {
     SCREEN_SUMMARY,         // Podsumowanie etapu po STOP
     SCREEN_LIFETIME_STATS,  // Statystyki lifetime
     SCREEN_CUSTOM_PATTERN,  // Edycja wzorca wlasnego
-    SCREEN_STATS_EXPORT     // Eksport statystyk na SD
+    SCREEN_STATS_EXPORT,    // Eksport statystyk na SD
+    SCREEN_POST             // Power-On Self-Test (diagnostyka startowa)
 };
 
 // ============ Identyfikatory wzorców ============

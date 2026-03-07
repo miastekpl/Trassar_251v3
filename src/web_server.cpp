@@ -303,6 +303,7 @@ void TrassarWebServer::handleControl() {
             float val = server.arg("value").toFloat();
             if (val >= 1.0f && val <= 1000.0f) {
                 paintConsumption.setTankCapacity(val);
+                storage.saveTankCapacity(val);
             } else {
                 result = "zakres 1-1000 litrow";
             }
@@ -312,9 +313,16 @@ void TrassarWebServer::handleControl() {
             float val = server.arg("value").toFloat();
             if (val >= 0.1f && val <= 5.0f) {
                 paintConsumption.setConsumptionRate(val);
+                storage.saveConsumptionRate(val);
             } else {
                 result = "zakres 0.1-5.0 l/m2";
             }
+        }
+    } else if (action == "set_auto_resume") {
+        if (server.hasArg("value")) {
+            bool en = (server.arg("value").toInt() != 0);
+            paintEngine.setAutoResumeEnabled(en);
+            storage.saveAutoResume(en);
         }
     } else {
         result = "nieznana akcja";
@@ -500,6 +508,11 @@ String TrassarWebServer::getStateJson() {
     for (int i = 0; i < NUM_GUNS; i++) {
         gunsArr.add(guns.getState(i));
     }
+
+    // Auto-pauza / auto-resume
+    doc["autoPaused"] = paintEngine.isAutoPaused();
+    doc["autoResumeEnabled"] = paintEngine.isAutoResumeEnabled();
+    doc["semiSegment"] = paintEngine.getSemiSegmentNum();
 
     // Przelaczanie wzorcow
     doc["smartSwitch"] = paintEngine.isSmartSwitch();

@@ -61,6 +61,18 @@ public:
     // Eksport statystyk na SD
     void drawStatsExportScreen(bool exporting, bool success);
 
+    // POST (Power-On Self-Test)
+    struct PostResult {
+        bool sdOk;
+        bool rtcOk;
+        bool gpsOk;
+        bool mcpOk;
+        bool encOk;
+        bool tempOk;
+        float temperature;
+    };
+    void drawPostScreen(const PostResult& result, bool done);
+
     // Ikona ostrzezenia SD na ekranie malowania
     void drawSdWarningIcon();
 

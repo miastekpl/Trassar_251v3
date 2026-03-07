@@ -6,6 +6,8 @@
 #include "report_logger.h"
 #include "rtc_handler.h"
 #include "event_log.h"
+#include "statistics.h"
+#include "patterns.h"
 #include <SD.h>
 
 SessionReport sessionReport;
@@ -89,6 +91,25 @@ bool SessionReport::generateReport(const char* patCode, float distM, float areaM
     f.printf("<tr><td>Czas malowania</td><td>%s</td></tr>", timeStr);
     f.printf("<tr><td>Srednia predkosc</td><td>%.1f km/h</td></tr>", avgSpeedKmh);
     f.print(F("</table></div>"));
+
+    // Rozbicie per wzorzec (jesli bylo wiecej niz 1 wzorzec)
+    int patCount = stats.getPatternEntryCount();
+    if (patCount > 1) {
+        f.print(F("<div class='card'><h2>Wzorce w sesji</h2><table>"
+                  "<tr><td><strong>Wzorzec</strong></td><td><strong>Dystans / Powierzchnia</strong></td></tr>"));
+        for (int i = 0; i < patCount; i++) {
+            const auto& pe = stats.getPatternEntry(i);
+            const PatternDef& pd = patternMgr.getPattern(pe.pattern);
+            char dBuf[32];
+            if (pe.distance >= 1000.0f)
+                snprintf(dBuf, sizeof(dBuf), "%.2f km", pe.distance / 1000.0f);
+            else
+                snprintf(dBuf, sizeof(dBuf), "%.1f m", pe.distance);
+            f.printf("<tr><td class='accent'>%s</td><td>%s / %.2f m&sup2;</td></tr>",
+                     pd.code, dBuf, pe.area);
+        }
+        f.print(F("</table></div>"));
+    }
 
     // Sekcja zuzycia farby
     f.print(F("<div class='card'><h2>Zuzycie farby</h2><table>"));

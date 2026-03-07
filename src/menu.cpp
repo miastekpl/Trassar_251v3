@@ -59,6 +59,7 @@ void MenuSystem::handleEvent(ButtonEvent event) {
         case SCREEN_LIFETIME_STATS: handleLifetimeStats(event);   break;
         case SCREEN_CUSTOM_PATTERN: handleCustomPattern(event);   break;
         case SCREEN_STATS_EXPORT:   handleStatsExport(event);     break;
+        case SCREEN_POST:           handlePost(event);            break;
     }
 }
 
@@ -249,6 +250,11 @@ void MenuSystem::update() {
         // ---- Eksport statystyk ----
         case SCREEN_STATS_EXPORT:
             display.drawStatsExportScreen(!exportDone, exportSuccess);
+            break;
+
+        // ---- POST (diagnostyka) ----
+        case SCREEN_POST:
+            // POST jest obslugiwany w setup(), ten case zapobiega warningowi
             break;
     }
 }

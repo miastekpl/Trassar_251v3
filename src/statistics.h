@@ -40,6 +40,18 @@ public:
     void saveLifetime();
     void loadLifetime();
 
+    // Sledzenie wzorcow w sesji
+    static const int MAX_PATTERN_ENTRIES = 16;
+    struct PatternEntry {
+        PatternID pattern;
+        float distance;
+        float area;
+    };
+    void notifyPatternChange(PatternID newPattern);
+    int getPatternEntryCount() const { return patEntryCount; }
+    const PatternEntry& getPatternEntry(int idx) const { return patEntries[idx]; }
+    void finalizeCurrentPattern();
+
     // Motogodziny (MTH) - calkowity czas pracy silnika
     void startMTH();
     void stopMTH();
@@ -63,6 +75,13 @@ private:
     // Licznik strzalow pistoletow (lifetime, zlicza tranzycje OFF->ON)
     uint32_t gunShotCounts[NUM_GUNS] = {};
     bool     gunWasOn[NUM_GUNS] = {};  // Stan poprzedni (do detekcji tranzycji)
+
+    // Sledzenie wzorcow w sesji
+    PatternEntry patEntries[MAX_PATTERN_ENTRIES] = {};
+    int patEntryCount = 0;
+    PatternID currentPatternTracked = PAT_P1A;
+    float patCurrentDist = 0;
+    float patCurrentArea = 0;
 
     // Motogodziny (MTH)
     uint32_t mthTotalSec = 0;

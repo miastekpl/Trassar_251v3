@@ -32,6 +32,12 @@ void PaintingEngine::begin() {
     lastOverspeedBuzMs = 0;
     semiLineDist = 0;
     semiLineComplete = false;
+    semiSegmentNum = 0;
+    autoPaused = false;
+    autoPauseTracking = false;
+    lowSpeedStartMs = 0;
+    // Wczytaj ustawienie auto-resume z NVS
+    autoResumeEnabled = storage.loadAutoResume();
 }
 
 bool PaintingEngine::shouldGunFire(GunID gun, float distFromPatternStart) const {
@@ -62,6 +68,17 @@ void PaintingEngine::update() {
     if (snapState != STATE_PAINTING) {
         overspeedActive = false;
         lowSpeedActive = false;
+
+        // --- Auto-resume: wznowienie po auto-pauzie gdy predkosc wzrosla ---
+        if (snapState == STATE_PAUSED && autoPaused && autoResumeEnabled) {
+            float speedNow = encoderDist.getSpeedKmh();
+            if (speedNow >= minSpeedKmh) {
+                autoPaused = false;
+                resume();
+                eventLog.logf("ENGINE", "AUTO-RESUME: predkosc %.1f >= %.1f km/h",
+                              speedNow, minSpeedKmh);
+            }
+        }
         return;
     }
 
@@ -204,6 +221,26 @@ void PaintingEngine::update() {
         buzzer.play(BUZ_OVERSPEED);
         lastOverspeedBuzMs = now;
     }
+
+    // --- Auto-pauza przy zatrzymaniu (tryb AUTO/SEMI/DEMO) ---
+    if (snapMode != MODE_MANUAL) {
+        if (speedKmh < AUTO_PAUSE_SPEED_KMH) {
+            if (!autoPauseTracking) {
+                autoPauseTracking = true;
+                lowSpeedStartMs = now;
+            } else if (!autoPaused && (now - lowSpeedStartMs >= AUTO_PAUSE_DELAY_MS)) {
+                // Predkosc < prog przez AUTO_PAUSE_DELAY_MS -> auto-pauza
+                autoPaused = true;
+                autoPauseTracking = false;
+                pause();
+                buzzer.play(BUZ_AUTO_PAUSE);
+                eventLog.logf("ENGINE", "AUTO-PAUZA: predkosc %.1f < %.1f km/h",
+                              speedKmh, (float)AUTO_PAUSE_SPEED_KMH);
+            }
+        } else {
+            autoPauseTracking = false;
+        }
+    }
 }
 
 void PaintingEngine::start(float offsetDist) {
@@ -220,6 +257,9 @@ void PaintingEngine::start(float offsetDist) {
         patternChangePending = false;
         semiLineDist = 0;
         semiLineComplete = false;
+        semiSegmentNum = 1;
+        autoPaused = false;
+        autoPauseTracking = false;
 
         STATE_LOCK();
         g_state.machineState = STATE_PAINTING;
@@ -297,7 +337,10 @@ void PaintingEngine::pause() {
     if (canPause) {
         guns.allOff();
         stats.pauseSessionTimer();
-        buzzer.play(BUZ_PAINT_STOP);
+        // Nie graj BUZ_PAINT_STOP przy auto-pauzie (jest BUZ_AUTO_PAUSE)
+        if (!autoPaused) {
+            buzzer.play(BUZ_PAINT_STOP);
+        }
         STATE_LOCK();
         g_state.displayNeedsUpdate = true;
         STATE_UNLOCK();
@@ -312,6 +355,8 @@ void PaintingEngine::resume() {
     STATE_UNLOCK();
 
     if (canResume) {
+        autoPaused = false;
+        autoPauseTracking = false;
         lastGunUpdateMs = millis();
         stats.resumeSessionTimer();
         buzzer.play(BUZ_PAINT_START);
@@ -330,6 +375,8 @@ void PaintingEngine::stop() {
     STATE_UNLOCK();
 
     if (canStop) {
+        autoPaused = false;
+        autoPauseTracking = false;
         // Zastosuj oczekujacy wzorzec (zeby po STOP byl aktywny)
         if (patternChangePending) {
             patternMgr.setPattern(pendingPattern);
@@ -339,6 +386,7 @@ void PaintingEngine::stop() {
                           patternMgr.getCurrent().code);
         }
         guns.allOff();
+        stats.finalizeCurrentPattern();
         stats.pauseSessionTimer();
         stats.saveLifetime();
         buzzer.play(BUZ_PAINT_STOP);
@@ -416,6 +464,7 @@ void PaintingEngine::setPattern(PatternID pat) {
             g_state.displayNeedsUpdate = true;
         } else {
             // INSTANT: natychmiastowa zmiana (utnij biezacy wzorzec)
+            stats.notifyPatternChange(pat);
             patternMgr.setPattern(pat);
             patternStartDist = encoderDist.getDistanceMeters();
             storage.saveLastPattern(pat);
@@ -456,6 +505,7 @@ float PaintingEngine::getPrimaryCycle() const {
 void PaintingEngine::applyPendingPattern() {
     Serial.printf("[ENGINE] Inteligentne przelaczenie -> %s\n",
                   patternMgr.getPattern(pendingPattern).code);
+    stats.notifyPatternChange(pendingPattern);
     patternMgr.setPattern(pendingPattern);
     patternStartDist = encoderDist.getDistanceMeters();
     storage.saveLastPattern(pendingPattern);
@@ -483,8 +533,9 @@ void PaintingEngine::semiNextLine() {
     if (!semiLineComplete) return;
     semiLineDist = 0;
     semiLineComplete = false;
+    semiSegmentNum++;
     buzzer.beep(1500, 80);  // Krotki sygnal potwierdzenia
-    Serial.println("[ENGINE] Semi-auto: rozpoczynam kolejna linie");
+    Serial.printf("[ENGINE] Semi-auto: rozpoczynam segment %d\n", semiSegmentNum);
 }
 
 float PaintingEngine::getPatternDistance() const {

@@ -24,6 +24,7 @@ private:
     void handleLifetimeStats(ButtonEvent e);
     void handleCustomPattern(ButtonEvent e);
     void handleStatsExport(ButtonEvent e);
+    void handlePost(ButtonEvent e);
 
     static const int SERVICE_MENU_ITEMS = 9;  // 6 + lifetime + custom_pat + export
 

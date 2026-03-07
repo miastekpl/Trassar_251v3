@@ -25,12 +25,14 @@ void StatisticsManager::updatePainting(float distanceDelta, const bool gunStates
     sessionDistance += distanceDelta;
     lifetime.totalDistance += distanceDelta;
 
+    float deltaArea = 0;
     for (int i = 0; i < NUM_GUNS; i++) {
         if (gunStates[i]) {
             float area = distanceDelta * GUN_WIDTHS_M[i];
             gunDistances[i] += distanceDelta;
             sessionArea += area;
             lifetime.totalArea += area;
+            deltaArea += area;
             // Zlicz tranzycje OFF->ON (= nowy strzal)
             if (!gunWasOn[i]) {
                 gunShotCounts[i]++;
@@ -38,6 +40,10 @@ void StatisticsManager::updatePainting(float distanceDelta, const bool gunStates
         }
         gunWasOn[i] = gunStates[i];
     }
+
+    // Sledzenie wzorcow w sesji
+    patCurrentDist += distanceDelta;
+    patCurrentArea += deltaArea;
 }
 
 void StatisticsManager::resetSession() {
@@ -49,6 +55,37 @@ void StatisticsManager::resetSession() {
     sessionTimerRunning = false;
     for (int i = 0; i < NUM_GUNS; i++) {
         gunDistances[i] = 0;
+    }
+    patEntryCount = 0;
+    patCurrentDist = 0;
+    patCurrentArea = 0;
+    currentPatternTracked = g_state.currentPattern;
+}
+
+void StatisticsManager::notifyPatternChange(PatternID newPattern) {
+    if (newPattern == currentPatternTracked) return;
+    finalizeCurrentPattern();
+    currentPatternTracked = newPattern;
+    patCurrentDist = 0;
+    patCurrentArea = 0;
+}
+
+void StatisticsManager::finalizeCurrentPattern() {
+    if (patCurrentDist <= 0 && patCurrentArea <= 0) return;
+    // Szukaj istniejacego wpisu dla tego wzorca
+    for (int i = 0; i < patEntryCount; i++) {
+        if (patEntries[i].pattern == currentPatternTracked) {
+            patEntries[i].distance += patCurrentDist;
+            patEntries[i].area += patCurrentArea;
+            return;
+        }
+    }
+    // Nowy wpis
+    if (patEntryCount < MAX_PATTERN_ENTRIES) {
+        patEntries[patEntryCount].pattern = currentPatternTracked;
+        patEntries[patEntryCount].distance = patCurrentDist;
+        patEntries[patEntryCount].area = patCurrentArea;
+        patEntryCount++;
     }
 }
 

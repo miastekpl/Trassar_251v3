@@ -205,6 +205,39 @@ bool StorageManager::loadNightMode() {
     return prefs.getBool("night_mode", false);
 }
 
+void StorageManager::saveTankCapacity(float liters) {
+    NvsSession s(false);
+    prefs.putFloat("tank_cap", liters);
+    Serial.printf("[NVS] Zapisano pojemnosc zbiornika: %.0f L\n", liters);
+}
+
+float StorageManager::loadTankCapacity() {
+    NvsSession s(true);
+    return prefs.getFloat("tank_cap", 200.0f);
+}
+
+void StorageManager::saveConsumptionRate(float lPerM2) {
+    NvsSession s(false);
+    prefs.putFloat("cons_rate", lPerM2);
+    Serial.printf("[NVS] Zapisano zuzycie farby: %.2f l/m2\n", lPerM2);
+}
+
+float StorageManager::loadConsumptionRate() {
+    NvsSession s(true);
+    return prefs.getFloat("cons_rate", 0.60f);
+}
+
+void StorageManager::saveAutoResume(bool enabled) {
+    NvsSession s(false);
+    prefs.putBool("auto_res", enabled);
+    Serial.printf("[NVS] Auto-resume: %s\n", enabled ? "ON" : "OFF");
+}
+
+bool StorageManager::loadAutoResume() {
+    NvsSession s(true);
+    return prefs.getBool("auto_res", true);
+}
+
 void StorageManager::resetAllExceptCalibration() {
     // Zachowaj kalibracje i MTH przed czyszczeniem
     bool calibrated;

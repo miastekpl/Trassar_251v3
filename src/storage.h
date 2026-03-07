@@ -57,6 +57,16 @@ public:
     void saveNightMode(bool enabled);
     bool loadNightMode();
 
+    // Pojemnosc zbiornika i zuzycie farby
+    void saveTankCapacity(float liters);
+    float loadTankCapacity();
+    void saveConsumptionRate(float lPerM2);
+    float loadConsumptionRate();
+
+    // Auto-resume po auto-pauzie
+    void saveAutoResume(bool enabled);
+    bool loadAutoResume();
+
     // Reset wszystkich danych oprocz kalibracji
     void resetAllExceptCalibration();
 

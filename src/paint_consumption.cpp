@@ -3,10 +3,13 @@
 // ============================================================
 
 #include "paint_consumption.h"
+#include "storage.h"
 
 PaintConsumption paintConsumption;
 
 void PaintConsumption::begin() {
-    tankCapacityL = 200.0f;
-    consumptionRateL = DEFAULT_CONSUMPTION_L_PER_M2;
+    tankCapacityL = storage.loadTankCapacity();
+    consumptionRateL = storage.loadConsumptionRate();
+    Serial.printf("[PAINT] Zbiornik: %.0f L, zuzycie: %.2f l/m2\n",
+                  tankCapacityL, consumptionRateL);
 }

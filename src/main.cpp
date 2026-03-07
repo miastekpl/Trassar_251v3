@@ -32,6 +32,7 @@
 #include "nvs_backup.h"
 #include "pattern_buttons.h"
 #include "paint_consumption.h"
+#include "temp_sensor.h"
 #include <esp_task_wdt.h>
 #include <esp_heap_caps.h>
 
@@ -174,6 +175,10 @@ void setup() {
     Serial.println("[INIT] Paint consumption...");
     paintConsumption.begin();
 
+    // 11d. Czujnik temperatury DS18B20 (opcjonalny)
+    Serial.println("[INIT] Czujnik temperatury...");
+    tempSensor.begin();
+
     // 12. System menu
     Serial.println("[INIT] System menu...");
     menu.begin();
@@ -182,8 +187,36 @@ void setup() {
     Serial.println("[INIT] WiFi AP + serwer WWW...");
     webServer.begin();
 
-    // Ekran powitalny
-    delay(1500);
+    // ======== POST (Power-On Self-Test) ========
+    {
+        DisplayManager::PostResult post;
+        post.sdOk    = reportLogger.isReady();
+        post.rtcOk   = rtcModule.isRunning();
+        post.gpsOk   = gpsHandler.hasFix();
+        post.mcpOk   = patternButtons.isReady();
+        post.encOk   = encoderDist.isCalibrated();
+        post.tempOk  = tempSensor.isAvailable();
+        post.temperature = tempSensor.getTemperature();
+
+        display.clear();
+        display.drawPostScreen(post, false);
+        delay(800);
+        display.drawPostScreen(post, true);
+
+        // Czekaj na START lub timeout 5s
+        unsigned long postStart = millis();
+        bool postWait = true;
+        while (postWait && (millis() - postStart < 5000)) {
+            esp_task_wdt_reset();
+            buttons.update();
+            ButtonEvent pe = buttons.getEvent();
+            if (pe == EVT_START_SHORT || pe == EVT_START_LONG) {
+                postWait = false;
+            }
+            delay(10);
+        }
+        buzzer.beep(2000, 100);
+    }
 
     // Wyrzuc szum enkodera nazbierany podczas inicjalizacji
     encoderDist.resetDistance();
@@ -274,6 +307,9 @@ void loop() {
 
     // 3c. Zapis trasy GPS (co 5s podczas malowania)
     gpsTrack.update();
+
+    // 3d. Czujnik temperatury (odczyt co 5s)
+    tempSensor.update();
 
     // 4. Silnik malowania (sterowanie pistoletami)
     paintEngine.update();

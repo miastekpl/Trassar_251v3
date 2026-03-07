@@ -4,6 +4,7 @@
 // ============================================================
 
 #include "display_internal.h"
+#include "temp_sensor.h"
 
 // ============================================================
 //  MENU SERWISOWE  (9 pozycji, scrollowane) - landscape, bez clear()
@@ -884,4 +885,83 @@ void DisplayManager::drawSdWarningIcon() {
     tft.setTextColor(cWarning, cBg);
     tft.setTextDatum(TL_DATUM);
     tft.drawString("SD", ix + 19, iy + 2);
+}
+
+// ============================================================
+//  POST (Power-On Self-Test) - ekran diagnostyczny na starcie
+// ============================================================
+void DisplayManager::drawPostScreen(const PostResult& r, bool done) {
+    drawHeader("DIAGNOSTYKA (POST)");
+
+    int y = SMENU_START_Y + 4;
+    tft.setFreeFont(FS9);
+
+    auto drawItem = [&](const char* label, bool ok) {
+        tft.setTextColor(cMenuTxt, cBg);
+        tft.drawString(label, MARGIN_X + 4, y);
+        tft.setTextPadding(60);
+        tft.setTextDatum(TR_DATUM);
+        if (ok) {
+            tft.setTextColor(cAccent, cBg);
+            tft.drawString("OK", TFT_SCREEN_W - MARGIN_X, y);
+        } else {
+            tft.setTextColor(cError, cBg);
+            tft.drawString("BRAK", TFT_SCREEN_W - MARGIN_X, y);
+        }
+        tft.setTextPadding(0);
+        tft.setTextDatum(TL_DATUM);
+        y += 22;
+    };
+
+    drawItem("Karta SD:", r.sdOk);
+    drawItem("Zegar RTC:", r.rtcOk);
+    drawItem("GPS NEO-6M:", r.gpsOk);
+    drawItem("MCP23017 (I2C):", r.mcpOk);
+    drawItem("Enkoder:", r.encOk);
+
+    // Temperatura
+    tft.setTextColor(cMenuTxt, cBg);
+    tft.drawString("Temperatura:", MARGIN_X + 4, y);
+    tft.setTextPadding(80);
+    tft.setTextDatum(TR_DATUM);
+    if (r.tempOk) {
+        char buf[16];
+        snprintf(buf, sizeof(buf), "%.1f C", r.temperature);
+        bool tempWarn = (r.temperature < TEMP_WARNING_LOW || r.temperature > TEMP_WARNING_HIGH);
+        tft.setTextColor(tempWarn ? cWarning : cAccent, cBg);
+        tft.drawString(buf, TFT_SCREEN_W - MARGIN_X, y);
+    } else {
+        tft.setTextColor(cMenuTxt, cBg);
+        tft.drawString("--", TFT_SCREEN_W - MARGIN_X, y);
+    }
+    tft.setTextPadding(0);
+    tft.setTextDatum(TL_DATUM);
+    y += 30;
+
+    tft.drawFastHLine(12, y, TFT_SCREEN_W - 24, cDivider);
+    y += 12;
+
+    // Status ogolny
+    bool allOk = r.sdOk && r.rtcOk && r.encOk;
+    tft.setFreeFont(FSB12);
+    tft.setTextDatum(MC_DATUM);
+    if (allOk) {
+        tft.setTextColor(cAccent, cBg);
+        tft.setTextPadding(200);
+        tft.drawString("System gotowy", TFT_SCREEN_W / 2, y + 10);
+    } else {
+        tft.setTextColor(cWarning, cBg);
+        tft.setTextPadding(200);
+        tft.drawString("Uwaga: brak modulow", TFT_SCREEN_W / 2, y + 10);
+    }
+    tft.setTextPadding(0);
+    tft.setTextDatum(TL_DATUM);
+
+    if (done) {
+        tft.setFreeFont(FM9);
+        tft.setTextColor(cMenuTxt, cBg);
+        tft.setTextPadding(TFT_SCREEN_W - 12);
+        tft.drawString("START=kontynuuj", HINT_X, HINT_Y);
+        tft.setTextPadding(0);
+    }
 }
