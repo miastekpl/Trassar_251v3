@@ -327,6 +327,87 @@ void TrassarWebServer::handleControl() {
 }
 
 // ============================================================
+// GET /api/html_reports - Lista raportow HTML na karcie SD
+// ============================================================
+void TrassarWebServer::handleHtmlReports() {
+    if (!SD_LOCK()) {
+        server.send(503, "application/json", "{\"error\":\"SD zajeta\"}");
+        return;
+    }
+    String json = "[";
+    File dir = SD.open("/html_reports");
+    if (dir && dir.isDirectory()) {
+        bool first = true;
+        File f = dir.openNextFile();
+        while (f) {
+            if (!f.isDirectory()) {
+                if (!first) json += ",";
+                json += "\"";
+                json += f.name();
+                json += "\"";
+                first = false;
+            }
+            f = dir.openNextFile();
+        }
+        dir.close();
+    }
+    SD_UNLOCK();
+    json += "]";
+    server.send(200, "application/json", json);
+}
+
+// ============================================================
+// GET /api/html_reports/download?file=FILENAME - Pobierz raport HTML
+// ============================================================
+void TrassarWebServer::handleHtmlReportDownload() {
+    if (!server.hasArg("file")) {
+        server.send(400, "text/plain", "Brak parametru file");
+        return;
+    }
+    String fname = server.arg("file");
+    // Zabezpieczenie: tylko litery, cyfry, kropka, podkreslenie, myslnik
+    for (unsigned int i = 0; i < fname.length(); i++) {
+        char c = fname.charAt(i);
+        if (!isalnum(c) && c != '.' && c != '_' && c != '-') {
+            server.send(400, "text/plain", "Nieprawidlowa nazwa pliku");
+            return;
+        }
+    }
+
+    String path = "/html_reports/" + fname;
+    if (!SD_LOCK()) {
+        server.send(503, "text/plain", "SD zajeta");
+        return;
+    }
+
+    if (!SD.exists(path.c_str())) {
+        SD_UNLOCK();
+        server.send(404, "text/plain", "Plik nie znaleziony");
+        return;
+    }
+
+    File f = SD.open(path.c_str(), FILE_READ);
+    if (!f) {
+        SD_UNLOCK();
+        server.send(500, "text/plain", "Blad otwarcia pliku");
+        return;
+    }
+
+    server.sendHeader("Content-Disposition", "inline; filename=\"" + fname + "\"");
+    server.setContentLength(f.size());
+    server.send(200, "text/html", "");
+
+    uint8_t buf[512];
+    while (f.available()) {
+        int r = f.read(buf, sizeof(buf));
+        if (r > 0) server.sendContent((const char*)buf, r);
+    }
+    f.close();
+    SD_UNLOCK();
+    Serial.printf("[WWW] Pobranie raportu HTML: %s\n", fname.c_str());
+}
+
+// ============================================================
 // 404
 // ============================================================
 void TrassarWebServer::handleNotFound() {
