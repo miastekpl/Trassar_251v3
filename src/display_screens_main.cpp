@@ -32,11 +32,25 @@ void DisplayManager::drawHomeScreen(const char* patCode, const char* patName,
     tft.setTextPadding(0);
 
     // ---- LEWA KOLUMNA: Nazwa, [ODW], Status pod kodem wzorca ----
-    // Nazwa wzorca
+    // Nazwa wzorca (2 linie jesli dwuslowna)
     tft.setFreeFont(FS9);
     tft.setTextColor(cMenuTxt, cBg);
     tft.setTextPadding(COL_L_PAD);
-    tft.drawString(patName, MARGIN_X, ROW_NAME_Y);
+    {
+        const char* sp = strchr(patName, ' ');
+        if (sp) {
+            char line1[24];
+            int len1 = sp - patName;
+            if (len1 > (int)sizeof(line1) - 1) len1 = sizeof(line1) - 1;
+            strncpy(line1, patName, len1);
+            line1[len1] = '\0';
+            tft.drawString(line1, MARGIN_X, ROW_NAME_Y);
+            tft.drawString(sp + 1, MARGIN_X, ROW_NAME2_Y);
+        } else {
+            tft.drawString(patName, MARGIN_X, ROW_NAME_Y);
+            tft.drawString(" ", MARGIN_X, ROW_NAME2_Y);
+        }
+    }
     tft.setTextPadding(0);
 
     // [ODW] jesli odwrocony

@@ -38,13 +38,14 @@
 
 // Pozycje Y elementow — lewa kolumna
 #define ROW_PAT_Y           2       // Kod wzorca (FSB24)
-#define ROW_NAME_Y          38      // Nazwa wzorca / flaga [GAP]
-#define ROW_FLAG_Y          54      // Flaga [ODW]
-#define ROW_STATUS_Y        72      // Status "Gotowy" / "Malowanie"
-#define ROW_MODE_Y          92      // Tryb pracy na ekranie HOME
-#define ROW_TIME_Y          94      // Czas sesji (PAINTING)
-#define ROW_DIST_Y          112     // Dystans sesji (PAINTING)
-#define ROW_MODE2_Y         132     // Tryb pracy na ekranie PAINTING
+#define ROW_NAME_Y          38      // Nazwa wzorca linia 1
+#define ROW_NAME2_Y         52      // Nazwa wzorca linia 2 (dwuslowna)
+#define ROW_FLAG_Y          66      // Flaga [ODW] / [GAP]
+#define ROW_STATUS_Y        82      // Status "Gotowy" / "Malowanie"
+#define ROW_MODE_Y          100     // Tryb pracy na ekranie HOME
+#define ROW_TIME_Y          104     // Czas sesji (PAINTING)
+#define ROW_DIST_Y          122     // Dystans sesji (PAINTING)
+#define ROW_MODE2_Y         140     // Tryb pracy na ekranie PAINTING
 
 // Pozycje Y elementow — prawa kolumna
 #define ROW_SPEED_Y         2       // Predkosc (FSB24)
