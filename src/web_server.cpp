@@ -5,6 +5,7 @@
 
 #include "web_server.h"
 #include "web_html.h"
+#include <cmath>
 #include <ArduinoJson.h>
 #include <esp_task_wdt.h>
 #include "painting_engine.h"
@@ -227,6 +228,7 @@ void TrassarWebServer::handleControl() {
         // Parametry: g0..g5, ln0..ln5, gp0..gp5, slot (0-2)
         CustomPatternCfg cfg = {};
         cfg.valid = true;
+        bool validationError = false;
         for (int i = 0; i < NUM_GUNS; i++) {
             String gKey = "g" + String(i);
             String lKey = "ln" + String(i);
@@ -239,12 +241,21 @@ void TrassarWebServer::handleControl() {
             float ln = 4.0f, gp = 8.0f;
             if (server.hasArg(lKey)) ln = server.arg(lKey).toFloat();
             if (server.hasArg(pKey)) gp = server.arg(pKey).toFloat();
+            // Walidacja: odrzuc NaN/Inf i wartosci spoza zakresu
+            if (isnan(ln) || isinf(ln) || isnan(gp) || isinf(gp)) {
+                validationError = true;
+                break;
+            }
             if (ln < 0.1f) ln = 0.1f;
             if (ln > 50.0f) ln = 50.0f;
             if (gp < 0.1f) gp = 0.1f;
             if (gp > 50.0f) gp = 50.0f;
             cfg.lineLen[i] = ln;
             cfg.gapLen[i] = gp;
+        }
+        if (validationError) {
+            server.send(400, "application/json", "{\"error\":\"nieprawidlowe wartosci lineLen/gapLen\"}");
+            return;
         }
         int slot = 0;
         if (server.hasArg("slot")) {

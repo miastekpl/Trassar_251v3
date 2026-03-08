@@ -585,6 +585,13 @@ void MenuSystem::handleStatsExport(ButtonEvent e) {
                 break;
             }
 
+            if (!SD_LOCK()) {
+                exportDone = true;
+                exportSuccess = false;
+                buzzer.play(BUZ_ERROR);
+                g_state.displayNeedsUpdate = true;
+                break;
+            }
             if (!SD.exists("/stats")) {
                 SD.mkdir("/stats");
             }
@@ -607,11 +614,13 @@ void MenuSystem::handleStatsExport(ButtonEvent e) {
                 snprintf(buf, sizeof(buf), "data_eksportu,%s", rtcModule.getDateTimeStr());
                 f.println(buf);
                 f.close();
+                SD_UNLOCK();
                 exportDone = true;
                 exportSuccess = true;
                 buzzer.beep(2000, 150);
                 eventLog.log("MENU", "Eksport statystyk na SD: /stats/lifetime_stats.csv");
             } else {
+                SD_UNLOCK();
                 exportDone = true;
                 exportSuccess = false;
                 buzzer.play(BUZ_ERROR);

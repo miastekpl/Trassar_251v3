@@ -12,7 +12,10 @@ public:
     void allOff();
     void allOn();
     bool isOn(GunID gun) const;
-    bool getState(int index) const { return gunStates[index]; }
+    bool getState(int index) const;
+
+    // Spinlock chroniący gunStates[] (Core 0 czyta, Core 1 pisze)
+    mutable portMUX_TYPE gunMux = portMUX_INITIALIZER_UNLOCKED;
 
 private:
     bool gunStates[NUM_GUNS] = {};
