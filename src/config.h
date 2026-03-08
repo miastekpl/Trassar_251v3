@@ -55,7 +55,7 @@
 
 // ============ Parametry przycisków ============
 #define BTN_DEBOUNCE_MS       50
-#define BTN_LONG_PRESS_MS   1000
+#define BTN_LONG_PRESS_MS   1500
 
 // ============ Parametry wyświetlacza ============
 #define TFT_SCREEN_W        320

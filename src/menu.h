@@ -60,5 +60,9 @@ private:
     // Eksport statystyk
     bool exportDone = false;
     bool exportSuccess = false;
+
+public:
+    // Timestamp ostatniej zmiany ekranu (cooldown dla joysticka)
+    unsigned long lastScreenChangeMs = 0;
 };
 extern MenuSystem menu;

@@ -37,6 +37,7 @@ void MenuSystem::goToScreen(ScreenID screen) {
     g_state.menuIndex = 0;
     g_state.displayNeedsUpdate = true;
     g_state.forceFullRedraw = true;
+    lastScreenChangeMs = millis();
 }
 
 // ============ Dyspozycja zdarzeń ============

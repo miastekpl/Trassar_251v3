@@ -288,7 +288,13 @@ void loop() {
         bool isOperational = (g_state.currentScreen == SCREEN_HOME ||
                               g_state.currentScreen == SCREEN_PAINTING ||
                               g_state.currentScreen == SCREEN_SUMMARY);
-        if (!isOperational || !joystick.wasAxisEvent()) {
+
+        // Cooldown 500ms po zmianie ekranu — blokuj zdarzenia z osi joysticka,
+        // zeby szum ADC nie cofnal natychmiast nowego ekranu (np. SETUP, SERVICE_MENU)
+        bool inCooldown = joystick.wasAxisEvent() &&
+                          (millis() - menu.lastScreenChangeMs < 500);
+
+        if ((!isOperational && !inCooldown) || !joystick.wasAxisEvent()) {
             menu.handleEvent(joyEvent);
         }
     }
