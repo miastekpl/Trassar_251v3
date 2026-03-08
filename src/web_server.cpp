@@ -167,6 +167,7 @@ void TrassarWebServer::handleControl() {
         paintEngine.pause();
     } else if (action == "stop") {
         paintEngine.stop();
+        menu.goToScreen(SCREEN_HOME);
     } else if (action == "set_pattern") {
         if (server.hasArg("value")) {
             int val = server.arg("value").toInt();

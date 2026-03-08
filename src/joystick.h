@@ -30,6 +30,11 @@ private:
     bool firstEventFired = false;
     ButtonEvent pendingEvent = EVT_NONE;
 
+    // Lockout dla kierunkow jednorazowych (LEFT/RIGHT) — zapobieganie bounceowi
+    JoyDir lastNonRepeatDir = JOY_NONE;
+    unsigned long lastNonRepeatFiredMs = 0;
+    static const unsigned long NON_REPEAT_LOCKOUT_MS = 1200;
+
     // Stan przycisku SW
     bool swPressed = false;
     bool swLastReading = true;

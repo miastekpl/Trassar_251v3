@@ -91,6 +91,8 @@ body{
 .btn-start{background:linear-gradient(135deg,#1a8a4a,#2ae67a);color:#0a0e17;}
 .btn-pause{background:linear-gradient(135deg,#b08a20,#f0c040);color:#0a0e17;}
 .btn-stop{background:linear-gradient(135deg,#8a2020,#e64040);color:#fff;}
+.controls-nav{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;}
+.btn-nav{background:linear-gradient(135deg,#1a3050,#2a5580);color:#e0e6f0;}
 
 /* ---------- PATTERNS ---------- */
 .pat-group{margin-bottom:8px;}
@@ -235,6 +237,10 @@ body{
     </div>
     <div class="controls2">
         <button class="btn btn-gap" id="btnGap" onclick="cmd('start_from_gap')">START OD PRZERWY</button>
+    </div>
+    <div class="controls-nav">
+        <button class="btn btn-nav" onclick="cmd('set_screen&value=7')">MENU</button>
+        <button class="btn btn-nav" onclick="cmd('set_screen&value=2')">SERWIS</button>
     </div>
 
     <!-- ========== PATTERN SELECTION ========== -->

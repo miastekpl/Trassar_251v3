@@ -421,8 +421,9 @@ void PaintingEngine::stop() {
             paintConsumption.getRemainingLiters(stats.getLifetimeArea() + sessionArea)
         );
 
+        // Nie wymuszaj zmiany ekranu — to handler menu (lub caller) decyduje
+        // dokad przejsc po zatrzymaniu (SUMMARY, HOME, SERVICE_MENU itd.)
         STATE_LOCK();
-        g_state.currentScreen = SCREEN_HOME;
         g_state.displayNeedsUpdate = true;
         g_state.forceFullRedraw = true;
         STATE_UNLOCK();

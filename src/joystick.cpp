@@ -94,9 +94,22 @@ void JoystickHandler::update() {
         firstEventFired = false;
 
         if (dir != JOY_NONE) {
-            // Natychmiastowe pierwsze zdarzenie
-            pendingEvent = dirToEvent(dir);
-            firstEventFired = true;
+            if (!dirRepeatable(dir) &&
+                dir == lastNonRepeatDir &&
+                (now - lastNonRepeatFiredMs < NON_REPEAT_LOCKOUT_MS)) {
+                // Lockout: ten sam kierunek jednorazowy zbyt szybko (bounce/szum ADC)
+                // Nie generuj zdarzenia
+            } else {
+                pendingEvent = dirToEvent(dir);
+                firstEventFired = true;
+                if (!dirRepeatable(dir)) {
+                    lastNonRepeatDir = dir;
+                    lastNonRepeatFiredMs = now;
+                }
+            }
+        } else {
+            // Powrot do centrum — resetuj lockout kierunku
+            lastNonRepeatDir = JOY_NONE;
         }
     } else if (dir != JOY_NONE && firstEventFired && dirRepeatable(dir)) {
         // Trzymanie w tym samym kierunku — auto-repeat (tylko UP/DOWN)
