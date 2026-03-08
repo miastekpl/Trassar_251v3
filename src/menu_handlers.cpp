@@ -56,6 +56,7 @@ void MenuSystem::handleHomeScreen(ButtonEvent e) {
             break;
 
         case EVT_STOP_LONG:
+        case EVT_START_STOP_COMBO:
             goToScreen(SCREEN_SERVICE_MENU);
             break;
 
@@ -121,6 +122,12 @@ void MenuSystem::handlePaintingScreen(ButtonEvent e) {
             goToScreen(SCREEN_SUMMARY);
             break;
         }
+
+        case EVT_START_STOP_COMBO:
+            // Combo START+STOP = stop + serwis
+            paintEngine.stop();
+            goToScreen(SCREEN_SERVICE_MENU);
+            break;
 
         case EVT_SELECT_SHORT:
             // Odwracanie wzorca (tylko P-3a, P-3b)
@@ -206,6 +213,10 @@ void MenuSystem::handleSetup(ButtonEvent e) {
 
         case EVT_STOP_LONG:
             goToScreen(SCREEN_HOME);
+            break;
+
+        case EVT_START_STOP_COMBO:
+            goToScreen(SCREEN_SERVICE_MENU);
             break;
 
         default:

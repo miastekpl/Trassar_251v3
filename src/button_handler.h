@@ -13,7 +13,8 @@ enum ButtonEvent : uint8_t {
     EVT_STOP_LONG,
     EVT_SELECT_SHORT,
     EVT_SELECT_LONG,
-    EVT_GAP_START
+    EVT_GAP_START,
+    EVT_START_STOP_COMBO   // START + STOP trzymane razem >= 1s
 };
 
 class ButtonHandler {
@@ -38,8 +39,15 @@ private:
     BtnState btnSelect;
     BtnState btnGap;
 
+    // Detekcja combo START+STOP
+    bool comboActive = false;      // Oba przyciski trzymane
+    unsigned long comboStart = 0;  // Moment rozpoczecia combo
+    bool comboFired = false;       // Combo juz wystrzelone
+    bool pendingCombo = false;     // Oczekujacy event combo
+
     void initBtn(BtnState& b, uint8_t pin);
     void processBtn(BtnState& b);
+    void processCombo();
 
 public:
     // Surowy stan przycisku START (dla czyszczenia dysz)

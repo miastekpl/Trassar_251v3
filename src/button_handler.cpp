@@ -52,14 +52,46 @@ void ButtonHandler::processBtn(BtnState& b) {
     }
 }
 
+void ButtonHandler::processCombo() {
+    bool bothHeld = btnStart.pressed && btnStop.pressed;
+
+    if (bothHeld && !comboActive) {
+        // Oba przyciski wlasnie wcisniete razem
+        comboActive = true;
+        comboStart = millis();
+        comboFired = false;
+    } else if (bothHeld && comboActive && !comboFired) {
+        if (millis() - comboStart >= BTN_LONG_PRESS_MS) {
+            comboFired = true;
+            pendingCombo = true;
+            // Anuluj indywidualne long events — combo ma priorytet
+            btnStart.longFired = true;
+            btnStart.pendingLong = false;
+            btnStop.longFired = true;
+            btnStop.pendingLong = false;
+        }
+    } else if (!bothHeld) {
+        if (comboActive && comboFired) {
+            // Combo bylo aktywne — anuluj pendingShort z obu przyciskow
+            btnStart.pendingShort = false;
+            btnStop.pendingShort = false;
+        }
+        comboActive = false;
+    }
+}
+
 void ButtonHandler::update() {
     processBtn(btnStart);
     processBtn(btnStop);
     processBtn(btnSelect);
     processBtn(btnGap);
+    processCombo();
 }
 
 ButtonEvent ButtonHandler::getEvent() {
+    // Combo START+STOP ma najwyzszy priorytet
+    if (pendingCombo) { pendingCombo = false; return EVT_START_STOP_COMBO; }
+
     if (btnStart.pendingLong)   { btnStart.pendingLong = false;  return EVT_START_LONG; }
     if (btnStart.pendingShort)  { btnStart.pendingShort = false; return EVT_START_SHORT; }
     if (btnStop.pendingLong)    { btnStop.pendingLong = false;   return EVT_STOP_LONG; }
