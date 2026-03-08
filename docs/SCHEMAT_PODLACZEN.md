@@ -1,4 +1,4 @@
-# TrassarV3 - Dokumentacja techniczna i schemat podłączeń v2.22.0
+# TrassarV3 - Dokumentacja techniczna i schemat podłączeń v2.23.0
 
 ## Spis treści
 
@@ -1029,7 +1029,14 @@ Poniżej lista **wszystkich 44 przewodów** do podłączenia, pogrupowana moduł
 | **gps_handler** | gps_handler.cpp/h | Obsługa GPS NEO-6M (UART2, TinyGPS++) |
 | **joystick** | joystick.cpp/h | Joystick analogowy KY-023 (ADC + przycisk, nawigacja menu) |
 | **pattern_buttons** | pattern_buttons.cpp/h | 15 przycisków wzorców via MCP23017 I2C (skan, debounce) |
-| **web_server** | web_server.cpp/h | WiFi AP + serwer HTTP + API REST |
+| **web_server** | web_server.cpp/h | WiFi AP + serwer HTTP + API REST + WebSocket |
+| **gps_track** | gps_track.cpp/h | Zapis trasy GPS (GPX + GeoJSON, bufor PSRAM) |
+| **event_log** | event_log.cpp/h | Log zdarzeń systemowych na kartę SD |
+| **nvs_backup** | nvs_backup.cpp/h | Backup/restore NVS na kartę SD (JSON) |
+| **paint_consumption** | paint_consumption.cpp/h | Predykcja zużycia farby |
+| **session_report** | session_report.cpp/h | Generowanie raportów HTML sesji |
+| **temp_sensor** | temp_sensor.cpp/h | Czujnik temperatury DS18B20 (opcjonalny) |
+| **hal** | hal.h | Warstwa abstrakcji sprzętowej (testy native) |
 
 ### 8.2 Architektura dual-core (v2.6.0)
 
@@ -1073,6 +1080,11 @@ Poniżej lista **wszystkich 44 przewodów** do podłączenia, pogrupowana moduł
 | DIAG_PRINT_MS | 30000 ms | Diagnostyka systemowa (Serial) |
 | GUN_ANOMALY_CHECK_MS | 10000 ms | Sprawdzanie anomalii pistoletów |
 | REPORT_CACHE_MS | 15000 ms | Odświeżanie cache raportów SD |
+| WS_BROADCAST_MS | 500 ms | Broadcast WebSocket do klientów |
+| GPX_RECORD_INTERVAL_MS | 5000 ms | Interwał zapisu punktu GPS na trasie |
+| MTH_SAVE_INTERVAL_MS | 300000 ms | Zapis motogodzin do NVS |
+| NVS_BACKUP_INTERVAL_MS | 1800000 ms | Backup NVS na kartę SD (30 min) |
+| AUTO_PAUSE_DELAY_MS | 1500 ms | Opóźnienie auto-pauzy |
 
 ### 8.4 Maszyna stanów
 
@@ -1086,8 +1098,8 @@ Poniżej lista **wszystkich 44 przewodów** do podłączenia, pogrupowana moduł
        │          ┌─────────┐           │
        │    ┌─────│PAINTING │──────┐    │
        │    │     └─────────┘      │    │
-       │    │    (3 tryby pracy:   │    │
-       │    │  AUTO/SEMI/MANUAL)   │    │
+       │    │    (4 tryby pracy:   │    │
+       │    │ AUTO/SEMI/MANUAL/DEMO)│   │
        │    │                      │    │
        │    │ START (pauza/AUTO)   │ STOP
        │    ▼                      │    │
@@ -1146,7 +1158,14 @@ paintEngine.update():
          fire = speedOK && buttons.isStartHeld() && (mode != GUN_OFF)
          Pistolety ON tylko gdy operator trzyma przycisk START
 
+       TRYB DEMO (v2.23.0):
+         Logika identyczna jak AUTO, ale:
+         guns.setGun(i, false)    // Fizycznie zawsze OFF
+         gunStates[i] = wouldFire // Wizualizacja na ekranie i WWW
+
     4. Zaktualizuj statystyki (dystans, powierzchnia)
+    5. Auto-pauza: jeśli prędkość < 0.5 km/h przez 1.5s → automatyczna pauza
+    6. Auto-wznowienie: jeśli prędkość >= min → automatyczne wznowienie
 ```
 
 ### 8.6 API REST
@@ -1157,7 +1176,13 @@ paintEngine.update():
 | `/api/status` | GET | JSON ze stanem systemu (+ anomalia pistoletów) |
 | `/api/stats` | GET | Statystyki lifetime + sesja + per-gun |
 | `/api/reports` | GET | Lista plików raportów CSV z karty SD |
-| `/api/control` | POST | Sterowanie maszyną (action=start\|pause\|stop\|start_from_gap\|set_pattern\|toggle_reverse\|set_mode\|semi_next_line\|save_custom_pattern\|cal_start\|cal_finish\|set_max_speed) |
+| `/api/control` | POST | Sterowanie maszyną (action=start\|pause\|stop\|start_from_gap\|set_pattern\|toggle_reverse\|set_mode\|semi_next_line\|save_custom_pattern\|cal_start\|cal_finish\|set_max_speed\|set_min_speed\|set_tank_capacity\|set_paint_rate\|set_auto_resume) |
+| `/api/reports/download` | GET | Pobierz plik raportu CSV z karty SD |
+| `/api/tracks` | GET | Lista plików tras GPS (GPX/GeoJSON) |
+| `/api/tracks/download` | GET | Pobierz plik trasy GPS |
+| `/api/html_reports` | GET | Lista raportów HTML sesji |
+| `/api/html_reports/download` | GET | Pobierz raport HTML sesji |
+| `/api/reports/geojson` | GET | Eksport GeoJSON |
 
 Szczegółowa dokumentacja API → [API_WWW.md](API_WWW.md)
 
@@ -1169,7 +1194,7 @@ Szczegółowa dokumentacja API → [API_WWW.md](API_WWW.md)
 
 | Parametr | Wartość | Opis |
 |----------|---------|------|
-| FW_VERSION | "2.22.0" | Wersja firmware |
+| FW_VERSION | "2.23.0" | Wersja firmware |
 | FW_NAME | "TrassarV3" | Nazwa systemu |
 | WIFI_AP_SSID | "TrassarV3" | Nazwa sieci WiFi |
 | WIFI_AP_PASS | "12345678" | Hasło WiFi |
@@ -1278,5 +1303,59 @@ Szczegółowa dokumentacja API → [API_WWW.md](API_WWW.md)
 
 ---
 
-*TrassarV3 — Dokumentacja techniczna v2.22.0*
-*ESP32-S3 N16R8 | ILI9341 320×240 | GPS NEO-6M | MCP23017 | 6 pistoletów | 16 wzorców | 15 przycisków | 3 tryby pracy | WiFi AP*
+---
+
+## 11. Nowe moduły w v2.23.0
+
+### 11.1 Zapis trasy GPS (GPX + GeoJSON)
+
+Podczas malowania system buforuje punkty GPS w PSRAM (max 4320 punktów = ~6h). Po STOP eksportuje trasę na kartę SD w dwóch formatach:
+- `/tracks/trasa_RRRRMMDD_HHMMSS.gpx` — Google Earth, QGIS, Strava
+- `/tracks/trasa_RRRRMMDD_HHMMSS.geojson` — narzędzia GIS, mapy webowe
+
+Punkt GPS zawiera: lat, lng, altitude, speed, timestamp (32 bajty/punkt).
+
+### 11.2 Backup NVS na SD (JSON)
+
+Wszystkie ustawienia NVS (kalibracja, statystyki, wzorce, progi) automatycznie backupowane co 30 min do `/backup/nvs_backup.json`. Automatyczne przywracanie przy pustym NVS (nowe ESP32).
+
+### 11.3 Predykcja zużycia farby
+
+Oblicza zużycie farby na podstawie namalowanej powierzchni i współczynnika (domyślnie 0.6 l/m²). Parametry konfigurowalne z panelu WWW, zapisywane w NVS.
+
+### 11.4 Raporty HTML sesji
+
+Po każdym STOP generowany jest stylizowany raport HTML ze szczegółami sesji, rozbiciem na wzorce, zużyciem farby i koordynatami GPS. Pliki: `/html_reports/raport_RRRRMMDD_HHMMSS.html`.
+
+### 11.5 Czujnik temperatury (opcjonalny)
+
+DS18B20 na GPIO 15 (OneWire). Odczyt co 5 s. Progi: < 5°C (za zimno na farbę), > 35°C (przegrzanie). Wynik na ekranie POST.
+
+### 11.6 Motogodziny (MTH)
+
+Rejestracja czasu pracy silnika malowania. Zapis co 5 min do NVS. Niezależne od czasu sesji.
+
+### 11.7 Auto-pauza / auto-wznowienie
+
+Automatyczna pauza gdy prędkość < 0.5 km/h przez 1.5 s. Automatyczne wznowienie po przekroczeniu progu minimalnej prędkości. Konfigurowalne z WWW.
+
+### 11.8 WebSocket (port 81)
+
+Broadcast statusu JSON co 500 ms do wszystkich podłączonych klientów. Niższe opóźnienie niż HTTP polling.
+
+### 11.9 Tryb nocny
+
+Alternatywna paleta kolorów (amber/dark) dla pracy nocnej. Zmniejsza oślepienie operatora.
+
+### 11.10 Tryb DEMO
+
+Czwarty tryb pracy — nauka operatora. Logika identyczna jak AUTO, ale przekaźniki zawsze OFF. Wizualizacja na ekranie pokazuje co by strzelało.
+
+### 11.11 Ekran POST (Power-On Self-Test)
+
+Diagnostyka startowa: SD, RTC, GPS, MCP23017, enkoder, czujnik temp. Wynik wyświetlany na TFT z 5 s timeoutem.
+
+---
+
+*TrassarV3 — Dokumentacja techniczna v2.23.0*
+*ESP32-S3 N16R8 | ILI9341 320×240 | GPS NEO-6M + GPX/GeoJSON | MCP23017 | 6 pistoletów | 16 wzorców | 15 przycisków | 4 tryby pracy | WiFi AP + WebSocket | backup NVS | motogodziny | predykcja farby | raporty HTML*

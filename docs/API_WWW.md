@@ -1,4 +1,4 @@
-# TrassarV3 - API serwera WWW v2.22.0
+# TrassarV3 - API serwera WWW v2.23.0
 
 ## Informacje ogólne
 
@@ -383,3 +383,112 @@ Przycisk **START OD PRZERWY** jest aktywny tylko gdy maszyna jest w stanie `idle
 - Wartości liczbowe (`speed`, `distance`, `area`, `ppm`, `calPulses`) przesyłane jako stringi dla zachowania precyzji formatowania
 - Stan pistoletów (`guns`) to tablica 6 wartości boolean odpowiadających P1-P6
 - Pole `gapStart` informuje panel WWW o trybie startu od przerwy (wyświetla znacznik przy statusie)
+
+---
+
+## WebSocket (port 81) — v2.23.0
+
+Oprócz HTTP polling system oferuje kanał WebSocket na porcie **81**. Panel WWW automatycznie łączy się i otrzymuje broadcast statusu co 500 ms.
+
+**Adres:** `ws://192.168.4.1:81`
+
+**Format broadcastu:** Identyczny JSON jak `GET /api/status`
+
+**Zalety:**
+- Push zamiast pull — niższe opóźnienie
+- Mniejsze obciążenie sieci
+- Automatyczny fallback na HTTP polling jeśli WebSocket niedostępny
+
+---
+
+## Nowe endpointy v2.23.0
+
+### GET /api/tracks
+
+Zwraca listę plików tras GPS z karty SD.
+
+**Odpowiedź:** `application/json`
+
+```json
+[
+    {"file": "trasa_20260308_091500.gpx", "size": 45678},
+    {"file": "trasa_20260308_091500.geojson", "size": 23456}
+]
+```
+
+---
+
+### GET /api/tracks/download
+
+Pobiera plik trasy GPS z karty SD (strumieniowo).
+
+**Parametry (query string):**
+
+| Parametr | Wymagany | Opis |
+|----------|----------|------|
+| `file` | Tak | Nazwa pliku do pobrania (np. `trasa_20260308_091500.gpx`) |
+
+---
+
+### GET /api/html_reports
+
+Zwraca listę raportów HTML sesji z karty SD.
+
+**Odpowiedź:** `application/json`
+
+```json
+[
+    {"file": "raport_20260308_091500.html", "size": 12345}
+]
+```
+
+---
+
+### GET /api/html_reports/download
+
+Pobiera raport HTML sesji z karty SD.
+
+**Parametry (query string):**
+
+| Parametr | Wymagany | Opis |
+|----------|----------|------|
+| `file` | Tak | Nazwa pliku do pobrania |
+
+---
+
+### GET /api/reports/geojson
+
+Eksport danych raportów w formacie GeoJSON.
+
+---
+
+## Nowe akcje POST /api/control — v2.23.0
+
+| Akcja | Wartość | Opis |
+|-------|---------|------|
+| `set_min_speed` | 0.0–50.0 | Ustaw minimalny próg prędkości malowania [km/h] (zapis NVS) |
+| `set_tank_capacity` | 1–9999 | Pojemność zbiornika farby [litry] (zapis NVS) |
+| `set_paint_rate` | 0.01–99.0 | Współczynnik zużycia farby [l/m²] (zapis NVS) |
+| `set_auto_resume` | 0–1 | Auto-wznowienie po auto-pauzie: 0=wyłącz, 1=włącz (zapis NVS) |
+
+**Przykłady (curl):**
+
+```bash
+# Ustaw pojemność zbiornika na 150 litrów
+curl -X POST -d "action=set_tank_capacity&value=150" http://192.168.4.1/api/control
+
+# Ustaw współczynnik zużycia farby na 0.8 l/m²
+curl -X POST -d "action=set_paint_rate&value=0.8" http://192.168.4.1/api/control
+
+# Włącz auto-wznowienie
+curl -X POST -d "action=set_auto_resume&value=1" http://192.168.4.1/api/control
+
+# Ustaw minimalną prędkość na 2 km/h
+curl -X POST -d "action=set_min_speed&value=2" http://192.168.4.1/api/control
+
+# Pobierz trasę GPS (GPX)
+curl -O http://192.168.4.1/api/tracks/download?file=trasa_20260308_091500.gpx
+
+# Pobierz raport HTML sesji
+curl -O http://192.168.4.1/api/html_reports/download?file=raport_20260308_091500.html
+```

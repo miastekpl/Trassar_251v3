@@ -1,4 +1,4 @@
-# TrassarV3 - Instrukcja obsługi v2.22.0
+# TrassarV3 - Instrukcja obsługi v2.23.0
 
 ## Spis treści
 
@@ -48,7 +48,7 @@ System zapewnia:
 | Parametr | Wartość |
 |----------|---------|
 | Mikrokontroler | ESP32-S3 N16R8 (16 MB Flash, 8 MB PSRAM) |
-| Firmware | v2.22.0 |
+| Firmware | v2.23.0 |
 | Wyświetlacz | ILI9341 2.8" TFT, 320×240 px, tryb landscape |
 | Interfejs SPI | HSPI (SPI3), 27 MHz |
 | Zegar RTC | DS1307 z baterią CR2032 |
@@ -1410,5 +1410,526 @@ data,godzina,wzorzec,dystans_m,powierzchnia_m2,lat,lon
 
 ---
 
+---
+
+## 23. Predykcja zużycia farby (v2.23.0)
+
+### 23.1 Opis
+
+System oblicza prognozowane zużycie farby na podstawie namalowanej powierzchni i współczynnika zużycia (domyślnie 0.6 l/m²). Umożliwia monitorowanie stanu zbiornika i planowanie uzupełnień.
+
+### 23.2 Konfiguracja (panel WWW)
+
+| Parametr | Domyślna | Zakres | Opis |
+|----------|----------|--------|------|
+| **Pojemność zbiornika** | 200 l | 1–9999 l | Całkowita pojemność zbiornika farby |
+| **Współczynnik zużycia** | 0.6 l/m² | 0.01–99.0 | Ile litrów farby na metr kwadratowy |
+
+Ustawienia zapisywane trwale w NVS.
+
+### 23.3 Informacje dostępne
+
+- **Zużyte litry** — ile farby zużyto w bieżącej sesji
+- **Pozostałe litry** — szacunkowa ilość farby w zbiorniku
+- **Pozostała powierzchnia** — ile m² jeszcze można namalować
+- **Pozostały dystans** — szacunkowy dystans do wyczerpania farby
+
+### 23.4 Ostrzeżenia
+
+Gdy pozostaje mniej niż **20 litrów** farby, raport sesji oznacza to kolorem czerwonym.
+
+---
+
+## 24. Czujnik temperatury (v2.23.0, opcjonalny)
+
+### 24.1 Opis
+
+Opcjonalny czujnik DS18B20 (OneWire) monitoruje temperaturę otoczenia. Informacja wyświetlana jest na ekranie POST przy starcie systemu.
+
+### 24.2 Progi ostrzeżeń
+
+| Warunek | Próg | Znaczenie |
+|---------|------|-----------|
+| **Za zimno** | < 5°C | Farba może nie schnąć prawidłowo |
+| **Za ciepło** | > 35°C | Ryzyko przegrzania komponentów |
+
+### 24.3 Podłączenie
+
+Czujnik podłączony do GPIO 15 (współdzielony z Touch CS — jeśli Touch nie jest używany). Wymagany rezystor pull-up 4.7kΩ między linią danych a 3.3V.
+
+---
+
+## 25. Raporty HTML sesji (v2.23.0)
+
+### 25.1 Opis
+
+Po każdym zatrzymaniu malowania (STOP) system automatycznie generuje raport HTML ze stylizowanym podsumowaniem sesji. Raporty dostępne do pobrania z panelu WWW.
+
+### 25.2 Zawartość raportu
+
+- Kod i nazwa wzorca, data, godzina
+- Dystans, powierzchnia, czas malowania, średnia prędkość
+- Rozbicie na poszczególne wzorce (jeśli zmieniano wzorzec podczas sesji)
+- Zużycie farby (litry) i szacunkowa ilość pozostała
+- Koordynaty GPS (jeśli dostępne)
+
+### 25.3 Dostęp
+
+- **Panel WWW:** Menu serwisowe → zakładka "Raporty HTML"
+- **API:** `GET /api/html_reports` (lista) i `GET /api/html_reports/download?file=...`
+- **Pliki:** `/html_reports/raport_RRRRMMDD_HHMMSS.html` na karcie SD
+
+---
+
+## 26. Zapis trasy GPS — GPX i GeoJSON (v2.23.0)
+
+### 26.1 Opis
+
+Podczas malowania system automatycznie zapisuje trasę GPS co 5 sekund. Po zatrzymaniu (STOP) trasa eksportowana jest na kartę SD w dwóch formatach:
+- **GPX** — kompatybilny z Google Earth, QGIS, Strava, Garmin
+- **GeoJSON** — kompatybilny z narzędziami GIS i mapami webowymi
+
+### 26.2 Bufor PSRAM
+
+Punkty GPS buforowane są w pamięci PSRAM (max 4320 punktów = ~6 godzin ciągłej pracy). Jeśli PSRAM niedostępny — fallback na RAM (300 punktów = ~25 min).
+
+### 26.3 Dostęp
+
+- **Panel WWW:** Menu serwisowe → zakładka "Trasy GPS" (planowane)
+- **API:** `GET /api/tracks` (lista) i `GET /api/tracks/download?file=...`
+- **Pliki:** `/tracks/trasa_RRRRMMDD_HHMMSS.gpx` i `.geojson` na karcie SD
+
+---
+
+## 27. Backup NVS na kartę SD (v2.23.0)
+
+### 27.1 Opis
+
+Wszystkie ustawienia z pamięci NVS (kalibracja, statystyki, wzorce własne, progi prędkości, tryby) są automatycznie backupowane na kartę SD w formacie JSON.
+
+### 27.2 Automatyczny backup
+
+- Wykonywany co **30 minut** podczas pracy
+- Pierwszy backup przy każdym uruchomieniu systemu
+- Plik: `/backup/nvs_backup.json`
+
+### 27.3 Automatyczne przywracanie
+
+Jeśli pamięć NVS jest pusta (np. po resecie fabrycznym) a na karcie SD istnieje plik backupu — system automatycznie przywraca ustawienia z backupu przy starcie.
+
+### 27.4 Walidacja
+
+Podczas przywracania system sprawdza:
+- Wersję formatu danych NVS
+- Poprawność zakresów wartości (progi prędkości, indeksy wzorców)
+- Spójność danych (niepoprawne wartości są odrzucane, reszta przywracana)
+
+---
+
+## 28. Motogodziny (v2.23.0)
+
+### 28.1 Opis
+
+System rejestruje czas pracy silnika malowania (motogodziny, MTH) niezależnie od czasu sesji. Motogodziny naliczane są wyłącznie podczas aktywnego malowania (STATE_PAINTING).
+
+### 28.2 Zapis
+
+- Automatyczny zapis do NVS co **5 minut** podczas malowania
+- Przeżywa restart urządzenia
+- Dostępne przez API statystyk
+
+### 28.3 Zastosowanie
+
+- Planowanie przeglądów okresowych maszyny
+- Szacowanie żywotności komponentów (dysze, przekaźniki)
+- Rozliczenie czasu pracy na zleceniach
+
+---
+
+## 29. Auto-pauza i auto-wznowienie (v2.23.0)
+
+### 29.1 Opis
+
+System automatycznie pauzuje malowanie gdy maszyna staje (np. na skrzyżowaniu) i wznawia po ruszeniu.
+
+### 29.2 Parametry
+
+| Parametr | Wartość | Opis |
+|----------|---------|------|
+| **Próg auto-pauzy** | 0.5 km/h | Prędkość poniżej której aktywuje się auto-pauza |
+| **Opóźnienie** | 1.5 s | Czas oczekiwania poniżej progu przed auto-pauzą |
+| **Auto-wznowienie** | Konfigurowalne | Automatyczne wznowienie po przekroczeniu progu min. prędkości |
+
+### 29.3 Sygnalizacja
+
+- Buzzer sygnalizuje auto-pauzę odrębnym dźwiękiem (innym niż ręczna pauza)
+- Na ekranie: status "Pauza" (żółty)
+- W logach: `AUTO-PAUZA: predkosc X < Y km/h`
+
+### 29.4 Konfiguracja
+
+Auto-wznowienie można włączyć/wyłączyć z panelu WWW:
+```
+POST /api/control  action=set_auto_resume&value=1  (włącz)
+POST /api/control  action=set_auto_resume&value=0  (wyłącz)
+```
+
+---
+
+## 30. Tryb DEMO (v2.23.0)
+
+### 30.1 Opis
+
+Tryb nauki operatora — logika identyczna jak AUTO, ale pistolety **nie strzelają fizycznie**. Wizualizacja na ekranie i panelu WWW pokazuje, które pistolety by strzelały.
+
+### 30.2 Zastosowanie
+
+- Szkolenie nowych operatorów bez zużywania farby
+- Weryfikacja konfiguracji wzorca przed rzeczywistym malowaniem
+- Demonstracja systemu dla klientów
+
+### 30.3 Aktywacja
+
+Tryb DEMO dostępny jako czwarta opcja w selektorze trybu pracy (AUTO → SEMI → RĘCZNY → DEMO).
+
+---
+
+## 31. WebSocket — aktualizacje w czasie rzeczywistym (v2.23.0)
+
+### 31.1 Opis
+
+Oprócz HTTP polling (co 1 s), system oferuje kanał WebSocket na porcie 81. Panel WWW automatycznie łączy się z WebSocket i otrzymuje aktualizacje stanu co 500 ms (push).
+
+### 31.2 Zalety
+
+- **Niższe opóźnienie** — dane przychodzą natychmiast, bez odpytywania
+- **Mniejsze obciążenie sieci** — jeden kanał zamiast powtarzanych żądań HTTP
+- **Szybsza reakcja UI** — przełączanie wzorców, zmiany stanu widoczne w <1 s
+
+### 31.3 Kompatybilność
+
+Jeśli WebSocket nie jest dostępny (starsza przeglądarka), panel automatycznie fallbackuje na HTTP polling.
+
+---
+
+## 32. Tryb nocny (v2.23.0)
+
+### 32.1 Opis
+
+Tryb nocny zmienia kolorystykę wyświetlacza TFT na ciemne tony amber, redukując oślepienie operatora podczas pracy w nocy lub o zmroku.
+
+### 32.2 Paleta kolorów
+
+| Element | Tryb dzienny | Tryb nocny |
+|---------|-------------|------------|
+| Tło | Czarny | Czarny |
+| Tekst | Biały | Ciepły amber |
+| Akcent | Zielony | Pomarańczowy |
+| Ostrzeżenie | Żółty | Ciemny żółty |
+| Błąd | Czerwony | Ciemny czerwony |
+| Pistolet ON | Zielony | Pomarańczowy |
+
+### 32.3 Aktywacja
+
+Tryb nocny zapisywany jest w NVS i można go przełączyć z panelu WWW.
+
+---
+
+## 33. Ekran POST — diagnostyka startowa (v2.23.0)
+
+### 33.1 Opis
+
+Przy każdym uruchomieniu system wyświetla ekran Power-On Self-Test (POST) z wynikami diagnostyki wszystkich modułów sprzętowych.
+
+### 33.2 Sprawdzane moduły
+
+| Moduł | Status OK | Status FAIL |
+|-------|-----------|-------------|
+| Karta SD | Zamontowana, FAT32 | Brak lub błąd formatu |
+| Zegar RTC | Działa, czas poprawny | Niedostępny na I2C |
+| GPS | Fix aktywny | Brak fix (normalne przy starcie) |
+| MCP23017 | Odpowiada na 0x20 | Brak odpowiedzi I2C |
+| Enkoder | Skalibrowany | Domyślna wartość |
+| Czujnik temp. | Wykryty, odczyt OK | Niedostępny |
+
+### 33.3 Obsługa
+
+- Ekran POST wyświetla się automatycznie na **0.8 sekundy**
+- Następnie czeka na naciśnięcie **START** lub timeout **5 sekund**
+- Po przejściu — krótki beep (2 kHz) i przejście na ekran HOME
+
+---
+
+## 34. Dodatkowe przykłady zastosowania
+
+### Przykład 11: Konfiguracja wzorca własnego przez panel WWW
+
+**Scenariusz:** Zlecenie wymaga niestandardowego oznakowania: dwa pistolety jednocześnie, P2 z cyklem 3m/2m i P5 z cyklem 1m/1m.
+
+**Kroki:**
+
+1. Połącz się z WiFi TrassarV3 i otwórz panel WWW
+2. Przewiń do sekcji "Wzorzec własny"
+3. Wybierz zakładkę **Slot 1**
+4. Ustaw pistolety:
+   - P1: Wyłączony
+   - P2: Przerywany, kreska: 3.0 m, przerwa: 2.0 m
+   - P3: Wyłączony
+   - P4: Wyłączony
+   - P5: Przerywany, kreska: 1.0 m, przerwa: 1.0 m
+   - P6: Wyłączony
+5. Kliknij **Zapisz** — wzorzec zapisany do NVS
+6. Kliknij przycisk **WŁASNY** w sekcji wzorców
+7. Na ekranie TFT pojawi się "WLASNY" z informacją o aktywnych pistoletach
+8. Naciśnij **START** — oba pistolety malują niezależnie ze swoimi cyklami
+
+**Rezultat:** P2 i P5 malują jednocześnie, ale z różnymi wzorami — P2 tworzy długie kreski, P5 krótkie.
+
+---
+
+### Przykład 12: Inteligentne przełączanie wzorców (Smart Switch) podczas malowania
+
+**Scenariusz:** Malowanie drogi z P-1a (przerywana 4m/8m), na 300 m od startu trzeba przejść na P-1c (wydzielająca 2m/2m) bez przerywania pracy.
+
+**Kroki (Smart Switch):**
+
+1. Rozpocznij malowanie z wzorcem P-1a (tryb AUTO)
+2. W panelu WWW kliknij **P-1c** — przycisk P-1c zacznie **migać pomarańczowo** (wzorzec kolejkowany)
+3. Maszyna kontynuuje malowanie P-1a:
+   - Domalowuje bieżącą kreskę (4 m) do końca
+   - Przejeżdża pełną przerwę (8 m) do końca
+4. Po zakończeniu pełnego cyklu P-1a:
+   - Krótki sygnał buzzera (1500 Hz, 80 ms) potwierdza przełączenie
+   - P-1c staje się aktywna — nowy cykl 2m kreska / 2m przerwa
+   - W panelu WWW P-1c zmienia kolor na zielony
+
+**Anulowanie:** Kliknij ponownie aktywny wzorzec (P-1a) aby anulować kolejkowaną zmianę.
+
+**Tryb Instant (porównanie):** Gdyby tryb Smart był wyłączony, kliknięcie P-1c natychmiast przerwałoby bieżącą kreskę P-1a i rozpoczęło P-1c — potencjalnie ucięta kreska w połowie.
+
+---
+
+### Przykład 13: Praca z auto-pauzą na odcinku z przeszkodami
+
+**Scenariusz:** Malowanie linii ciągłej P-2a na drodze z ruchem — maszyna musi wielokrotnie stawać na skrzyżowaniach.
+
+**Kroki:**
+
+1. Upewnij się, że **auto-wznowienie** jest włączone (domyślnie: tak)
+2. Ustaw wzorzec P-2a, tryb AUTO, naciśnij START
+3. Maluj normalnie — pistolet P2 maluje ciągle
+4. Na skrzyżowaniu: zwolnij i zatrzymaj maszynę:
+   - Po 1.5 s bezczynności system automatycznie pauzuje
+   - Buzzer sygnalizuje auto-pauzę (odmienny dźwięk)
+   - Pistolet P2 natychmiast się wyłącza
+   - Na ekranie: "Pauza" (żółty)
+5. Ruszaj ponownie:
+   - Po przekroczeniu 3 km/h system automatycznie wznawia malowanie
+   - Buzzer sygnalizuje wznowienie
+   - Pistolet P2 włącza się z powrotem
+6. Powtarzaj na kolejnych skrzyżowaniach — nie musisz dotykać żadnego przycisku!
+
+**Wyłączenie auto-wznowienia:** W panelu WWW lub przez API `set_auto_resume&value=0`. Wtedy po auto-pauzie operator musi ręcznie nacisnąć START.
+
+---
+
+### Przykład 14: Szkolenie operatora w trybie DEMO
+
+**Scenariusz:** Nowy operator musi nauczyć się obsługi maszyny bez zużywania farby.
+
+**Kroki:**
+
+1. Ustaw tryb DEMO: HOME → START (1 s) → ekran SETUP → SELEKTOR (1 s) cykluj do DEMO → START
+2. Wybierz dowolny wzorzec, np. P-3a (przekraczalna)
+3. Naciśnij START — system przechodzi w stan "Malowanie"
+4. Ruszaj maszyną:
+   - Na ekranie prostokąty P1 i P3 zmieniają kolory jak przy prawdziwym malowaniu
+   - Panel WWW pokazuje animowane kółka pistoletów
+   - **Przekaźniki NIE włączają się** — żadna farba nie jest zużywana
+5. Operator widzi jak działa system: kiedy strzela kreska, kiedy jest przerwa, jak wygląda odwracanie wzorca (SELEKTOR)
+6. Po zakończeniu: STOP — system podsumowuje sesję (dystans, czas), ale zużycie farby = 0
+
+---
+
+### Przykład 15: Eksport trasy GPS do Google Earth
+
+**Scenariusz:** Zleceniodawca chce wizualizację trasy malowania na mapie satelitarnej.
+
+**Kroki:**
+
+1. Maluj normalnie z aktywnym GPS (Fix: TAK)
+2. Po zakończeniu (STOP) system automatycznie zapisuje pliki:
+   - `/tracks/trasa_20260308_091500.gpx`
+   - `/tracks/trasa_20260308_091500.geojson`
+3. Pobierz plik GPX z panelu WWW → Menu serwisowe → Trasy GPS → Pobierz
+4. Otwórz Google Earth Pro → Plik → Otwórz → wybierz plik `.gpx`
+5. Trasa malowania wyświetli się na mapie satelitarnej z punktami co 5 s
+
+**Alternatywnie:** Plik `.geojson` można otworzyć w QGIS, geojson.io, lub dowolnym narzędziu GIS.
+
+---
+
+### Przykład 16: Praca z fizycznymi przyciskami wzorców na panelu
+
+**Scenariusz:** Operator często zmienia wzorce i chce szybko przełączać bez telefonu.
+
+**Kroki:**
+
+1. Na panelu maszyny jest 15 dedykowanych przycisków (po jednym na wzorzec)
+2. Naciśnij przycisk **P-1b** → wzorzec zmienia się natychmiast + krótki beep
+3. Na ekranie TFT zmienia się kod wzorca i nazwa
+4. Podczas malowania naciśnij przycisk **P-2a**:
+   - Jeśli Smart Switch włączony: P-2a kolejkowane do końca cyklu
+   - Jeśli Instant: natychmiastowa zmiana
+5. Przycisk WŁASNY nie jest dostępny na panelu fizycznym — tylko przez WWW
+
+> **Uwaga:** Jeśli MCP23017 jest niedostępny (niepodłączony), system działa normalnie — przyciski wzorców po prostu nie reagują, zmiana przez WWW nadal działa.
+
+---
+
+### Przykład 17: Backup i przywracanie ustawień po wymianie ESP32
+
+**Scenariusz:** ESP32-S3 uległo awarii i zostało wymienione na nowe. Stare ustawienia (kalibracja, wzorce, statystyki) są na karcie SD.
+
+**Kroki:**
+
+1. Włóż kartę SD ze starego urządzenia do nowego ESP32-S3
+2. Wgraj firmware TrassarV3 na nowe ESP32 (`pio run -t upload`)
+3. Uruchom system — przy starcie system wykrywa:
+   - Pamięć NVS jest pusta (nowe ESP32)
+   - Na karcie SD istnieje `/backup/nvs_backup.json`
+4. System automatycznie przywraca ustawienia z backupu:
+   - Kalibracja enkodera
+   - Ostatni wzorzec i tryb pracy
+   - Progi prędkości
+   - Wzorce własne (3 sloty)
+   - Statystyki lifetime (dystans, powierzchnia, motogodziny)
+   - Liczniki strzałów pistoletów
+5. W logach: `[NVS_BACKUP] Przywrocono ustawienia z /backup/nvs_backup.json`
+6. System gotowy do pracy z zachowanymi ustawieniami!
+
+---
+
+### Przykład 18: Monitorowanie zużycia farby na długim zleceniu
+
+**Scenariusz:** Zlecenie na 5 km malowania P-1a. Zbiornik 200 litrów, współczynnik 0.6 l/m².
+
+**Kroki:**
+
+1. W panelu WWW ustaw parametry farby:
+   - Pojemność zbiornika: 200 l
+   - Współczynnik zużycia: 0.6 l/m²
+2. Rozpocznij malowanie P-1a (12 cm, przerywana 4m/8m)
+3. W trakcie pracy monitoruj w panelu:
+   - Namalowana powierzchnia: np. 150 m²
+   - Zużyte litry: 90 l (150 m² × 0.6)
+   - Pozostało: 110 l
+   - Szacunkowy pozostały dystans: ~1530 m
+4. Gdy pozostaje < 20 l — system ostrzega w raporcie HTML (czerwony kolor)
+5. Po każdym STOPie raport HTML zawiera sekcję zużycia farby
+
+---
+
+### Przykład 19: Diagnostyka systemu przy problemach
+
+**Scenariusz:** Maszyna zachowuje się nietypowo — chcesz sprawdzić stan systemu.
+
+**Kroki:**
+
+1. **Ekran POST (restart):**
+   - Zrestartuj urządzenie (USB off/on)
+   - Ekran POST pokaże status każdego modułu (OK/FAIL)
+   - GPS FAIL przy starcie jest normalne (cold start trwa 30-60 s)
+
+2. **Monitor szeregowy:**
+   - Podłącz komputer USB i otwórz `pio device monitor` (115200 baud)
+   - Co 30 s wyświetlany jest log diagnostyczny:
+     ```
+     [DIAG] Heap: 185000/327680 B (min: 165000)  Frag: 12%  WWW-stack: 2048  Core: 1
+     ```
+   - Sprawdź: Heap > 100 KB, min > 80 KB, Frag < 30%
+
+3. **Panel WWW — diagnostyka:**
+   - Sekcja "System": wersja firmware, wolna RAM, uptime
+   - Sekcja "Statystyki": dystans per pistolet, licznik strzałów
+   - Anomalia pistoletów: pulsujący banner ostrzegawczy
+
+4. **Logi zdarzeń na karcie SD:**
+   - Pliki `/logs/RRRRMMDD.log` zawierają szczegółowe zdarzenia systemowe
+   - Format: `HH:MM:SS [CATEGORY] message`
+   - Kategorie: SYSTEM, ENGINE, ANOMALY, NVS, GPS
+
+---
+
+### Przykład 20: Pomiar dystansu niezależny od malowania
+
+**Scenariusz:** Trzeba odmierzyć odległość na drodze bez malowania (np. do wyznaczenia początku oznakowania).
+
+**Kroki:**
+
+1. Wejdź w menu serwisowe: STOP (1 s) na ekranie HOME
+2. Nawiguj do "Pomiar dystansu" (pozycja 2): SELEKTOR × 1
+3. Przytrzymaj SELEKTOR (1 s) aby wejść
+4. Naciśnij **START** — rozpocznij pomiar
+5. Jedź maszyną po odcinku do zmierzenia
+6. Na ekranie wyświetlany jest dystans w metrach (lub km powyżej 1000 m)
+7. Naciśnij **START** aby wstrzymać pomiar
+8. Naciśnij **STOP** (krótko) aby wyzerować licznik
+9. STOP (1 s) — powrót do menu serwisowego
+
+---
+
+## 35. Rozwiązywanie problemów (rozszerzone)
+
+### 35.1 Tabela problemów
+
+| Problem | Możliwa przyczyna | Rozwiązanie |
+|---------|-------------------|-------------|
+| Wyświetlacz nie świeci | Brak podświetlenia | Sprawdź pin GPIO 21 (PWM LEDC) |
+| Biały/czarny ekran | Źle skonfigurowane SPI | Sprawdź piny 10, 9, 14, 11, 12, 13 |
+| Brak daty i czasu | DS1307 niedostępny | Sprawdź I2C (SDA=17, SCL=18) i baterię CR2032 |
+| Nie można połączyć WiFi | Poza zasięgiem AP | Zbliż się do maszyny. SSID: TrassarV3, hasło: 12345678 |
+| Enkoder nie rejestruje obrotu | Uszkodzony enkoder lub okablowanie | Sprawdź piny CLK=5, DT=6, sprawdź pull-upy |
+| Przyciski nie działają | Złe podłączenie | Sprawdź GPIO 38/39/40/7 do GND, wewnętrzne pull-upy |
+| ESP32 restartuje się w pętli | Piny PSRAM użyte | GPIO 26–37 zajęte przez PSRAM — nie podłączać! |
+| Pistolety nie włączają się | Prędkość < 3 km/h | Przyspiesz powyżej 3 km/h lub użyj trybu czyszczenia dysz |
+| Pistolety nie włączają się na postoju | Zabezpieczenie prędkości | To normalne zachowanie. Użyj Menu → Czyszczenie dysz |
+| Złe odczyty dystansu | Brak kalibracji | Menu serwisowe → Kalibracja enkodera (10 m) |
+| Złe długości kresek/przerw | Błędna kalibracja | Powtórz kalibrację na dokładnie odmierzonym odcinku 10 m |
+| SELEKTOR nie zmienia wzorca | Tak zaprojektowane | Wzorce zmienia się przez panel WWW lub przyciski MCP23017 |
+| SELEKTOR nie odwraca | Nieodpowiedni wzorzec | Odwracanie działa tylko dla P-3a i P-3b |
+| Karta SD nie działa | Błąd formatu lub podłączenia | Format FAT32, pin CS=GPIO 16, sprawdź poprawne włożenie |
+| Brak raportów na karcie | Raport nie został zapisany | Raporty zapisują się po naciśnięciu STOP (zakończenie malowania) |
+| "Start od przerwy" nie działa | Wzorzec ciągły | Dla P-2a/P-2b/P-4/P-7b/P-7d start od przerwy = normalny start |
+| Panel WWW nie odpowiada | Serwer przeciążony | Max 4 klientów. Zamknij zbędne połączenia |
+| Buzzer nie działa | Brak buzzera lub zły pin | Sprawdź podłączenie buzzera pasywnego do GPIO 8 |
+| ESP32 restartuje się co 3 s | Watchdog timeout | Pętla główna się zawiesza — sprawdź monitor szeregowy |
+| Pistolety wyłączają się co chwilę | Gun keepalive | Silnik malowania nie nadąża — sprawdź obciążenie procesora |
+| Alarm prędkości miga ciągle | Próg za niski | Panel WWW → Alarm prędkości → zwiększ próg suwakiem |
+| Prędkość miga na żółto | Niska prędkość | Przyspiesz powyżej 3 km/h — to ostrzeżenie, nie błąd |
+| Anomalia pistoletu (buzzer 800 Hz) | Pistolet nie strzela | Sprawdź przekaźnik, przewód GPIO, dysze, zbiornik farby |
+| Przyciski wzorców MCP nie reagują | MCP23017 niedostępny | Sprawdź I2C (SDA=17, SCL=18), adres 0x20, zasilanie 3.3V |
+| Auto-pauza nie działa | Tryb MANUAL | Auto-pauza nie działa w trybie ręcznym |
+| GPS nie ma fix po 5 min | Słaby sygnał | Przenieś antenę na zewnątrz, z widocznością nieba |
+| Brak plików tras GPS | GPS nie miał fix | Trasa wymaga min. 1 punktu GPS z fix |
+| Raport HTML nie generuje się | Brak karty SD | Sprawdź kartę SD i format FAT32 |
+| Backup NVS nie działa | Karta SD pełna | Zwolnij miejsce na karcie SD |
+
+### 35.2 Kody dźwiękowe buzzera — szybka diagnostyka
+
+| Dźwięk | Częstotliwość | Znaczenie |
+|--------|---------------|-----------|
+| 1× krótki wysoki beep | 2 kHz, 100 ms | Start malowania / wznowienie |
+| 2× krótki beep | 2 kHz, 80 ms | Pauza / stop malowania |
+| 2× puls | 1.5 kHz, 150 ms | Niska prędkość (< 3 km/h) |
+| 3× szybki alarm | 3 kHz, 60 ms | Przekroczenie prędkości |
+| Niski-wysoki-niski | 800→1200→800 Hz | Anomalia pistoletu |
+| Opadający ton | 1000→800→600 Hz | Błąd sprzętowy (SD/RTC) |
+| 1× krótki | 1 kHz, 50 ms | Semi: kreska gotowa |
+| 1× krótki | 1.5 kHz, 80 ms | Potwierdzenie (tryb, wzorzec, semi) |
+| Specjalny wzorzec | — | Auto-pauza |
+
+---
+
 *TrassarV3 — Komputer pokładowy malowarki pasów drogowych*
-*Firmware v2.16.0 | ESP32-S3 N16R8 | GPS NEO-6M | 6 pistoletów, 16 wzorców, 3 tryby pracy, Smart/Instant, reset etapu, buzzer, watchdog, anomaly detect*
+*Firmware v2.23.0 | ESP32-S3 N16R8 | GPS NEO-6M + GPX/GeoJSON | 6 pistoletów, 16 wzorców, 4 tryby pracy (AUTO/SEMI/MANUAL/DEMO), Smart/Instant, auto-pauza, backup NVS, motogodziny, predykcja farby, raporty HTML, tryb nocny, WebSocket*
