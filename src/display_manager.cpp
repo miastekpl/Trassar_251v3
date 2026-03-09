@@ -82,7 +82,8 @@ void DisplayManager::drawHeader(const char* title) {
 // ============================================================
 void DisplayManager::drawGunRects(int y, const GunPatternCfg gunsCfg[6],
                                    const bool gunStates[6], bool paused) {
-    const int totalW = NUM_GUNS * GUN_W + (NUM_GUNS - 1) * GUN_GAP;
+    const int gunW = (TFT_SCREEN_W - (NUM_GUNS - 1) * GUN_GAP) / NUM_GUNS;
+    const int totalW = NUM_GUNS * gunW + (NUM_GUNS - 1) * GUN_GAP;
     const int startX = (TFT_SCREEN_W - totalW) / 2;
 
     bool blinkOn = ((millis() / 500) % 2) == 0;
@@ -92,7 +93,7 @@ void DisplayManager::drawGunRects(int y, const GunPatternCfg gunsCfg[6],
 
     char lbl[4];
     for (int i = 0; i < NUM_GUNS; i++) {
-        int rx = startX + i * (GUN_W + GUN_GAP);
+        int rx = startX + i * (gunW + GUN_GAP);
         int ry = y;
         bool usedInPattern = (gunsCfg[i].mode != GUN_OFF);
         bool firing = gunStates ? gunStates[i] : false;
@@ -107,8 +108,8 @@ void DisplayManager::drawGunRects(int y, const GunPatternCfg gunsCfg[6],
             col = cGunOff;            // szary - nieuzywany we wzorcu
         }
 
-        tft.fillRect(rx, ry, GUN_W, GUN_H, col);
-        tft.drawRect(rx, ry, GUN_W, GUN_H, cText);
+        tft.fillRect(rx, ry, gunW, GUN_H, col);
+        tft.drawRect(rx, ry, gunW, GUN_H, cText);
 
         // Etykieta P1..P6
         snprintf(lbl, sizeof(lbl), "P%d", i + 1);
@@ -118,7 +119,7 @@ void DisplayManager::drawGunRects(int y, const GunPatternCfg gunsCfg[6],
         } else {
             tft.setTextColor(cBg, col);
         }
-        tft.drawString(lbl, rx + GUN_W / 2, ry + GUN_H / 2);
+        tft.drawString(lbl, rx + gunW / 2, ry + GUN_H / 2);
     }
     tft.setTextDatum(TL_DATUM);
 }

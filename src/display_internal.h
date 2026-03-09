@@ -57,9 +57,8 @@
 #define HINT_Y              (TFT_SCREEN_H - 22)     // Y paska podpowiedzi
 
 // Prostokaty pistoletow
-#define GUN_W               42      // Szerokosc prostokata
 #define GUN_H               33      // Wysokosc prostokata
-#define GUN_GAP             6       // Odstep miedzy prostokatami
+#define GUN_GAP             2       // Odstep miedzy prostokatami
 
 // Wizualizacja wzorca — parametry kolumn
 #define VIZ_COL_GAP         16      // Odstep miedzy kolumnami
