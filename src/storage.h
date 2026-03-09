@@ -70,8 +70,16 @@ public:
     // Reset wszystkich danych oprocz kalibracji
     void resetAllExceptCalibration();
 
+    // NVS checksum — weryfikacja integralnosci danych
+    bool verifyChecksum();
+    void updateChecksum();
+
+    // Factory reset — usuwa WSZYSTKIE dane NVS (lacznie z kalibracja)
+    void factoryReset();
+
 private:
     void checkNvsVersion();
+    uint32_t computeChecksum();
 };
 
 extern StorageManager storage;

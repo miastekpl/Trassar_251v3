@@ -1,9 +1,11 @@
 // ============================================================
 // TrassarV3 - Zapis trasy GPS (GPX) podczas malowania
-// v2.21.0 - Bufor punktow w PSRAM, eksport .gpx + .geojson na SD
+// v2.52.0 - Ring buffer w PSRAM, eksport .gpx + .geojson na SD
 //
 // Podczas malowania co GPX_RECORD_INTERVAL_MS (5s) zapisuje punkt
-// {lat, lng, alt, speed, time} do bufora w PSRAM.
+// {lat, lng, alt, speed, time} do ring bufora w PSRAM.
+// Po zapelnieniu: nadpisuje najstarsze punkty (bufor cykliczny).
+// Ostrzezenie na wyswietlaczu gdy bufor sie zawinął.
 // Po STOP: zapis calej trasy jako .gpx i .geojson do /tracks/ na SD.
 // GPX 1.1 — Google Earth, QGIS, Strava
 // GeoJSON — systemy GIS, Leaflet, Mapbox, geojson.io
@@ -13,6 +15,8 @@
 #include "gps_handler.h"
 #include "rtc_handler.h"
 #include "report_logger.h"
+#include "sys_log.h"
+#include "event_log.h"
 #include <SD.h>
 #include <esp_heap_caps.h>
 
@@ -33,40 +37,47 @@ void GpsTrack::begin() {
     }
 
     if (psramOk) {
-        Serial.printf("[GPX] Bufor w PSRAM: %u punktow (%.1f KB)\n",
-                      maxPoints, (float)(maxPoints * sizeof(GpxPoint)) / 1024.0f);
+        LOG_INFO("GPX", "Ring buffer w PSRAM: %u punktow (%.1f KB)",
+                 maxPoints, (float)(maxPoints * sizeof(GpxPoint)) / 1024.0f);
     } else {
         // Fallback: maly bufor w RAM (300 punktow = ~9.6 KB, ~25 min przy 5s)
         maxPoints = 300;
         buffer = (GpxPoint*)calloc(maxPoints, sizeof(GpxPoint));
         if (buffer) {
-            Serial.printf("[GPX] Bufor w RAM (brak PSRAM): %u punktow\n", maxPoints);
+            LOG_WARN("GPX", "Bufor w RAM (brak PSRAM): %u punktow", maxPoints);
         } else {
             maxPoints = 0;
-            Serial.println("[GPX] BLAD: brak pamieci na bufor GPS track!");
+            LOG_ERROR("GPX", "Brak pamieci na bufor GPS track!");
         }
     }
 
     pointCount = 0;
+    writeIdx = 0;
+    overflowed = false;
     recording = false;
 }
 
 void GpsTrack::startRecording() {
     if (!buffer || maxPoints == 0) return;
     pointCount = 0;
+    writeIdx = 0;
+    overflowed = false;
     recording = true;
     lastRecordMs = 0;  // Wymusza natychmiastowy zapis pierwszego punktu
-    Serial.println("[GPX] Nagrywanie trasy rozpoczete");
+    LOG_INFO("GPX", "Nagrywanie trasy rozpoczete");
 }
 
 void GpsTrack::stopRecording() {
     if (!recording) return;
     recording = false;
 
-    if (pointCount > 0) {
+    uint16_t stored = getStoredCount();
+    if (stored > 0) {
         if (!reportLogger.isReady()) {
-            Serial.println("[GPX] Karta SD niedostepna");
+            LOG_WARN("GPX", "Karta SD niedostepna — trasa utracona (%u pkt)", stored);
             pointCount = 0;
+            writeIdx = 0;
+            overflowed = false;
             return;
         }
 
@@ -81,31 +92,40 @@ void GpsTrack::stopRecording() {
                  now.hour(), now.minute(), now.second());
 
         if (!SD_LOCK()) {
-            Serial.println("[GPX] Nie mozna zdobyc mutexu SD");
+            LOG_ERROR("GPX", "Nie mozna zdobyc mutexu SD");
             pointCount = 0;
+            writeIdx = 0;
+            overflowed = false;
             return;
         }
 
         if (!SD.exists("/tracks")) {
-            SD.mkdir("/tracks");
+            if (!SD.mkdir("/tracks")) {
+                LOG_ERROR("GPX", "Nie mozna utworzyc /tracks");
+            }
         }
 
         bool gpxOk = writeGpxFile(gpxPath);
         bool geoOk = writeGeoJsonFile(geoPath);
         SD_UNLOCK();
 
-        Serial.printf("[GPX] Trasa: %u pkt (GPX:%s GeoJSON:%s)\n",
-                      pointCount, gpxOk ? "OK" : "BLAD", geoOk ? "OK" : "BLAD");
+        LOG_INFO("GPX", "Trasa: %u pkt %s(GPX:%s GeoJSON:%s)",
+                 stored, overflowed ? "[OVERFLOW] " : "",
+                 gpxOk ? "OK" : "BLAD", geoOk ? "OK" : "BLAD");
     } else {
-        Serial.println("[GPX] Brak punktow — pliki nie utworzone");
+        LOG_INFO("GPX", "Brak punktow — pliki nie utworzone");
     }
     pointCount = 0;
+    writeIdx = 0;
+    overflowed = false;
 }
 
 void GpsTrack::cancelRecording() {
     recording = false;
     pointCount = 0;
-    Serial.println("[GPX] Nagrywanie anulowane");
+    writeIdx = 0;
+    overflowed = false;
+    LOG_INFO("GPX", "Nagrywanie anulowane");
 }
 
 void GpsTrack::update() {
@@ -122,13 +142,7 @@ void GpsTrack::update() {
 }
 
 void GpsTrack::addPoint() {
-    if (pointCount >= maxPoints) {
-        // Bufor pelny — nadpisz najstarsze (ring buffer uproszczony: po prostu nie zapisuj wiecej)
-        // W praktyce 4320 punktow @ 5s = 6h — wystarczajaco duzo
-        return;
-    }
-
-    GpxPoint& pt = buffer[pointCount];
+    GpxPoint& pt = buffer[writeIdx];
     pt.lat   = gpsHandler.getLat();
     pt.lng   = gpsHandler.getLng();
     pt.alt   = (float)gpsHandler.getAltitude();
@@ -140,7 +154,33 @@ void GpsTrack::addPoint() {
                                 now.hour(), now.minute(), now.second());
     pt._pad = 0;
 
+    writeIdx++;
     pointCount++;
+
+    // Ring buffer: zawijanie po osiagnieciu maxPoints
+    if (writeIdx >= maxPoints) {
+        writeIdx = 0;
+        if (!overflowed) {
+            overflowed = true;
+            LOG_WARN("GPX", "Bufor GPS pelny (%u pkt) — nadpisywanie najstarszych", maxPoints);
+            eventLog.logf("GPX", "Ring buffer overflow — najstarsze punkty nadpisywane (max=%u)", maxPoints);
+        }
+    }
+}
+
+// Zwraca ilosc aktualnie przechowywanych punktow
+uint16_t GpsTrack::getStoredCount() const {
+    return overflowed ? maxPoints : writeIdx;
+}
+
+// Zwraca punkt z ring bufora (0 = najstarszy przechowywany)
+const GpxPoint& GpsTrack::getPoint(uint16_t logicalIdx) const {
+    if (overflowed) {
+        // writeIdx wskazuje na najstarszy element (bo zostal nadpisany)
+        uint16_t realIdx = (writeIdx + logicalIdx) % maxPoints;
+        return buffer[realIdx];
+    }
+    return buffer[logicalIdx];
 }
 
 // ============================================================
@@ -149,14 +189,15 @@ void GpsTrack::addPoint() {
 bool GpsTrack::writeGpxFile(const char* path) {
     File f = SD.open(path, FILE_WRITE);
     if (!f) {
-        Serial.printf("[GPX] Nie mozna otworzyc: %s\n", path);
+        LOG_ERROR("GPX", "Nie mozna otworzyc: %s", path);
         return false;
     }
 
+    uint16_t stored = getStoredCount();
     writeGpxHeader(f);
 
-    for (uint16_t i = 0; i < pointCount; i++) {
-        writeGpxPoint(f, buffer[i]);
+    for (uint16_t i = 0; i < stored; i++) {
+        writeGpxPoint(f, getPoint(i));
 
         // Co 100 punktow: flush, zeby nie stracic danych przy utracie zasilania
         if (i % 100 == 99) f.flush();
@@ -165,7 +206,7 @@ bool GpsTrack::writeGpxFile(const char* path) {
     writeGpxFooter(f);
     f.close();
 
-    Serial.printf("[GPX] Zapisano: %s (%u pkt)\n", path, pointCount);
+    LOG_INFO("GPX", "Zapisano: %s (%u pkt)", path, stored);
     return true;
 }
 
@@ -176,36 +217,39 @@ bool GpsTrack::writeGpxFile(const char* path) {
 bool GpsTrack::writeGeoJsonFile(const char* path) {
     File f = SD.open(path, FILE_WRITE);
     if (!f) {
-        Serial.printf("[GPX] GeoJSON: nie mozna otworzyc: %s\n", path);
+        LOG_ERROR("GPX", "GeoJSON: nie mozna otworzyc: %s", path);
         return false;
     }
+
+    uint16_t stored = getStoredCount();
 
     f.print(F("{\"type\":\"FeatureCollection\",\"features\":[{\"type\":\"Feature\","));
     f.print(F("\"geometry\":{\"type\":\"LineString\",\"coordinates\":["));
 
-    for (uint16_t i = 0; i < pointCount; i++) {
+    for (uint16_t i = 0; i < stored; i++) {
+        const GpxPoint& pt = getPoint(i);
         char coord[48];
         snprintf(coord, sizeof(coord), "%s[%.7f,%.7f,%.1f]",
                  i > 0 ? "," : "",
-                 buffer[i].lng, buffer[i].lat, buffer[i].alt);
+                 pt.lng, pt.lat, pt.alt);
         f.print(coord);
         if (i % 100 == 99) f.flush();
     }
 
     f.print(F("]},\"properties\":{\"name\":\"Trassar "));
 
-    if (pointCount > 0) {
+    if (stored > 0) {
         char timeBuf[24];
-        unixToISO8601(buffer[0].timeUtc, timeBuf, sizeof(timeBuf));
+        unixToISO8601(getPoint(0).timeUtc, timeBuf, sizeof(timeBuf));
         f.print(timeBuf);
     }
 
     f.print(F("\",\"creator\":\"TrassarV3\",\"points\":"));
-    f.print(pointCount);
+    f.print(stored);
     f.println(F("}}]}"));
 
     f.close();
-    Serial.printf("[GPX] GeoJSON: %s (%u pkt)\n", path, pointCount);
+    LOG_INFO("GPX", "GeoJSON: %s (%u pkt)", path, stored);
     return true;
 }
 
@@ -217,9 +261,10 @@ void GpsTrack::writeGpxHeader(File& f) {
     f.print(F("    <name>Trassar "));
 
     // Data sesji w nazwie trasy
-    if (pointCount > 0) {
+    uint16_t stored = getStoredCount();
+    if (stored > 0) {
         char timeBuf[24];
-        unixToISO8601(buffer[0].timeUtc, timeBuf, sizeof(timeBuf));
+        unixToISO8601(getPoint(0).timeUtc, timeBuf, sizeof(timeBuf));
         f.print(timeBuf);
     }
     f.println(F("</name>"));

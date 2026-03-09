@@ -1,6 +1,6 @@
 #pragma once
 // ============================================================
-// TrassarV3 - Konfiguracja sprzętowa v2.51.0
+// TrassarV3 - Konfiguracja sprzętowa v2.52.0
 // Komputer pokładowy malowarki pasów drogowych
 // ============================================================
 
@@ -190,6 +190,7 @@ enum ScreenID : uint8_t {
     SCREEN_LIFETIME_STATS,  // Statystyki lifetime
     SCREEN_CUSTOM_PATTERN,  // Edycja wzorca wlasnego
     SCREEN_STATS_EXPORT,    // Eksport statystyk na SD
+    SCREEN_FACTORY_RESET,   // Factory reset NVS z ekranu serwisowego
     SCREEN_POST             // Power-On Self-Test (diagnostyka startowa)
 };
 
@@ -261,7 +262,11 @@ struct SystemState {
 
     bool nightMode = false;           // Tryb nocny (amber UI)
     bool sdCardWarningShown = false;  // Flaga jednorazowego ostrzezenia SD
+    bool gpsBufferWarningShown = false; // Flaga ostrzezenia GPS overflow (raz na sesje)
 };
+
+// ============ Pre-alokowany bufor SD (unikniecie alokacji na stosie) ============
+extern uint8_t g_sdBuf[SD_BUF_SIZE];
 
 extern SystemState g_state;
 
@@ -280,7 +285,13 @@ extern SemaphoreHandle_t g_sdMutex;
 #define SD_UNLOCK() do { if (g_sdMutex) xSemaphoreGive(g_sdMutex); } while(0)
 
 // ============ Wersja formatu danych NVS ============
-#define NVS_DATA_VERSION  3  // Inkrementuj przy zmianie struktur NVS
+#define NVS_DATA_VERSION  4  // Inkrementuj przy zmianie struktur NVS (v4: checksum)
+
+// ============ Pre-alokowany bufor SD (wspoldzielony) ============
+#define SD_BUF_SIZE       512  // Rozmiar bufora operacji SD [bajtow]
+
+// ============ Timeout TFT/SD contention [ms] ============
+#define TFT_SD_MUTEX_TIMEOUT_MS  10  // Timeout oczekiwania na mutex SD przy renderowaniu TFT
 
 // ============ Sloty wzorcow wlasnych ============
 #define NUM_CUSTOM_SLOTS  3

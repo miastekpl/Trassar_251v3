@@ -281,6 +281,9 @@ void MenuSystem::handleServiceMenu(ButtonEvent e) {
                 case 8:
                     goToScreen(SCREEN_COUNTER_RESET);
                     break;
+                case 9:
+                    goToScreen(SCREEN_FACTORY_RESET);
+                    break;
             }
             break;
 
@@ -577,6 +580,31 @@ void MenuSystem::handlePost(ButtonEvent e) {
     // POST jest obslugiwany w setup(), ale gdyby uzytkownik tu trafil:
     if (e == EVT_START_SHORT || e == EVT_START_LONG || e == EVT_STOP_LONG) {
         goToScreen(SCREEN_HOME);
+    }
+}
+
+// ============ SCREEN_FACTORY_RESET ============
+
+void MenuSystem::handleFactoryReset(ButtonEvent e) {
+    switch (e) {
+        case EVT_START_LONG: {
+            // Dlugie przytrzymanie START (3s) = potwierdzenie factory reset
+            storage.factoryReset();
+            buzzer.beep(500, 1000);  // Dlugi niski sygnal
+            eventLog.log("MENU", "FACTORY RESET wykonany");
+            Serial.println("[MENU] FACTORY RESET — restart za 2s...");
+            delay(2000);
+            ESP.restart();
+            break;
+        }
+
+        case EVT_STOP_SHORT:
+        case EVT_STOP_LONG:
+            goToScreen(SCREEN_SERVICE_MENU);
+            break;
+
+        default:
+            break;
     }
 }
 

@@ -1,7 +1,9 @@
 #pragma once
 // ============================================================
 // TrassarV3 - Zapis trasy GPS (GPX) podczas malowania
-// v2.21.0 - Bufor punktow w PSRAM, eksport .gpx + .geojson na SD
+// v2.52.0 - Ring buffer w PSRAM, eksport .gpx + .geojson na SD
+//           Bufor cykliczny — po zapelnieniu nadpisuje najstarsze
+//           punkty, z ostrzezeniem na wyswietlaczu.
 // ============================================================
 
 #include "config.h"
@@ -29,18 +31,27 @@ public:
 
     bool isRecording() const { return recording; }
     uint16_t getPointCount() const { return pointCount; }
+    uint16_t getMaxPoints() const { return maxPoints; }
+    bool isOverflowed() const { return overflowed; }
 
 private:
     bool recording = false;
     unsigned long lastRecordMs = 0;
 
-    // Bufor w PSRAM (alokowany dynamicznie w begin())
+    // Ring buffer w PSRAM (alokowany dynamicznie w begin())
     GpxPoint* buffer = nullptr;
-    uint16_t pointCount = 0;
+    uint16_t pointCount = 0;   // Calkowita liczba zapisanych punktow
+    uint16_t writeIdx = 0;     // Indeks zapisu (head ring bufora)
     uint16_t maxPoints = 0;
     bool psramOk = false;
+    bool overflowed = false;   // Czy bufor sie zawinął
 
     void addPoint();
+
+    // Ring buffer helpers
+    const GpxPoint& getPoint(uint16_t logicalIdx) const;
+    uint16_t getStoredCount() const;
+
     bool writeGpxFile(const char* path);
     void writeGpxHeader(File& f);
     void writeGpxPoint(File& f, const GpxPoint& pt);

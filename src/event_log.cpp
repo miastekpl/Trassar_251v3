@@ -41,11 +41,18 @@ void EventLog::log(const char* category, const char* message) {
     if (!SD_LOCK()) return;
 
     if (!SD.exists("/logs")) {
-        SD.mkdir("/logs");
+        if (!SD.mkdir("/logs")) {
+            SD_UNLOCK();
+            return;
+        }
     }
 
     File f = SD.open(path, FILE_APPEND);
-    if (!f) { SD_UNLOCK(); return; }
+    if (!f) {
+        SD_UNLOCK();
+        // Nie logujemy bledu Serial.print zeby uniknac rekurencji
+        return;
+    }
 
     if (f.size() > EVENT_LOG_MAX_SIZE) {
         f.close();
@@ -53,9 +60,13 @@ void EventLog::log(const char* category, const char* message) {
         return;
     }
 
-    f.print(line);
+    size_t written = f.print(line);
     f.close();
     SD_UNLOCK();
+
+    if (written == 0) {
+        Serial.printf("[WARN][LOG] Blad zapisu do %s\n", path);
+    }
 }
 
 void EventLog::logf(const char* category, const char* fmt, ...) {

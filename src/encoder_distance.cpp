@@ -95,9 +95,20 @@ void EncoderDistance::update() {
             instantSpeed = (float)abs(dPulses) / pulsesPerMeter / dt;
         }
 
-        // Filtr dolnoprzepustowy
-        currentSpeed = SPEED_FILTER_ALPHA * instantSpeed +
-                       (1.0f - SPEED_FILTER_ALPHA) * currentSpeed;
+        // Detekcja calkowitego zatrzymania: jesli brak impulsow w calym oknie,
+        // natychmiast zeruj predkosc (bypass filtra dolnoprzepustowego).
+        // Filtr EMA z alpha=0.3 potrzebuje ~5 cykli zeby opasc do zera,
+        // co maskuje krotkie zatrzymania (np. kraweznik, skrzyzowanie).
+        if (dPulses == 0) {
+            // Zero impulsow = calkowite zatrzymanie — natychmiastowy zero
+            currentSpeed = 0;
+            zeroSpeedCount++;
+        } else {
+            zeroSpeedCount = 0;
+            // Filtr dolnoprzepustowy (EMA) — tylko gdy pojazd jedzie
+            currentSpeed = SPEED_FILTER_ALPHA * instantSpeed +
+                           (1.0f - SPEED_FILTER_ALPHA) * currentSpeed;
+        }
 
         lastSpeedPulses = currentPulses;
         lastSpeedTime = now;

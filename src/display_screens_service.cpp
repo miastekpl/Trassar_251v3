@@ -22,7 +22,8 @@ void DisplayManager::drawServiceMenu(int selectedIndex) {
         "Wzorzec wlasny",
         "Eksport statystyk",
         "Reset etapu",
-        "Reset licznikow"
+        "Reset licznikow",
+        "Factory reset"
     };
 
     // Oblicz okno przewijania (viewport)
@@ -964,4 +965,63 @@ void DisplayManager::drawPostScreen(const PostResult& r, bool done) {
         tft.drawString("START=kontynuuj", HINT_X, HINT_Y);
         tft.setTextPadding(0);
     }
+}
+
+// ============================================================
+//  FACTORY RESET NVS - potwierdzenie
+// ============================================================
+void DisplayManager::drawFactoryResetScreen() {
+    drawHeader("FACTORY RESET");
+
+    int y = SMENU_START_Y + 10;
+
+    tft.setFreeFont(FSB12);
+    tft.setTextColor(cError, cBg);
+    tft.setTextDatum(MC_DATUM);
+    tft.drawString("UWAGA!", TFT_SCREEN_W / 2, y);
+    tft.setTextDatum(TL_DATUM);
+    y += 28;
+
+    tft.setFreeFont(FS9);
+    tft.setTextColor(cText, cBg);
+    tft.drawString("Wszystkie ustawienia zostana", MARGIN_X + 4, y);
+    y += 18;
+    tft.drawString("TRWALE USUNIETE z pamieci NVS:", MARGIN_X + 4, y);
+    y += 22;
+
+    tft.setTextColor(cWarning, cBg);
+    tft.drawString("- Kalibracja enkodera", MARGIN_X + 12, y); y += 16;
+    tft.drawString("- Statystyki lifetime", MARGIN_X + 12, y); y += 16;
+    tft.drawString("- Wzorce wlasne", MARGIN_X + 12, y); y += 16;
+    tft.drawString("- Liczniki pistoletow", MARGIN_X + 12, y); y += 16;
+    tft.drawString("- Motogodziny", MARGIN_X + 12, y); y += 22;
+
+    tft.drawFastHLine(12, y, TFT_SCREEN_W - 24, cDivider);
+    y += 12;
+
+    tft.setFreeFont(FSB9);
+    tft.setTextColor(cError, cBg);
+    tft.setTextDatum(MC_DATUM);
+    tft.drawString("Przywrocic ustawienia fabryczne?", TFT_SCREEN_W / 2, y);
+    tft.setTextDatum(TL_DATUM);
+
+    // --- Podpowiedzi ---
+    tft.setFreeFont(FM9);
+    tft.setTextColor(cMenuTxt, cBg);
+    tft.setTextPadding(TFT_SCREEN_W - 12);
+    tft.drawString("START(3s) = TAK    STOP = NIE", HINT_X, HINT_Y);
+    tft.setTextPadding(0);
+}
+
+// ============================================================
+//  Ikona ostrzezenia GPS overflow na ekranie malowania
+// ============================================================
+void DisplayManager::drawGpsOverflowIcon() {
+    const int ix = TFT_SCREEN_W - 68;
+    const int iy = GUN_RECTS_Y - 22;
+    tft.fillTriangle(ix, iy + 16, ix + 8, iy, ix + 16, iy + 16, cWarning);
+    tft.setFreeFont(FM9);
+    tft.setTextColor(cWarning, cBg);
+    tft.setTextDatum(TL_DATUM);
+    tft.drawString("GPS", ix + 19, iy + 2);
 }

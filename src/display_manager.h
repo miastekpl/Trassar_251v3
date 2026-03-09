@@ -61,6 +61,12 @@ public:
     // Eksport statystyk na SD
     void drawStatsExportScreen(bool exporting, bool success);
 
+    // Factory reset NVS (potwierdzenie)
+    void drawFactoryResetScreen();
+
+    // Ostrzezenie GPS buffer overflow na ekranie malowania
+    void drawGpsOverflowIcon();
+
     // POST (Power-On Self-Test)
     struct PostResult {
         bool sdOk;

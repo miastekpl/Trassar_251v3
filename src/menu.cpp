@@ -15,6 +15,7 @@
 #include "joystick.h"
 #include "report_logger.h"
 #include "buzzer.h"
+#include "gps_track.h"
 
 MenuSystem menu;
 
@@ -64,6 +65,7 @@ void MenuSystem::handleEvent(ButtonEvent event) {
         case SCREEN_LIFETIME_STATS: handleLifetimeStats(event);   break;
         case SCREEN_CUSTOM_PATTERN: handleCustomPattern(event);   break;
         case SCREEN_STATS_EXPORT:   handleStatsExport(event);     break;
+        case SCREEN_FACTORY_RESET:  handleFactoryReset(event);    break;
         case SCREEN_POST:           handlePost(event);            break;
     }
 }
@@ -95,8 +97,9 @@ void MenuSystem::update() {
     if (!g_state.displayNeedsUpdate) return;
 
     // SPI wspoldzielone: TFT i SD na tej samej magistrali HSPI.
-    // Probuj zablokowac SPI — jesli SD jest zajete (Core 0), pomin klatke.
-    if (g_sdMutex && xSemaphoreTake(g_sdMutex, 0) != pdTRUE) {
+    // Probuj zablokowac SPI z krotkim timeout — jesli SD jest zajete (Core 0),
+    // czekaj do TFT_SD_MUTEX_TIMEOUT_MS, potem pomin klatke (redukcja frame drops).
+    if (g_sdMutex && xSemaphoreTake(g_sdMutex, pdMS_TO_TICKS(TFT_SD_MUTEX_TIMEOUT_MS)) != pdTRUE) {
         return;  // SD zajete, sprobuj w nastepnej klatce
     }
     // Deselect SD przed operacjami TFT
@@ -153,6 +156,10 @@ void MenuSystem::update() {
             // Ikona SD warning na ekranie malowania
             if (!reportLogger.isReady()) {
                 display.drawSdWarningIcon();
+            }
+            // Ikona GPS overflow na ekranie malowania
+            if (gpsTrack.isOverflowed()) {
+                display.drawGpsOverflowIcon();
             }
             break;
         }
@@ -263,6 +270,11 @@ void MenuSystem::update() {
         // ---- Eksport statystyk ----
         case SCREEN_STATS_EXPORT:
             display.drawStatsExportScreen(!exportDone, exportSuccess);
+            break;
+
+        // ---- Factory reset NVS ----
+        case SCREEN_FACTORY_RESET:
+            display.drawFactoryResetScreen();
             break;
 
         // ---- POST (diagnostyka) ----

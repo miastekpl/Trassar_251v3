@@ -3,6 +3,7 @@
 // ============================================================
 
 #include "storage.h"
+#include "sys_log.h"
 #include <Preferences.h>
 
 StorageManager storage;
@@ -41,8 +42,15 @@ struct NvsSession {
 };
 
 void StorageManager::begin() {
-    Serial.println("[NVS] Inicjalizacja pamieci trwalej");
+    LOG_INFO("NVS", "Inicjalizacja pamieci trwalej");
     checkNvsVersion();
+
+    // Weryfikacja checksumu NVS
+    if (!verifyChecksum()) {
+        LOG_WARN("NVS", "Checksum NVS nieprawidlowy — dane moga byc uszkodzone");
+    } else {
+        LOG_INFO("NVS", "Checksum NVS OK");
+    }
 }
 
 void StorageManager::checkNvsVersion() {
@@ -67,7 +75,8 @@ void StorageManager::saveCalibration(float pulsesPerMeter) {
     NvsSession s(false);
     prefs.putFloat("cal_ppm", pulsesPerMeter);
     prefs.putBool("cal_done", true);
-    Serial.printf("[NVS] Zapisano kalibracje: %.1f imp/m\n", pulsesPerMeter);
+    LOG_INFO("NVS", "Zapisano kalibracje: %.1f imp/m", pulsesPerMeter);
+    updateChecksum();
 }
 
 float StorageManager::loadCalibration(bool& calibrated) {
@@ -81,6 +90,7 @@ void StorageManager::saveLifetimeStats(const LifetimeStats& st) {
     prefs.putFloat("lt_dist", st.totalDistance);
     prefs.putFloat("lt_area", st.totalArea);
     prefs.putUInt("lt_time", st.totalPaintTimeSec);
+    updateChecksum();
 }
 
 LifetimeStats StorageManager::loadLifetimeStats() {
@@ -255,5 +265,78 @@ void StorageManager::resetAllExceptCalibration() {
         prefs.putBool("cal_done", true);
     }
     prefs.putUInt("mth_sec", mth);
-    Serial.println("[NVS] Reset wszystkich danych (kalibracja + MTH zachowane)");
+    LOG_INFO("NVS", "Reset wszystkich danych (kalibracja + MTH zachowane)");
+
+    updateChecksum();
+}
+
+// ============================================================
+// Factory reset — usuwa WSZYSTKIE dane NVS
+// ============================================================
+void StorageManager::factoryReset() {
+    NvsSession s(false);
+    prefs.clear();
+    prefs.putUChar("nvs_ver", NVS_DATA_VERSION);
+    LOG_WARN("NVS", "FACTORY RESET — wszystkie dane usuniete");
+    updateChecksum();
+}
+
+// ============================================================
+// NVS Checksum — prosty CRC32 kluczowych wartosci
+// ============================================================
+uint32_t StorageManager::computeChecksum() {
+    // Prosty FNV-1a hash kluczowych danych NVS
+    uint32_t hash = 2166136261u;  // FNV offset basis
+    auto hashByte = [&hash](uint8_t b) {
+        hash ^= b;
+        hash *= 16777619u;  // FNV prime
+    };
+    auto hashFloat = [&hashByte](float f) {
+        uint8_t* p = (uint8_t*)&f;
+        for (int i = 0; i < 4; i++) hashByte(p[i]);
+    };
+    auto hashU32 = [&hashByte](uint32_t v) {
+        uint8_t* p = (uint8_t*)&v;
+        for (int i = 0; i < 4; i++) hashByte(p[i]);
+    };
+
+    NvsSession s(true);
+
+    // Kalibracja
+    hashFloat(prefs.getFloat("cal_ppm", 0));
+    hashByte(prefs.getBool("cal_done", false) ? 1 : 0);
+
+    // Lifetime stats
+    hashFloat(prefs.getFloat("lt_dist", 0));
+    hashFloat(prefs.getFloat("lt_area", 0));
+    hashU32(prefs.getUInt("lt_time", 0));
+
+    // Ustawienia
+    hashByte(prefs.getUChar("last_pat", 0));
+    hashByte(prefs.getUChar("mode", 0));
+    hashFloat(prefs.getFloat("max_spd", 0));
+    hashFloat(prefs.getFloat("min_spd", 0));
+
+    // MTH
+    hashU32(prefs.getUInt("mth_sec", 0));
+
+    return hash;
+}
+
+bool StorageManager::verifyChecksum() {
+    NvsSession s(true);
+    uint32_t stored = prefs.getUInt("nvs_crc", 0);
+    if (stored == 0) {
+        // Brak checksumu (stara wersja NVS) — wygeneruj
+        updateChecksum();
+        return true;
+    }
+    uint32_t computed = computeChecksum();
+    return (stored == computed);
+}
+
+void StorageManager::updateChecksum() {
+    uint32_t crc = computeChecksum();
+    NvsSession s(false);
+    prefs.putUInt("nvs_crc", crc);
 }

@@ -21,7 +21,12 @@
 #include "buzzer.h"
 #include "storage.h"
 #include "event_log.h"
+#include "sys_log.h"
 #include <Wire.h>
+
+// Licznik bledow I2C — po przekroczeniu progu wyłacza modul
+static uint8_t i2cErrorCount = 0;
+static const uint8_t I2C_ERROR_THRESHOLD = 5;  // 5 bledow z rzedu = modul offline
 
 PatternButtonHandler patternButtons;
 
@@ -69,15 +74,30 @@ bool PatternButtonHandler::writeReg(uint8_t reg, uint8_t val) {
 uint8_t PatternButtonHandler::readReg(uint8_t reg) {
     Wire.beginTransmission(MCP23017_I2C_ADDR);
     Wire.write(reg);
-    Wire.endTransmission(false);
+    uint8_t err = Wire.endTransmission(false);
+    if (err != 0) {
+        i2cErrorCount++;
+        if (i2cErrorCount >= I2C_ERROR_THRESHOLD && ready) {
+            ready = false;
+            LOG_ERROR("PAT_BTN", "MCP23017 odlaczony (I2C err=%d, %d bledow)", err, i2cErrorCount);
+            eventLog.logf("PAT_BTN", "MCP23017 offline — I2C err=%d", err);
+        }
+        return 0xFF;
+    }
     Wire.requestFrom((uint8_t)MCP23017_I2C_ADDR, (uint8_t)1);
-    if (Wire.available()) return Wire.read();
+    if (Wire.available()) {
+        i2cErrorCount = 0;  // Reset licznika bledow przy udanym odczycie
+        return Wire.read();
+    }
+    i2cErrorCount++;
     return 0xFF;
 }
 
 uint16_t PatternButtonHandler::readAllPins() {
     uint8_t a = readReg(MCP_GPIOA);
+    if (!ready) return 0xFFFF;  // I2C offline — zwroc "wszystkie zwolnione"
     uint8_t b = readReg(MCP_GPIOB);
+    if (!ready) return 0xFFFF;
     return ((uint16_t)b << 8) | a;
 }
 
@@ -118,7 +138,25 @@ void PatternButtonHandler::begin() {
 // ============ Cykliczna aktualizacja ============
 
 void PatternButtonHandler::update() {
-    if (!ready) return;
+    if (!ready) {
+        // Proba reconnectu co 5s
+        unsigned long now = millis();
+        if (now - lastReadMs < 5000) return;
+        lastReadMs = now;
+        Wire.beginTransmission(MCP23017_I2C_ADDR);
+        uint8_t err = Wire.endTransmission();
+        if (err == 0) {
+            ready = true;
+            i2cErrorCount = 0;
+            LOG_INFO("PAT_BTN", "MCP23017 ponownie dostepny na 0x%02X", MCP23017_I2C_ADDR);
+            eventLog.log("PAT_BTN", "MCP23017 reconnected");
+            // Reinicjalizacja odczytu
+            lastRaw = readAllPins();
+            debouncedState = lastRaw;
+            lastDebouncedState = lastRaw;
+        }
+        return;
+    }
 
     unsigned long now = millis();
     if (now - lastReadMs < MCP23017_SCAN_MS) return;
