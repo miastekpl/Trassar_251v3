@@ -53,12 +53,12 @@
 #define ROW_AREA_Y          56      // Powierzchnia (FSB12)
 
 // Dol ekranu
-#define GUN_RECTS_Y         (TFT_SCREEN_H - 66)    // Y prostokatow pistoletow
+#define GUN_RECTS_Y         (TFT_SCREEN_H - 49)    // Y prostokatow pistoletow
 #define HINT_Y              (TFT_SCREEN_H - 22)     // Y paska podpowiedzi
 
 // Prostokaty pistoletow
 #define GUN_W               42      // Szerokosc prostokata
-#define GUN_H               50      // Wysokosc prostokata
+#define GUN_H               33      // Wysokosc prostokata
 #define GUN_GAP             6       // Odstep miedzy prostokatami
 
 // Wizualizacja wzorca — parametry kolumn

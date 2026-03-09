@@ -78,7 +78,7 @@ void DisplayManager::drawHeader(const char* title) {
 
 // ============================================================
 //  drawGunRects - 6 prostokatow pistoletow na dole ekranu
-//  Kolory: zolty=we wzorcu, zielony=strzela, zolty miganie=pauza, szary=nieuzywany
+//  Kolory: szary=brak wzorca, zolty miganie=we wzorcu, zielony=maluje, zolty miganie=pauza/przerwa
 // ============================================================
 void DisplayManager::drawGunRects(int y, const GunPatternCfg gunsCfg[6],
                                    const bool gunStates[6], bool paused) {
@@ -99,14 +99,12 @@ void DisplayManager::drawGunRects(int y, const GunPatternCfg gunsCfg[6],
 
         uint16_t col;
         if (firing) {
-            col = cGunOn;             // zielony - strzela
-        } else if (paused && usedInPattern) {
-            // pauza: miganie zolty/czarny
-            col = blinkOn ? cWarning : cBg;
+            col = cGunOn;             // zielony - maluje
         } else if (usedInPattern) {
-            col = cWarning;            // zolty - uzyty we wzorcu
+            // we wzorcu ale nie maluje (pauza/przerwa/oczekiwanie) - miganie zolty
+            col = blinkOn ? cWarning : cBg;
         } else {
-            col = cGunOff;            // szary - nieuzywany
+            col = cGunOff;            // szary - nieuzywany we wzorcu
         }
 
         tft.fillRect(rx, ry, GUN_W, GUN_H, col);
