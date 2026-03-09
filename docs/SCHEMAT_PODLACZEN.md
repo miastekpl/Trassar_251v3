@@ -1357,5 +1357,461 @@ Diagnostyka startowa: SD, RTC, GPS, MCP23017, enkoder, czujnik temp. Wynik wyśw
 
 ---
 
+---
+
+## 11. Nowe moduły w v2.23.0 — szczegóły podłączeń
+
+### 11.1 Czujnik temperatury DS18B20 (opcjonalny)
+
+```
+    ESP32-S3               DS18B20 (TO-92)
+    ┌──────────┐           ┌──────────────┐
+    │          │           │              │
+    │ GPIO 15  ├───────────┤ DATA (pin 2) │
+    │          │    4.7kΩ  │              │
+    │    3V3   ├───┤├──────┤ VDD  (pin 3) │
+    │          │           │              │
+    │    GND   ├───────────┤ GND  (pin 1) │
+    └──────────┘           └──────────────┘
+
+    DS18B20 TO-92 (widok od przodu, nóżki w dół):
+    ┌─────────┐
+    │  DS18B20│
+    │    ___  │
+    │   /   \ │
+    │  │     ││
+    │   \___/ │
+    └─┤─┤─┤──┘
+      1  2  3
+     GND DQ VDD
+
+    Rezystor pull-up 4.7kΩ WYMAGANY między DQ a VDD!
+    Pin: GPIO 15 (współdzielony z Touch CS — jeśli Touch nie jest aktywny)
+```
+
+> **UWAGA:** Czujnik DS18B20 jest opcjonalny. System działa poprawnie bez niego — na ekranie POST wyświetli "Temp: BRAK". Jeśli Touch wyświetlacza jest aktywny, GPIO 15 nie może być użyty do czujnika.
+
+---
+
+## 12. Specyfikacja przewodów i złączy
+
+### 12.1 Zalecane przekroje i typy przewodów
+
+| Magistrala | Typ przewodu | Długość max | Uwagi |
+|------------|-------------|-------------|-------|
+| **SPI (TFT+SD)** | AWG 24-26, ekranowany | 15–20 cm | Wyżej 27 MHz — wrażliwe na zakłócenia |
+| **I2C (RTC+MCP)** | AWG 24-28 | 50 cm | Pull-up 4.7kΩ na module DS1307 |
+| **UART (GPS)** | AWG 24-28 | 100 cm | 3.3V, odporny na zakłócenia |
+| **Przekaźniki** | AWG 22-24 | 50 cm | Sygnał 3.3V, niskostratne |
+| **Przyciski** | AWG 22-28 | Bez limitu | Sygnał cyfrowy z pull-up |
+| **Enkoder** | AWG 24, **skrętka** | 200 cm | Dodaj 100 nF przy >30 cm |
+| **Zasilanie 5V** | AWG 20-22, **gruby** | 30 cm | Prąd do 1A przy 6 przekaźnikach |
+| **Zasilanie 3.3V** | AWG 22-24 | 30 cm | Z regulatora ESP32-S3 |
+| **Buzzer** | AWG 24-28 | 50 cm | Sygnał PWM |
+| **Joystick** | AWG 24-28, **ekranowany** | 50 cm | ADC wrażliwy na szum |
+| **Antena GPS** | Koaksjalny (w zestawie) | Wg producenta | Nie skracać! |
+
+### 12.2 Zalecane typy złączy
+
+| Złącze | Zastosowanie | Typ | Uwagi |
+|--------|-------------|-----|-------|
+| **Dupont 2.54mm** | Podłączenia do ESP32 i modułów | żeńskie/męskie | Standardowe dla prototypów |
+| **JST-XH 2.54mm** | Trwałe podłączenia panelowe | Zatrzaskowe | Lepsze niż Dupont w terenie |
+| **Molex KK 2.54mm** | Przekaźniki, zasilanie | Złącze z zabezpieczeniem | Odporne na wibracje |
+| **Goldpin 2.54mm** | Na PCB modułów | Lutowane | Nie na przewodach! |
+| **Śrubowe (screw terminal)** | Przekaźniki → zawory | AWG 14-22 | Dla przewodów zasilania zaworów |
+
+### 12.3 Schemat kolorów przewodów (zalecany)
+
+```
+    ┌──────────────────────────────────────────────────────────┐
+    │              STANDARD KOLORÓW PRZEWODÓW                  │
+    ├──────────────────────────────────────────────────────────┤
+    │                                                          │
+    │  🔴 CZERWONY     = Zasilanie 3.3V                       │
+    │  🔴+⬜ CZERW.+BIAŁY = Zasilanie 5V (UWAGA!)             │
+    │  ⬛ CZARNY       = Masa (GND)                           │
+    │                                                          │
+    │  🔵 NIEBIESKI    = SPI MOSI / I2C SDA / Enkoder CLK    │
+    │  🟣 FIOLETOWY    = SPI SCK                              │
+    │  ⬜ SZARY         = SPI MISO                             │
+    │  🟡 ŻÓŁTY        = Chip Select (CS) / Przycisk START    │
+    │  🟢 ZIELONY      = DC / Enkoder DT / I2C SCL           │
+    │  ⬜ BIAŁY         = TFT Reset                            │
+    │  🟠 POMARAŃCZOWY = Przekaźniki / Buzzer / LED           │
+    │  🟤 BRĄZOWY      = Touch CS                              │
+    │                                                          │
+    │  Magistrala I2C: zielony+biały (SDA), niebieski+biały (SCL) │
+    │  Magistrala UART GPS: zielony (RX), żółty (TX)          │
+    └──────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 13. Zabezpieczenia elektryczne
+
+### 13.1 Schemat zabezpieczeń
+
+```
+    USB-C 5V
+      │
+      ├──── [Bezpiecznik polimerowy PTC 1.5A] ──── VCC_5V
+      │                                              │
+      │     ┌────────────────────────────────────────┤
+      │     │                                        │
+      │  [TVS dioda 5.5V]                    ESP32-S3 DevKit
+      │     │                               (regulator 3.3V wbudowany)
+      │     GND                                      │
+      │                                        VCC_3V3
+      │                                              │
+      │     ┌────────────────────────────────────────┤
+      │     │         │         │         │         │
+      │  ILI9341    GPS      MCP23017  Enkoder   Joystick
+      │  (3.3V)   (3.3V)    (3.3V)   (3.3V)    (3.3V)
+      │
+      ├──── Moduł DS1307 (5V)
+      │
+      └──── Moduł przekaźnikowy 6ch (5V)
+             │
+             └──── [Diody flyback wbudowane]
+                   [Opto-izolacja wbudowana]
+```
+
+### 13.2 Zabezpieczenie magistrali SPI
+
+```
+    Przełączanie urządzeń SPI — logika Chip Select:
+
+    ESP32-S3          TFT CS      SD CS       Touch CS
+    GPIO 10 ─────────[LOW]────── [HIGH]────── [HIGH]     ← TFT aktywny
+    GPIO 16 ─────────[HIGH]───── [LOW]─────── [HIGH]     ← SD aktywna
+    GPIO 15 ─────────[HIGH]───── [HIGH]────── [LOW]      ← Touch aktywny
+
+    WAŻNE: Przed inicjalizacją TFT system ustawia GPIO 16 (SD_CS) = HIGH
+    aby karta SD nie odpowiadała na ruch SPI przeznaczony dla wyświetlacza.
+
+    Kolejność inicjalizacji SPI w setup():
+    1. pinMode(PIN_SD_CS, OUTPUT); digitalWrite(PIN_SD_CS, HIGH);
+    2. tft.init();          // TFT CS obsługiwany przez bibliotekę
+    3. SD.begin(PIN_SD_CS); // SD CS obsługiwany przez bibliotekę SD
+```
+
+### 13.3 Zabezpieczenie enkodera przed zakłóceniami
+
+```
+    Dla przewodów enkodera > 30 cm:
+
+    GPIO 5 (CLK) ──┬──── Enkoder CLK
+                    │
+                  [100nF]  ← Kondensator filtrujący
+                    │
+                   GND
+
+    GPIO 6 (DT) ───┬──── Enkoder DT
+                    │
+                  [100nF]  ← Kondensator filtrujący
+                    │
+                   GND
+
+    Dodatkowo: użyj skrętki (twisted pair) dla CLK+DT
+    z oddzielnym GND jako trzecim przewodem.
+```
+
+### 13.4 Zabezpieczenie przekaźników — diody flyback
+
+```
+    Moduł przekaźnikowy (wbudowane zabezpieczenia):
+
+    GPIO ──► [Optocoupler] ──► [Tranzystor] ──► [Cewka przekaźnika]
+                                                      │     │
+                                                   [Dioda flyback]
+                                                      │     │
+                                                     VCC   GND
+
+    Wyjście NO (Normally Open) ──► Zawór elektromagnetyczny pistoletu
+    Wyjście COM ──────────────────► Zasilanie zaworu (zewnętrzne)
+
+    UWAGA: Zawory pistoletów mają WŁASNE zasilanie (12V/24V DC),
+    niezależne od zasilania ESP32. Przekaźnik działa jako przełącznik.
+```
+
+---
+
+## 14. Layout PCB — zalecenia dla płytki pośredniczącej
+
+### 14.1 Sugerowany rozkład komponentów
+
+```
+    ┌───────────────────────────────────────────────────────────┐
+    │                    PŁYTA GŁÓWNA TRASSARV3                  │
+    │                                                           │
+    │  ┌─────────────┐     ┌──────────────┐    ┌────────────┐  │
+    │  │  ESP32-S3   │     │  ILI9341     │    │  Moduł     │  │
+    │  │  DevKitC-1  │     │  2.8" TFT    │    │  6-ch      │  │
+    │  │  (centralny)│     │  (front      │    │  przekaźn. │  │
+    │  │             │     │   panel)     │    │            │  │
+    │  └──────┬──────┘     └──────┬───────┘    └─────┬──────┘  │
+    │         │                   │                   │         │
+    │    ┌────┴────┐         ┌────┴────┐         ┌───┴───┐     │
+    │    │  I2C    │         │  SPI    │         │  GPIO │     │
+    │    │ Bus     │         │ Bus     │         │ Bus   │     │
+    │    └────┬────┘         └────┬────┘         └───┬───┘     │
+    │         │                   │                   │         │
+    │  ┌──────┴──────┐     ┌─────┴─────┐     ┌──────┴──────┐  │
+    │  │ DS1307 RTC  │     │  SD Card  │     │ 6× Zawory   │  │
+    │  │ MCP23017    │     │  (w ILI9341│     │ pistoletów  │  │
+    │  └─────────────┘     └───────────┘     └─────────────┘  │
+    │                                                           │
+    │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐ │
+    │  │ Enkoder  │  │ 3×przycisk│  │ Joystick │  │  GPS     │ │
+    │  │ (koło)   │  │ BS-33B    │  │ KY-023   │  │ NEO-6M   │ │
+    │  └──────────┘  └──────────┘  └──────────┘  └──────────┘ │
+    │                                                           │
+    │  ┌──────────────────────────────────────┐                │
+    │  │  MCP23017 + 15 przycisków wzorców    │                │
+    │  │  (panel boczny)                      │                │
+    │  └──────────────────────────────────────┘                │
+    │                                                           │
+    │  [Buzzer]    [USB-C zasilanie]    [Zasilacz 5V/2A]       │
+    └───────────────────────────────────────────────────────────┘
+```
+
+### 14.2 Zasady trasowania
+
+| Reguła | Opis |
+|--------|------|
+| Separacja SPI | Przewody MOSI/MISO/SCK prowadzić razem, daleko od enkodera i przekaźników |
+| Separacja I2C | SDA/SCL prowadzić jako parę, daleko od linii zasilania 5V |
+| Masa gwiaździsta | Wszystkie GND zbiegają się w jednym punkcie (przy ESP32) |
+| Kondensatory blokujące | 100 nF ceramiczny przy VCC każdego modułu (blisko pinu VCC) |
+| Prowadzenie zasilania | Oddzielny przewód 5V do modułu przekaźnikowego (duży prąd) |
+| Antena GPS | Kabel antenowy daleko od przewodów SPI i zasilania |
+
+---
+
+## 15. Diagnostyka połączeń elektrycznych
+
+### 15.1 Procedura weryfikacji (checklist montażowy)
+
+**Faza 1 — Zasilanie (BEZ podłączania modułów)**
+
+| # | Test | Narzędzie | Wynik OK |
+|---|------|-----------|----------|
+| 1 | Napięcie na 3V3 | Multimetr | 3.20–3.40 V |
+| 2 | Napięcie na 5V (VBUS) | Multimetr | 4.75–5.25 V |
+| 3 | Napięcie GND–3V3 | Multimetr | 3.20–3.40 V |
+| 4 | Napięcie GND–5V | Multimetr | 4.75–5.25 V |
+
+**Faza 2 — I2C (podłącz DS1307 i MCP23017)**
+
+| # | Test | Narzędzie | Wynik OK |
+|---|------|-----------|----------|
+| 5 | I2C scan (Wire.begin + scan) | Monitor szeregowy | 0x20, 0x68 |
+| 6 | Odczyt czasu RTC | Monitor szeregowy | Data i godzina poprawna |
+| 7 | Odczyt rejestrów MCP23017 | Monitor szeregowy | 0xFF (pull-up, brak wciśnięć) |
+
+**Faza 3 — SPI (podłącz ILI9341)**
+
+| # | Test | Narzędzie | Wynik OK |
+|---|------|-----------|----------|
+| 8 | Inicjalizacja TFT | Wzrok | Ekran powitalny TrassarV3 |
+| 9 | Inicjalizacja SD | Monitor szeregowy | "SD OK" |
+| 10 | Podświetlenie | Wzrok | Jasny ekran (PWM 200/255) |
+
+**Faza 4 — Przekaźniki (podłącz moduł)**
+
+| # | Test | Narzędzie | Wynik OK |
+|---|------|-----------|----------|
+| 11 | Czyszczenie dysz → P1 | Słuch (kliknięcie) | Przekaźnik klika |
+| 12 | Czyszczenie dysz → P2 | Słuch | Przekaźnik klika |
+| 13 | Czyszczenie dysz → P3–P6 | Słuch | Wszystkie klikają |
+
+**Faza 5 — Enkoder, przyciski, joystick**
+
+| # | Test | Narzędzie | Wynik OK |
+|---|------|-----------|----------|
+| 14 | Obrót enkodera | Ekran → prędkość | Prędkość > 0 |
+| 15 | START | Ekran | Zmiana stanu |
+| 16 | STOP | Ekran | Zmiana stanu |
+| 17 | SELEKTOR | Ekran | Nawigacja w menu |
+| 18 | GAP | Ekran | "Start od przerwy" |
+| 19 | Joystick góra/dół | Menu | Nawigacja |
+| 20 | Joystick lewo/prawo | Menu | Wejście/cofnij |
+
+**Faza 6 — GPS i WiFi**
+
+| # | Test | Narzędzie | Wynik OK |
+|---|------|-----------|----------|
+| 21 | GPS fix | Panel WWW → GPS | Fix: TAK po 1–2 min |
+| 22 | WiFi AP | Telefon → WiFi | Widoczna sieć TrassarV3 |
+| 23 | Panel WWW | Przeglądarka | http://192.168.4.1 ładuje się |
+
+### 15.2 Typowe błędy montażowe i ich objawy
+
+| Objaw | Prawdopodobna przyczyna | Test |
+|-------|------------------------|------|
+| Biały ekran TFT | Zamienione MOSI/MISO lub brak CS | Sprawdź GPIO 11↔MOSI, 13↔MISO, 10↔CS |
+| Migający ekran TFT | SD_CS floating LOW | Sprawdź GPIO 16 → HIGH przed tft.init() |
+| I2C scan: 0 urządzeń | Zamienione SDA/SCL | Sprawdź GPIO 17↔SDA, 18↔SCL |
+| I2C scan: tylko 0x68 | MCP23017 brak zasilania lub adres | Sprawdź VDD=3.3V, A0=A1=A2=GND |
+| Przekaźnik nie klika | Brak 5V na module | Sprawdź VCC przekaźnika → 5V (VBUS) |
+| Enkoder liczy do tyłu | Zamienione CLK/DT | Zamień GPIO 5↔6 |
+| GPS brak danych | Zamienione TX/RX | Zamień GPIO 47↔48 |
+| Joystick driftuje | Szum ADC | Zwiększ JOY_DEAD_ZONE, dodaj kondensator |
+| Boot loop | GPIO 46 zwarty do GND | Nie wciskaj joysticka przy starcie |
+| Boot loop | GPIO 26–37 podłączone | Odłącz — zajęte przez PSRAM! |
+
+### 15.3 Pomiar prądów — weryfikacja zasilania
+
+```
+    Test poboru prądu — podłącz multimetr szeregowo w linię USB-C:
+
+    Zasilacz USB-C ──[A]── ESP32-S3
+                     │
+                   Multimetr
+                   (zakres 2A DC)
+
+    Oczekiwane odczyty:
+    ┌─────────────────────────────────┬────────────┐
+    │ Stan                            │ Prąd [mA]  │
+    ├─────────────────────────────────┼────────────┤
+    │ Boot (POST)                     │ 200–300    │
+    │ IDLE (HOME, WiFi, TFT, GPS)    │ 250–350    │
+    │ Malowanie 1 pistolet           │ 350–450    │
+    │ Malowanie 2 pistolety          │ 420–520    │
+    │ Malowanie 3 pistolety          │ 490–600    │
+    │ Malowanie 6 pistoletów + SD    │ 700–960    │
+    │ WebSocket + 4 klienty          │ +30–50     │
+    └─────────────────────────────────┴────────────┘
+
+    Jeśli IDLE > 500 mA → zwarcie lub uszkodzony moduł
+    Jeśli 6 pistoletów > 1200 mA → użyj zewnętrznego zasilacza
+    dla modułu przekaźnikowego
+```
+
+---
+
+## 16. Kompletny diagram okablowania — widok z lotu ptaka
+
+```
+                                 ANTENA GPS
+                                 (na zewnątrz)
+                                    │
+                                    │ kabel
+                            ┌───────┴───────┐
+                            │  GPS NEO-6M   │
+                            │  GY-NEO6MV2   │
+                            │  TX→GPIO47    │
+                            │  RX←GPIO48    │
+                            │  VCC←3V3      │
+                            │  GND←GND      │
+                            └───────────────┘
+                                    │
+    ┌───────────────────────────────┼───────────────────────────────┐
+    │                               │                               │
+    │              ┌────────────────┴────────────────┐              │
+    │              │                                  │              │
+    │              │         ESP32-S3 N16R8           │              │
+    │              │         DevKitC-1                │              │
+    │              │                                  │              │
+    │  ┌───────────┤  3V3  5V  GND                   ├──────────┐  │
+    │  │           │                                  │          │  │
+    │  │  ┌────────┤  GPIO 5,6,7 (Enkoder)           │          │  │
+    │  │  │        │  GPIO 38,39,40 (Przyciski)      │          │  │
+    │  │  │  ┌─────┤  GPIO 19,20,46 (Joystick)      │          │  │
+    │  │  │  │     │  GPIO 8 (Buzzer)                │          │  │
+    │  │  │  │     │  GPIO 41,42,1,2,3,4 (Przek.)   ├──┐       │  │
+    │  │  │  │     │  GPIO 10,9,14,21 (TFT ctrl)    │  │       │  │
+    │  │  │  │     │  GPIO 11,12,13 (SPI bus)        │  │       │  │
+    │  │  │  │     │  GPIO 15,16 (Touch CS, SD CS)   │  │       │  │
+    │  │  │  │     │  GPIO 17,18 (I2C SDA/SCL)       │  │       │  │
+    │  │  │  │     │                                  │  │       │  │
+    │  │  │  │     └────────────────┬─────────────────┘  │       │  │
+    │  │  │  │                      │                    │       │  │
+    │  │  │  │                      │ USB-C              │       │  │
+    │  │  │  │                ┌─────┴─────┐              │       │  │
+    │  │  │  │                │ Zasilacz  │              │       │  │
+    │  │  │  │                │ 5V/2A     │              │       │  │
+    │  │  │  │                └───────────┘              │       │  │
+    │  │  │  │                                           │       │  │
+    │  │  │  │                                           │       │  │
+    │  │  │  │                                           │       │  │
+┌───┴──┴──┴──┴───┐  ┌──────────────┐  ┌─────────────┐  │  ┌────┴────────┐
+│  PANEL         │  │  WYŚWIETLACZ │  │  DS1307 RTC │  │  │  MODUŁ      │
+│  STEROWANIA    │  │  ILI9341     │  │  + CR2032   │  │  │  PRZEKAŹN.  │
+│                │  │  2.8" TFT    │  │  I2C: 0x68  │  │  │  6-kanałowy │
+│  [START]       │  │  + SD card   │  └──────┬──────┘  │  │             │
+│  [STOP]        │  │  SPI 27MHz   │         │ I2C     │  │  IN1→P1     │
+│  [SELECT]      │  └──────┬───────┘         │         │  │  IN2→P2     │
+│  [GAP]         │         │ SPI             │         │  │  IN3→P3     │
+│                │         │                 │         │  │  IN4→P4     │
+│  Enkoder       │  ┌──────┴───────┐  ┌──────┴──────┐ │  │  IN5→P5     │
+│  CLK/DT/SW     │  │  MicroSD     │  │  MCP23017   │ │  │  IN6→P6     │
+│                │  │  FAT32       │  │  I2C: 0x20  │ │  │             │
+│  Joystick      │  │  CS=GPIO 16  │  │  15 przycisk│ │  │  VCC←5V     │
+│  KY-023        │  └──────────────┘  └──────┬──────┘ │  │  GND←GND    │
+│                │                           │         │  │             │
+│  Buzzer        │                    ┌──────┴──────┐  │  │  NO→Zawory  │
+│  GPIO 8        │                    │ 15 PRZYCISK.│  │  └─────────────┘
+└────────────────┘                    │ WZORCÓW     │  │
+                                      │ P-1a...P-7d│  │
+                                      └─────────────┘  │
+                                                       │
+                                              ┌────────┴────────┐
+                                              │  6× ZAWORY      │
+                                              │  PISTOLETÓW      │
+                                              │  NATRYSKOWYCH    │
+                                              │  (12V/24V DC)    │
+                                              │  zewn. zasilanie │
+                                              └─────────────────┘
+```
+
+---
+
+## 17. FAQ — Najczęściej zadawane pytania o podłączenia
+
+### Q: Czy mogę użyć innych pinów GPIO?
+
+**A:** Tak, ale wymagana jest zmiana w pliku `config.h` i ponowna kompilacja firmware. Pamiętaj:
+- GPIO 26–37: **ZAKAZANE** (PSRAM)
+- GPIO 0: Zarezerwowany (bootloader)
+- GPIO 43, 44: UART0 (monitor szeregowy) — nie używać
+- GPIO 45: Strap pin — unikać
+- GPIO 46: Strap pin (joystick SW) — ostrożność przy starcie
+
+### Q: Czy mogę zasilić ESP32-S3 z baterii?
+
+**A:** Tak, ale:
+- Bateria LiPo 3.7V + przetwornica boost do 5V (minimum 1.5A)
+- Lub power bank USB-C z output 5V/2A
+- Monitoruj napięcie — przy <4.5V system może zachowywać się niestabilnie
+
+### Q: Ile MCP23017 mogę podłączyć?
+
+**A:** Do 8 sztuk na jednej magistrali I2C (adresy 0x20–0x27 przez A0/A1/A2). Kod obsługuje aktualnie 1 sztukę (0x20). Rozszerzenie wymaga modyfikacji `pattern_buttons.cpp`.
+
+### Q: Czy mogę użyć wyświetlacza innego niż ILI9341?
+
+**A:** Biblioteka TFT_eSPI obsługuje wiele sterowników (ST7735, ST7789, ILI9488, HX8357 itp.), ale:
+- Zmiana sterownika wymaga modyfikacji flag kompilacji w `platformio.ini`
+- Layout UI jest zaprojektowany dla rozdzielczości 320×240
+- Inna rozdzielczość wymaga modyfikacji stałych w `display_internal.h`
+
+### Q: Dlaczego DS1307 wymaga 5V a MCP23017 3.3V?
+
+**A:** DS1307 jest zaprojektowany dla 5V (Vcc min. 4.5V wg datasheet). MCP23017 akceptuje 1.8–5.5V, ale przy 3.3V zapewnia kompatybilność poziomów logicznych z ESP32-S3 (3.3V). Obie układy współdzielą magistralę I2C — moduł DS1307 ma wbudowane pull-upy zasilane z jego VCC (5V), ale piny SDA/SCL ESP32-S3 tolerują 5V (są 5V-tolerant na większości GPIO).
+
+### Q: Czy mogę wydłużyć kabel enkodera do 5 m?
+
+**A:** Przy 5 m zalecamy:
+1. Użyj skrętki (twisted pair) CAT5/CAT6
+2. Dodaj kondensatory 100 nF na obu końcach (CLK i DT)
+3. Rozważ driver linii RS-485 dla bardzo długich kabli
+4. Zwiększ `ENC_ISR_DEBOUNCE_US` do 500–1000 µs
+5. Przetestuj dokładność kalibracji po montażu
+
+---
+
 *TrassarV3 — Dokumentacja techniczna v2.23.0*
 *ESP32-S3 N16R8 | ILI9341 320×240 | GPS NEO-6M + GPX/GeoJSON | MCP23017 | 6 pistoletów | 16 wzorców | 15 przycisków | 4 tryby pracy | WiFi AP + WebSocket | backup NVS | motogodziny | predykcja farby | raporty HTML*
+*Dokumentacja aktualizowana: marzec 2026*

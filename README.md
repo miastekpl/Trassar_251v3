@@ -162,14 +162,18 @@ TrassarV3/
 
 ## Dokumentacja
 
-- [Instrukcja obsługi](docs/INSTRUKCJA_OBSLUGI.md)
-- [Schemat podłączeń](docs/SCHEMAT_PODLACZEN.md)
-- [API serwera WWW](docs/API_WWW.md)
-- [Historia zmian](CHANGELOG.md)
+| Dokument | Opis | Rozmiar |
+|----------|------|---------|
+| [Instrukcja obsługi](docs/INSTRUKCJA_OBSLUGI.md) | Pełna instrukcja operatora z przykładami, BHP, konserwacją i słownikiem | ~2100 linii |
+| [Schemat podłączeń](docs/SCHEMAT_PODLACZEN.md) | Kompletny schemat elektryczny, pinout, checklist montażowy, diagnostyka | ~1700 linii |
+| [API serwera WWW](docs/API_WWW.md) | Dokumentacja REST API + WebSocket, przykłady curl | ~500 linii |
+| [Raport weryfikacji kodu](docs/CODE_REVIEW.md) | Analiza jakości kodu, znalezione problemy, rekomendacje | ~180 linii |
+| [Propozycje rozbudowy](docs/ROADMAP.md) | Roadmap przyszłych funkcji z priorytetami i pracochłonnością | ~300 linii |
+| [Historia zmian](CHANGELOG.md) | Changelog wszystkich wersji | — |
 
 ## Wersja
 
-Aktualna wersja firmware: **v2.22.0**
+Aktualna wersja firmware: **v2.23.0**
 
 ## Rekomendacje rozwoju
 

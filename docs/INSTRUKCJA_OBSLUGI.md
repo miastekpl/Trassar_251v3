@@ -2,6 +2,7 @@
 
 ## Spis treści
 
+0. [SZYBKI START — pierwsze uruchomienie](#0-szybki-start--pierwsze-uruchomienie)
 1. [Opis ogólny](#1-opis-ogólny)
 2. [Dane techniczne](#2-dane-techniczne)
 3. [Panel sterowania](#3-panel-sterowania)
@@ -24,6 +25,90 @@
 20. [Fizyczne przyciski wzorców (MCP23017)](#20-fizyczne-przyciski-wzorców-mcp23017)
 21. [Przykłady zastosowania](#21-przykłady-zastosowania)
 22. [Rozwiązywanie problemów](#22-rozwiązywanie-problemów)
+36. [Bezpieczeństwo i BHP](#36-bezpieczeństwo-i-bhp)
+37. [Konserwacja i przeglądy](#37-konserwacja-i-przeglądy)
+38. [Aktualizacja firmware](#38-aktualizacja-firmware)
+39. [Specyfikacja zgodności z normami drogowymi](#39-specyfikacja-zgodności-z-normami-drogowymi)
+40. [Słownik pojęć](#40-słownik-pojęć)
+41. [Karta gwarancyjna i dane kontaktowe](#41-karta-gwarancyjna-i-dane-kontaktowe)
+
+---
+
+## 0. SZYBKI START — pierwsze uruchomienie
+
+### Krok 1: Montaż sprzętowy
+Przed pierwszym uruchomieniem upewnij się, że:
+- Wszystkie moduły są podłączone wg schematu podłączeń (SCHEMAT_PODLACZEN.md)
+- Karta MicroSD (FAT32, min. 1 GB) jest włożona do slotu w module ILI9341
+- Bateria CR2032 jest włożona do modułu RTC DS1307
+- Koło pomiarowe z enkoderem jest zamontowane i obraca się swobodnie
+- Antena GPS jest zamontowana z widocznością nieba (na zewnątrz kabiny)
+
+### Krok 2: Pierwsze włączenie
+1. Podłącz zasilacz USB-C (min. 5V/1.5A) do ESP32-S3
+2. Poczekaj ~3 s na uruchomienie — pojawi się ekran powitalny **TrassarV3**
+3. Ekran **POST** (diagnostyka) pokaże status wszystkich modułów:
+   - **SD: OK** / FAIL — czy karta SD jest zamontowana
+   - **RTC: OK** / FAIL — czy zegar działa
+   - **GPS: BRAK** — normalne przy pierwszym uruchomieniu (cold start 30–60 s)
+   - **MCP: OK** / FAIL — czy ekspander przycisków odpowiada
+   - **ENK: Domyślny** — normalne, wymaga kalibracji
+4. Naciśnij **START** lub poczekaj 5 s — system przejdzie na ekran HOME
+
+### Krok 3: Kalibracja enkodera (OBOWIĄZKOWA przed pierwszym malowaniem!)
+1. Odmierz na podłożu dokładnie **10 metrów** taśmą mierniczą
+2. Przytrzymaj **STOP (1 s)** → menu serwisowe
+3. Wybierz "Kalibracja enkodera" → SELEKTOR (1 s)
+4. Ustaw maszynę na początku odcinka → naciśnij **START**
+5. Jedź maszyną dokładnie 10 m → naciśnij **START**
+6. Sprawdź wynik: "Imp/metr" i "Status: OK"
+7. Powrót: STOP (1 s) → STOP (1 s)
+
+### Krok 4: Połączenie z panelem WWW
+1. Na telefonie wyszukaj sieć WiFi **TrassarV3**
+2. Hasło: **12345678**
+3. Otwórz przeglądarkę → **http://192.168.4.1**
+4. Panel sterowania ładuje się automatycznie
+
+### Krok 5: Pierwsze malowanie
+1. W panelu WWW wybierz wzorzec (np. **P-1a**)
+2. Na maszynie naciśnij **START**
+3. Ruszaj — po 3 km/h pistolety zaczną malować automatycznie
+4. **STOP** — zakończ, raport zapisuje się na kartę SD
+
+### Skrócona mapa przycisków
+
+```
+┌────────────────────────────────────────────────────────────┐
+│                   MAPA SZYBKICH KOMEND                     │
+├────────────────────────────────────────────────────────────┤
+│  Na ekranie HOME:                                         │
+│    START (krótko)     → Rozpocznij malowanie               │
+│    START (1.5 s)      → Ekran SETUP (tryb/smart/start)     │
+│    GAP (GPIO 7)       → Start od przerwy                   │
+│    SELEKTOR           → Odwróć P-3a/P-3b                   │
+│    SELEKTOR (1.5 s)   → Przełącz Smart/Instant             │
+│    STOP (1.5 s)       → Menu serwisowe                     │
+│    START + STOP (1 s) → Combo: menu serwisowe              │
+│                                                            │
+│  Podczas malowania:                                        │
+│    START              → Pauza (AUTO) / Kolejna linia (SEMI)│
+│    STOP               → Zatrzymaj + raport                 │
+│    SELEKTOR           → Odwróć P-3a/P-3b                   │
+│                                                            │
+│  W menu serwisowym:                                        │
+│    SELEKTOR (krótko)  → Następna pozycja                   │
+│    STOP (krótko)      → Poprzednia pozycja                 │
+│    SELEKTOR (1.5 s)   → Wejdź w opcję                     │
+│    STOP (1.5 s)       → Powrót                             │
+│                                                            │
+│  Joystick (alternatywa):                                   │
+│    Góra/Dół           → Nawigacja w menu                   │
+│    Prawo              → Wejdź / zmień                      │
+│    Lewo               → Cofnij                             │
+│    Przycisk           → Potwierdź                          │
+└────────────────────────────────────────────────────────────┘
+```
 
 ---
 
@@ -1931,5 +2016,334 @@ Przy każdym uruchomieniu system wyświetla ekran Power-On Self-Test (POST) z wy
 
 ---
 
+---
+
+## 36. Bezpieczeństwo i BHP
+
+### 36.1 Ostrzeżenia ogólne
+
+> **UWAGA! Urządzenie steruje zaworami pistoletów natryskowych farby drogowej pod ciśnieniem. Nieprzestrzeganie zasad bezpieczeństwa grozi obrażeniami ciała, uszkodzeniem mienia i zagrożeniem dla uczestników ruchu drogowego.**
+
+### 36.2 Wymagania bezpieczeństwa przed rozpoczęciem pracy
+
+| # | Czynność kontrolna | Kryterium |
+|---|---------------------|-----------|
+| 1 | Sprawdzenie stanu zaworów i węży | Brak przecieków, pęknięć, luźnych połączeń |
+| 2 | Weryfikacja ciśnienia w układzie | Zgodne ze specyfikacją farby (typowo 2–6 bar) |
+| 3 | Test pistoletów (czyszczenie dysz) | Każdy pistolet reaguje na przycisk START w trybie czyszczenia |
+| 4 | Sprawdzenie enkodera i koła pomiarowego | Swobodny obrót, brak poślizgu, poprawna kalibracja |
+| 5 | Sprawdzenie karty SD | Karta zamontowana, format FAT32, wolne miejsce |
+| 6 | Sprawdzenie GPS (jeśli wymagany) | Fix: TAK, satelity ≥ 4 |
+| 7 | Sprawdzenie poziomu farby w zbiorniku | Minimum 10% pojemności |
+| 8 | Sprawdzenie zasilania | Zasilacz USB-C min. 1.5A, stabilne napięcie |
+
+### 36.3 Zasady bezpieczeństwa podczas malowania
+
+1. **NIGDY** nie kieruj pistoletów natryskowych w stronę ludzi, pojazdów ani zwierząt
+2. **NIGDY** nie otwieraj układu ciśnieniowego farby podczas pracy
+3. **ZAWSZE** noś odzież ochronną: okulary, rękawice, obuwie ochronne
+4. **ZAWSZE** stosuj oznakowanie tymczasowe strefy robót zgodnie z przepisami
+5. Praca przy temperaturze otoczenia **5–35°C** (poza tym zakresem farba może nie schnąć prawidłowo)
+6. Przy prędkości wiatru > 20 km/h wstrzymaj malowanie (rozprysk farby)
+7. Nie maluj na mokrej nawierzchni (adherencja farby)
+8. Zabezpiecz teren prac wg Rozporządzenia MI z dnia 3 lipca 2003 r.
+
+### 36.4 Bezpieczeństwo elektryczne
+
+| Zagrożenie | Środek zaradczy |
+|------------|-----------------|
+| Porażenie prądem | System zasilany napięciem bezpiecznym 5V DC (SELV) — brak zagrożenia |
+| Zwarcie | Moduł przekaźnikowy ma opto-izolację; ESP32 zabezpieczone wewnętrznie |
+| Przepięcie | Diody zabezpieczające (flyback) wbudowane w moduł przekaźnikowy |
+| Wilgoć | Elektronika w obudowie IP54 lub wyższej; nie zanurzać w wodzie |
+| Wyładowania ESD | GPIO 26–37 nie podłączać (PSRAM); zachować ostrożność przy łączeniu modułów |
+
+### 36.5 Procedura awaryjna
+
+**Gdy system zachowuje się nieprawidłowo (pistolety nie wyłączają się, dziwne zachowanie):**
+
+1. **Natychmiast odłącz zasilanie USB-C** — wszystkie GPIO przechodzą w stan LOW, pistolety się zamykają
+2. Zamknij ręczny zawór główny farby (jeśli istnieje)
+3. Sprawdź monitor szeregowy (jeśli dostępny) — logi pomogą zidentyfikować przyczynę
+4. Po analizie: podłącz ponownie USB-C, system uruchomi się z zapisanymi ustawieniami
+
+**Wbudowane zabezpieczenia automatyczne:**
+- Watchdog (3 s) → automatyczny restart
+- Gun keepalive (300 ms) → awaryjne wyłączenie pistoletów
+- Minimalna prędkość (3 km/h) → pistolety OFF na postoju
+- Auto-pauza (1.5 s) → pistolety OFF przy zatrzymaniu
+
+### 36.6 Przeciwwskazania do użytkowania
+
+- Na drogach z ruchem bez odpowiedniego zabezpieczenia i oznakowania
+- Podczas opadów deszczu lub śniegu
+- Przy temperaturze nawierzchni poniżej 5°C (farba nie przywrze)
+- Na mokrej, oblodzonej lub zanieczyszczonej nawierzchni
+- Bez ważnej kalibracji enkodera (błędne długości kresek i przerw)
+
+---
+
+## 37. Konserwacja i przeglądy
+
+### 37.1 Przegląd codzienny (przed pracą)
+
+| # | Czynność | Narzędzia | Czas |
+|---|----------|-----------|------|
+| 1 | Oględziny zewnętrzne przewodów i złączy | Wzrok | 2 min |
+| 2 | Test pistoletów (czyszczenie dysz) | Menu → Czyszczenie dysz | 3 min |
+| 3 | Sprawdzenie poziomu farby | Wzrokowy kontrola zbiornika | 1 min |
+| 4 | Sprawdzenie koła pomiarowego | Dotyk — swobodny obrót | 1 min |
+| 5 | Weryfikacja daty i czasu na ekranie | Ekran HOME lub panel WWW | 30 s |
+| 6 | Sprawdzenie karty SD (wolne miejsce) | Panel WWW → System | 30 s |
+| 7 | Test GPS (fix) | Panel WWW → GPS | 1 min |
+
+### 37.2 Przegląd tygodniowy
+
+| # | Czynność | Szczegóły |
+|---|----------|-----------|
+| 1 | Pobranie raportów z karty SD | Skopiuj pliki CSV na komputer, archiwizuj |
+| 2 | Sprawdzenie statystyk pistoletów | Panel WWW → Statystyki → dystans per pistolet |
+| 3 | Czyszczenie dysz pistoletów | Menu → Czyszczenie dysz → 10 s trzymaj START na każdym wzorcu |
+| 4 | Sprawdzenie baterii CR2032 | Jeśli data resetuje się po wyłączeniu — wymień baterię |
+| 5 | Sprawdzenie złączy Dupont | Dociśnij luźne złącza, zwłaszcza SPI i I2C |
+| 6 | Czyszczenie wyświetlacza TFT | Miękka ściereczka, bez rozpuszczalników |
+
+### 37.3 Przegląd miesięczny
+
+| # | Czynność | Szczegóły |
+|---|----------|-----------|
+| 1 | Ponowna kalibracja enkodera | Menu → Kalibracja → 10 m pomiar |
+| 2 | Sprawdzenie licznika strzałów pistoletów | Planowanie wymiany dysz na podstawie licznika |
+| 3 | Archiwizacja raportów | Skopiuj zawartość `/reports/` i `/tracks/` na dysk |
+| 4 | Backup karty SD | Skopiuj całą kartę na komputer |
+| 5 | Sprawdzenie motogodzin | Panel WWW → Statystyki → MTH |
+| 6 | Sprawdzenie anteny GPS | Poprawność fix, liczba satelitów |
+
+### 37.4 Przegląd sezonowy (co 6 miesięcy lub 500 MTH)
+
+| # | Czynność | Szczegóły |
+|---|----------|-----------|
+| 1 | Wymiana dysz pistoletów | Wg zaleceń producenta dysz |
+| 2 | Sprawdzenie przekaźników | Test wszystkich 6 kanałów — kliknięcie powinno być słyszalne |
+| 3 | Sprawdzenie enkodera | Obrót powinien być płynny, bez zacięć |
+| 4 | Sprawdzenie węży ciśnieniowych | Brak pęknięć, wzdęć, przecieków |
+| 5 | Aktualizacja firmware | Jeśli dostępna nowa wersja |
+| 6 | Wymiana baterii CR2032 | Prewencyjnie co 12 miesięcy |
+
+### 37.5 Tabela żywotności komponentów
+
+| Komponent | Szacunkowa żywotność | Sygnał wymiany |
+|-----------|---------------------|----------------|
+| Dysze pistoletów | 200–500 MTH | Anomalia pistoletu, nierówny natrysk |
+| Przekaźniki | 100 000 cykli (~2–5 lat) | Brak kliknięcia, pistolet nie reaguje |
+| Enkoder obrotowy | 50 000–200 000 obrotów | Skoki dystansu, brak rejestracji |
+| Bateria CR2032 | 3–5 lat | Data resetuje się po wyłączeniu |
+| Karta MicroSD | 100 000 cykli zapisu (~5 lat) | Błędy zapisu, utrata plików |
+| Koło pomiarowe | 1–2 sezony | Zużycie bieżnika, poślizg |
+| Przewody Dupont | 2–3 lata | Utrata kontaktu, korozja |
+
+### 37.6 Czyszczenie i przechowywanie
+
+**Po zakończeniu dnia pracy:**
+1. Wyczyść dysze pistoletów (Menu → Czyszczenie dysz, 10 s na pistolet)
+2. Zamknij zawór główny farby
+3. Odłącz zasilanie USB-C
+4. Zabezpiecz elektronikę przed wilgocią (okrycie, obudowa)
+
+**Przechowywanie długoterminowe (>1 miesiąc):**
+1. Wyczyść układ farby rozpuszczalnikiem
+2. Wyjmij kartę SD i zarchiwizuj dane
+3. Odłącz baterię CR2032 (zapobieganie wyładowaniu)
+4. Przechowuj w suchym pomieszczeniu, temp. 0–40°C
+5. Zabezpiecz wyświetlacz TFT przed zarysowaniem
+
+---
+
+## 38. Aktualizacja firmware
+
+### 38.1 Wymagania
+
+- Komputer z zainstalowanym **PlatformIO** (VS Code + rozszerzenie PlatformIO IDE)
+- Kabel USB-C do USB-A/C
+- Plik projektu TrassarV3 (repozytorium git)
+
+### 38.2 Procedura aktualizacji
+
+```
+1. Podłącz ESP32-S3 kablem USB-C do komputera
+2. Otwórz terminal w katalogu projektu TrassarV3
+3. Skompiluj i wgraj firmware:
+   $ pio run --target upload
+4. Po zakończeniu — ESP32 automatycznie się zrestartuje
+5. Sprawdź wersję firmware w panelu WWW → System → Wersja
+```
+
+### 38.3 Weryfikacja po aktualizacji
+
+| Krok | Czynność | Oczekiwany wynik |
+|------|----------|------------------|
+| 1 | Ekran POST | Wszystkie moduły OK |
+| 2 | Panel WWW | Nowa wersja firmware w sekcji System |
+| 3 | Kalibracja | Zachowana z NVS (bez utraty) |
+| 4 | Wzorce własne | Zachowane z NVS |
+| 5 | Statystyki lifetime | Zachowane z NVS |
+| 6 | Raporty na SD | Nienaruszone |
+
+### 38.4 Rollback (przywracanie starej wersji)
+
+Jeśli nowa wersja nie działa poprawnie:
+1. Przywróć starszą wersję kodu z repozytorium git
+2. `pio run --target upload`
+3. Ustawienia NVS pozostaną niezmienione (chyba że zmienił się format `NVS_DATA_VERSION`)
+
+---
+
+## 39. Specyfikacja zgodności z normami drogowymi
+
+### 39.1 Normy polskie — oznakowanie poziome dróg
+
+System TrassarV3 implementuje wzorce zgodne z:
+- **Rozporządzenie Ministra Infrastruktury z dnia 3 lipca 2003 r.** w sprawie szczegółowych warunków technicznych dla znaków i sygnałów drogowych oraz urządzeń bezpieczeństwa ruchu drogowego (Dz.U. 2003 Nr 220)
+- **Załącznik nr 2** — Szczegółowe warunki techniczne dla znaków drogowych poziomych
+
+### 39.2 Tabela zgodności wzorców z normą
+
+| Wzorzec | Oznaczenie normowe | Szerokość [cm] | Kreska [m] | Przerwa [m] | Stosunek | Zastosowanie wg normy |
+|---------|-------------------|----------------|------------|-------------|----------|----------------------|
+| **P-1a** | Linia przerywana | 12 | 4.0 | 8.0 | 1:2 | Oddzielanie pasów ruchu na prostej |
+| **P-1b** | Linia przerywana krótka | 12 | 2.0 | 4.0 | 1:2 | Oddzielanie pasów ruchu na skrzyżowaniu |
+| **P-1c** | Linia wydzielająca | 12 | 2.0 | 2.0 | 1:1 | Wydzielanie pasów włączania/wyłączania |
+| **P-1d** | Linia prowadząca wąska | 12 | 1.0 | 1.0 | 1:1 | Prowadzenie ruchu na skrzyżowaniach |
+| **P-1e** | Linia prowadząca szeroka | 24 | 1.0 | 1.0 | 1:1 | Prowadzenie ruchu (pas większy) |
+| **P-2a** | Linia ciągła wąska | 12 | — | — | — | Zakaz przekraczania, oddzielanie pasów |
+| **P-2b** | Linia ciągła szeroka | 24 | — | — | — | Oddzielanie jezdni od pobocza |
+| **P-3a** | Linia jednostronnie przekraczalna | 12+12 | 4.0/2.0 | — | — | Strefa zakazu wyprzedzania (od strony ciągłej) |
+| **P-3b** | Linia jednostronnie przekraczalna | 12+12 | 1.0/1.0 | — | — | Strefa zakazu wyprzedzania (krótki cykl) |
+| **P-4** | Linia podwójna ciągła | 12+12 | — | — | — | Zakaz przekraczania w obu kierunkach |
+| **P-6** | Linia ostrzegawcza | 12 | 4.0 | 2.0 | 2:1 | Zbliżanie się do linii ciągłej |
+| **P-7a** | Linia krawędziowa przerywana szer. | 24 | 1.0 | 1.0 | 1:1 | Krawędź jezdni (zjazdy, przystanki) |
+| **P-7b** | Linia krawędziowa ciągła szer. | 24 | — | — | — | Krawędź jezdni (zakaz zjazdu) |
+| **P-7c** | Linia krawędziowa przerywana wąska | 12 | 1.0 | 1.0 | 1:1 | Krawędź jezdni (drogi niższe klasy) |
+| **P-7d** | Linia krawędziowa ciągła wąska | 12 | — | — | — | Krawędź jezdni (drogi niższe klasy) |
+
+### 39.3 Tolerancje wg normy
+
+| Parametr | Tolerancja normy | Tolerancja systemu TrassarV3 |
+|----------|------------------|------------------------------|
+| Szerokość linii | ±10% | Zależy od dysz pistoletów (montaż mechaniczny) |
+| Długość kreski | ±5% | Zależy od kalibracji enkodera (typowo ±2%) |
+| Długość przerwy | ±5% | Zależy od kalibracji enkodera (typowo ±2%) |
+| Prostoliniowość | ±5 cm/10 m | Zależy od operatora i maszyny |
+
+### 39.4 Uwaga dotycząca odpowiedzialności
+
+Operator jest odpowiedzialny za:
+- Poprawny dobór wzorca do rodzaju oznakowania
+- Prawidłową kalibrację enkodera (wpływa na dokładność kresek/przerw)
+- Właściwy montaż pistoletów (wpływa na szerokość linii)
+- Przestrzeganie przepisów o ruchu drogowym podczas prac
+
+---
+
+## 40. Słownik pojęć
+
+| Termin | Opis |
+|--------|------|
+| **ADC** | Analog-to-Digital Converter — przetwornik analogowo-cyfrowy (joystick) |
+| **AP** | Access Point — tryb punktu dostępu WiFi (ESP32 tworzy własną sieć) |
+| **Auto-pauza** | Automatyczne wstrzymanie malowania przy zatrzymaniu maszyny |
+| **BOM** | Bill of Materials — lista materiałów do montażu |
+| **Cold start** | Pierwsze uruchomienie GPS po długim wyłączeniu (~30–60 s do fix) |
+| **Core 0 / Core 1** | Dwa rdzenie procesora ESP32-S3; Core 1 = krytyczne zadania, Core 0 = WiFi |
+| **CR2032** | Bateria litowa 3V podtrzymująca zegar RTC |
+| **Debounce** | Eliminacja drgań styków przycisków (50 ms) |
+| **Demo** | Tryb demonstracyjny — wizualizacja bez uruchamiania pistoletów |
+| **Dystans sesji** | Odległość przejechana w bieżącym etapie malowania |
+| **Enkoder** | Obrotowy przetwornik impulsów montowany na kole pomiarowym |
+| **FAT32** | System plików karty SD |
+| **Fix (GPS)** | Poprawna lokalizacja z satelitów (min. 3 satelity) |
+| **fmod** | Funkcja reszty z dzielenia — oblicza pozycję w cyklu kreska/przerwa |
+| **FreeRTOS** | System operacyjny czasu rzeczywistego (zarządzanie taskami) |
+| **GAP** | Start od przerwy — rozpoczęcie malowania od fazy przerwy |
+| **GeoJSON** | Format zapisu tras GPS kompatybilny z narzędziami GIS |
+| **GPIO** | General Purpose Input/Output — piny mikrokontrolera |
+| **GPX** | GPS Exchange Format — format zapisu tras kompatybilny z Google Earth |
+| **Gun keepalive** | Mechanizm bezpieczeństwa wyłączający pistolety po 300 ms braku aktualizacji |
+| **HDOP** | Horizontal Dilution of Precision — miara dokładności GPS (niższa = lepsza) |
+| **HSPI** | Hardware SPI port (SPI3) — magistrala do wyświetlacza i karty SD |
+| **I2C** | Magistrala komunikacyjna (RTC DS1307 + MCP23017) |
+| **Imp/metr** | Impulsy enkodera na metr — wynik kalibracji |
+| **Instant** | Tryb natychmiastowej zmiany wzorca (bez czekania na koniec cyklu) |
+| **ISR** | Interrupt Service Routine — przerwanie sprzętowe (enkoder) |
+| **LEDC** | LED Control — moduł PWM ESP32 (buzzer + podświetlenie TFT) |
+| **Lifetime** | Statystyki łączne od początku pracy urządzenia |
+| **MCP23017** | Ekspander I2C 16-bitowy (15 przycisków wzorców) |
+| **MTH** | Motogodziny — czas pracy silnika malowania |
+| **Mutex** | Mechanizm synchronizacji dostępu do współdzielonych zasobów |
+| **NMEA** | Standard komunikacji GPS (protokół sentencji tekstowych) |
+| **NVS** | Non-Volatile Storage — pamięć trwała ESP32 (ustawienia, kalibracja) |
+| **Octal PSRAM** | 8 MB pamięci RAM na ESP32-S3 N16R8 (bufor GPS) |
+| **ODW** | Znacznik odwrócenia wzorca (P-3a/P-3b) |
+| **OTA** | Over-The-Air — aktualizacja firmware przez WiFi (planowane) |
+| **POST** | Power-On Self-Test — diagnostyka przy uruchomieniu |
+| **PSRAM** | Pseudo-Static RAM — dodatkowa pamięć na ESP32-S3 |
+| **Pull-up** | Rezystor podciągający pin do stanu HIGH (wbudowany w ESP32) |
+| **PWM** | Pulse Width Modulation — modulacja szerokości impulsu (buzzer, LED) |
+| **Semi-auto** | Tryb półautomatyczny — kreska auto, przerwa ręczna |
+| **Sesja** | Bieżący etap malowania (od START do STOP) |
+| **Smart Switch** | Inteligentne przełączanie wzorców (czeka na koniec cyklu) |
+| **SPI** | Serial Peripheral Interface — magistrala do TFT, SD |
+| **Strap pin** | Pin konfiguracyjny ESP32 wpływający na tryb bootowania (GPIO 46) |
+| **TFT** | Thin Film Transistor — technologia wyświetlacza kolorowego |
+| **UART** | Universal Asynchronous Receiver-Transmitter — port szeregowy (GPS) |
+| **Warm start** | Uruchomienie GPS po krótkim wyłączeniu (~1–5 s do fix) |
+| **Watchdog (WDT)** | Timer bezpieczeństwa resetujący ESP32 po 3 s zawieszenia |
+| **WebSocket** | Protokół dwukierunkowej komunikacji w czasie rzeczywistym (port 81) |
+
+---
+
+## 41. Karta gwarancyjna i dane kontaktowe
+
+### 41.1 Warunki gwarancji
+
+Firmware TrassarV3 jest dostarczany w stanie "AS IS". Gwarancja obejmuje poprawne działanie oprogramowania zgodnie z niniejszą dokumentacją przy prawidłowym montażu sprzętowym.
+
+### 41.2 Wyłączenia gwarancji
+
+- Uszkodzenia wynikające z nieprawidłowego montażu (podłączenie pinów PSRAM GPIO 26–37)
+- Uszkodzenia spowodowane zasilaniem nieodpowiednim (>5.5V, <4.5V)
+- Uszkodzenia mechaniczne komponentów
+- Modyfikacje firmware bez autoryzacji producenta
+
+### 41.3 Dane techniczne urządzenia
+
+```
+┌───────────────────────────────────────────────┐
+│            KARTA IDENTYFIKACYJNA               │
+├───────────────────────────────────────────────┤
+│  Nazwa:        TrassarV3                       │
+│  Firmware:     v2.23.0                         │
+│  MCU:          ESP32-S3 N16R8                  │
+│  Flash:        16 MB                           │
+│  PSRAM:        8 MB                            │
+│  Wyświetlacz:  ILI9341 2.8" TFT 320×240       │
+│  GPS:          NEO-6M (GY-NEO6MV2)            │
+│  Ekspander:    MCP23017 (0x20)                 │
+│  RTC:          DS1307 + CR2032                 │
+│  Pistoletów:   6 (P1–P6)                      │
+│  Wzorców:      16 (15 + własny)                │
+│  Trybów:       4 (AUTO/SEMI/MANUAL/DEMO)       │
+│  WiFi:         AP "TrassarV3" / 12345678       │
+│  Panel WWW:    http://192.168.4.1              │
+│  WebSocket:    ws://192.168.4.1:81             │
+│  Zasilanie:    USB-C 5V / min. 1.5A           │
+│  Data kompil.: __DATE__                        │
+│  Kod źródłowy: ~9750 linii, 52 pliki          │
+└───────────────────────────────────────────────┘
+```
+
+---
+
 *TrassarV3 — Komputer pokładowy malowarki pasów drogowych*
 *Firmware v2.23.0 | ESP32-S3 N16R8 | GPS NEO-6M + GPX/GeoJSON | 6 pistoletów, 16 wzorców, 4 tryby pracy (AUTO/SEMI/MANUAL/DEMO), Smart/Instant, auto-pauza, backup NVS, motogodziny, predykcja farby, raporty HTML, tryb nocny, WebSocket*
+*Dokumentacja aktualizowana: marzec 2026*
