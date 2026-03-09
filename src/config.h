@@ -1,6 +1,6 @@
 #pragma once
 // ============================================================
-// TrassarV3 - Konfiguracja sprzętowa v2.23.0
+// TrassarV3 - Konfiguracja sprzętowa v2.51.0
 // Komputer pokładowy malowarki pasów drogowych
 // ============================================================
 
@@ -9,7 +9,7 @@
 // ============ WERSJA FIRMWARE ============
 // FW_VERSION definiowane w platformio.ini (build_flags) — jedno zrodlo prawdy
 #ifndef FW_VERSION
-  #define FW_VERSION    "2.23.0"
+  #define FW_VERSION    "2.51.0"
 #endif
 #define FW_NAME         "TrassarV3"
 #define FW_DATE         __DATE__

@@ -173,7 +173,7 @@ TrassarV3/
 
 ## Wersja
 
-Aktualna wersja firmware: **v2.23.0**
+Aktualna wersja firmware: **v2.51.0**
 
 ## Rekomendacje rozwoju
 
