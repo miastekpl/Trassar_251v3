@@ -12,6 +12,7 @@
 #include "statistics.h"
 #include "guns.h"
 #include "button_handler.h"
+#include "joystick.h"
 #include "report_logger.h"
 #include "buzzer.h"
 
@@ -38,6 +39,9 @@ void MenuSystem::goToScreen(ScreenID screen) {
     g_state.displayNeedsUpdate = true;
     g_state.forceFullRedraw = true;
     lastScreenChangeMs = millis();
+    // Blokuj osie joysticka dopoki nie wroci do centrum —
+    // zapobiega szumowi ADC2 (WiFi) generujacemu falszywe zdarzenia na nowym ekranie
+    joystick.requireCenter();
 }
 
 // ============ Dyspozycja zdarzeń ============

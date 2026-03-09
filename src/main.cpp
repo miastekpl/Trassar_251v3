@@ -279,22 +279,19 @@ void loop() {
     }
 
     // 1b. Odczyt joysticka KY-023
+    // requireCenter() w goToScreen() blokuje osie dopoki joystick nie wroci
+    // do centrum — eliminuje falszywe zdarzenia z szumu ADC2 (WiFi)
     joystick.update();
     ButtonEvent joyEvent = joystick.getEvent();
     if (joyEvent != EVT_NONE) {
         // Na ekranach operacyjnych (HOME/PAINTING/SUMMARY) blokuj zdarzenia z osi
-        // analogowych — szum ADC moze generowac falszywe EVT_STOP_LONG
-        // i samoistnie przelaczac ekrany. Przepuszczamy tylko SW (przycisk).
+        // analogowych — szum ADC moze generowac falszywe EVT_STOP_LONG.
+        // Przepuszczamy tylko SW (przycisk).
         bool isOperational = (g_state.currentScreen == SCREEN_HOME ||
                               g_state.currentScreen == SCREEN_PAINTING ||
                               g_state.currentScreen == SCREEN_SUMMARY);
 
-        // Cooldown 1500ms po zmianie ekranu — blokuj zdarzenia z osi joysticka,
-        // zeby szum ADC nie cofnal natychmiast nowego ekranu (np. SETUP, SERVICE_MENU)
-        bool inCooldown = joystick.wasAxisEvent() &&
-                          (millis() - menu.lastScreenChangeMs < 1500);
-
-        if ((!isOperational && !inCooldown) || !joystick.wasAxisEvent()) {
+        if (!isOperational || !joystick.wasAxisEvent()) {
             menu.handleEvent(joyEvent);
         }
     }

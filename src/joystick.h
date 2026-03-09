@@ -13,6 +13,7 @@ public:
     void update();
     ButtonEvent getEvent();
     bool wasAxisEvent() const { return _wasAxisEvent; }
+    void requireCenter();  // Blokuj osie dopoki joystick nie wroci do centrum
 
 private:
     enum JoyDir : uint8_t {
@@ -44,6 +45,7 @@ private:
     bool swPendingLong = false;
 
     bool _wasAxisEvent = false;   // true = ostatnie zdarzenie z osi, false = z SW
+    bool _centerRequired = false; // Blokada osi dopoki joystick nie wroci do centrum
 
     JoyDir readDirection();
     ButtonEvent dirToEvent(JoyDir dir);

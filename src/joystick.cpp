@@ -27,9 +27,22 @@ void JoystickHandler::begin() {
     analogReadResolution(12);  // 12-bit (0-4095)
 }
 
+void JoystickHandler::requireCenter() {
+    _centerRequired = true;
+    pendingEvent = EVT_NONE;
+    currentDir = JOY_NONE;
+    firstEventFired = false;
+}
+
 JoystickHandler::JoyDir JoystickHandler::readDirection() {
-    int vrx = analogRead(PIN_JOY_VRX);
-    int vry = analogRead(PIN_JOY_VRY);
+    // Multi-sample: srednia z 3 odczytow — redukcja szumu ADC2 (interferencja WiFi)
+    int vrx = 0, vry = 0;
+    for (int i = 0; i < 3; i++) {
+        vrx += analogRead(PIN_JOY_VRX);
+        vry += analogRead(PIN_JOY_VRY);
+    }
+    vrx /= 3;
+    vry /= 3;
 
     int dx = abs(vrx - JOY_CENTER);
     int dy = abs(vry - JOY_CENTER);
@@ -85,6 +98,16 @@ void JoystickHandler::update() {
 
     // --- Osie analogowe ---
     JoyDir dir = readDirection();
+
+    // Blokada osi dopoki joystick nie wroci do centrum (po zmianie ekranu)
+    if (_centerRequired) {
+        if (dir == JOY_NONE) {
+            _centerRequired = false;
+        }
+        currentDir = JOY_NONE;
+        firstEventFired = false;
+        return;
+    }
 
     if (dir != currentDir) {
         // Zmiana kierunku
