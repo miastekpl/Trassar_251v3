@@ -67,10 +67,12 @@ void TrassarWebServer::begin() {
 void TrassarWebServer::webTaskFunc(void* param) {
     TrassarWebServer* self = static_cast<TrassarWebServer*>(param);
 
-    // Poczekaj az setup() zainicjalizuje WDT, potem dodaj ten task
-    vTaskDelay(pdMS_TO_TICKS(5000));
+    // Poczekaj az setup() zainicjalizuje TWDT, potem dodaj ten task.
+    // ESP-IDF TWDT monitoruje kazdy task niezaleznie — jesli ten task
+    // zawiesi sie (np. na SD I/O), WDT zadziala nawet jesli Core 1 dziala normalnie.
+    vTaskDelay(pdMS_TO_TICKS(2000));
     esp_task_wdt_add(NULL);
-    Serial.println("[WDT] Core 0 WebServer task dodany do watchdoga");
+    Serial.println("[WDT] Core 0 WebServer task dodany do watchdoga (niezalezny monitoring)");
 
     for (;;) {
         esp_task_wdt_reset();  // Podwojny watchdog: Core 0
@@ -788,12 +790,12 @@ void TrassarWebServer::handleGeoJson() {
 // ============================================================
 void TrassarWebServer::handleTrackList() {
     if (!reportLogger.isReady()) {
-        server.send(200, "application/json", "[]");
+        server.send(503, "application/json", "{\"error\":\"SD niedostepna\"}");
         return;
     }
 
     if (!SD_LOCK()) {
-        server.send(200, "application/json", "[]");
+        server.send(503, "application/json", "{\"error\":\"SD zajeta\"}");
         return;
     }
 

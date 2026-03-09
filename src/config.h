@@ -34,7 +34,8 @@
 // ============ Enkoder obrotowy (tylko pomiar dystansu/predkosci) ============
 #define PIN_ENC_CLK       5
 #define PIN_ENC_DT        6
-#define ENC_ISR_DEBOUNCE_US   200    // Minimalny odstep miedzy impulsami ISR [us]
+#define ENC_ISR_DEBOUNCE_US    50    // Minimalny odstep miedzy impulsami ISR [us]
+                                         // 50us = max 20kHz, bezpieczne do ~55 km/h przy 100 imp/m x4
 
 // ============ Przyciski funkcyjne ============
 // GPIO 33-37 zajęte przez Octal PSRAM na N16R8!
@@ -99,6 +100,8 @@
 #define PIN_JOY_SW       46   // Przycisk wciskany — INPUT_PULLUP (strap pin: nie wciskac przy wlaczaniu!)
 
 #define JOY_DEAD_ZONE        500   // Strefa martwa ±500 z centrum (12-bit ADC, centrum=2048)
+#define JOY_HYSTERESIS       150   // Histereza ADC — wejscie w kierunek wymaga DEAD_ZONE+HYSTERESIS,
+                                   // powrot do centrum wymaga < DEAD_ZONE (redukcja szumu ADC2/WiFi)
 #define JOY_INITIAL_DELAY_MS 400   // Opoznienie przed auto-repeat [ms]
 #define JOY_REPEAT_MS        200   // Interwał auto-repeat [ms]
 

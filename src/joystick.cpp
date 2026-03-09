@@ -18,10 +18,16 @@
 JoystickHandler joystick;
 
 static const int JOY_CENTER      = 2048;   // Srodek 12-bit ADC
-static const int JOY_THRESH_HI   = JOY_CENTER + JOY_DEAD_ZONE;  // 2548
-static const int JOY_THRESH_LO   = JOY_CENTER - JOY_DEAD_ZONE;  // 1548
+static const int JOY_THRESH_HI   = JOY_CENTER + JOY_DEAD_ZONE;  // 2548 — prog powrotu do centrum
+static const int JOY_THRESH_LO   = JOY_CENTER - JOY_DEAD_ZONE;  // 1548 — prog powrotu do centrum
+// Progi z histereza — wymagane do wejscia w nowy kierunek (wyzsze niz powrot)
+static const int JOY_ENTER_HI    = JOY_CENTER + JOY_DEAD_ZONE + JOY_HYSTERESIS;  // 2698
+static const int JOY_ENTER_LO    = JOY_CENTER - JOY_DEAD_ZONE - JOY_HYSTERESIS;  // 1398
 
 void JoystickHandler::begin() {
+    // GPIO 46 jest strap pinem ESP32-S3 — nie moze byc LOW przy starcie.
+    // Opoznienie zapewnia ze boot zakoncz sie przed aktywacja INPUT_PULLUP.
+    delay(50);
     pinMode(PIN_JOY_SW, INPUT_PULLUP);
     // Piny ADC nie wymagaja pinMode dla analogRead
     analogReadResolution(12);  // 12-bit (0-4095)
@@ -47,13 +53,20 @@ JoystickHandler::JoyDir JoystickHandler::readDirection() {
     int dx = abs(vrx - JOY_CENTER);
     int dy = abs(vry - JOY_CENTER);
 
+    // Histereza: aby WEJSC w kierunek — prog wyzszy (ENTER),
+    //            aby UTRZYMAC kierunek — prog nizszy (THRESH).
+    //            Eliminuje oscylacje na granicy strefy martwej.
     // Priorytet dla osi z wieksza wychyleniem
     if (dx > dy) {
-        if (vrx > JOY_THRESH_HI) return JOY_RIGHT;
-        if (vrx < JOY_THRESH_LO) return JOY_LEFT;
+        int hiThresh = (currentDir == JOY_RIGHT) ? JOY_THRESH_HI : JOY_ENTER_HI;
+        int loThresh = (currentDir == JOY_LEFT)  ? JOY_THRESH_LO : JOY_ENTER_LO;
+        if (vrx > hiThresh) return JOY_RIGHT;
+        if (vrx < loThresh) return JOY_LEFT;
     } else {
-        if (vry < JOY_THRESH_LO) return JOY_UP;
-        if (vry > JOY_THRESH_HI) return JOY_DOWN;
+        int loThresh = (currentDir == JOY_UP)   ? JOY_THRESH_LO : JOY_ENTER_LO;
+        int hiThresh = (currentDir == JOY_DOWN) ? JOY_THRESH_HI : JOY_ENTER_HI;
+        if (vry < loThresh) return JOY_UP;
+        if (vry > hiThresh) return JOY_DOWN;
     }
 
     return JOY_NONE;

@@ -237,10 +237,12 @@ void setup() {
     // Wczytaj tryb przelaczania wzorcow z NVS
     paintEngine.setSmartSwitch(storage.loadSwitchMode());
 
-    // Watchdog timer - 3s timeout, auto-reset przy zawieszeniu
-    Serial.println("[INIT] Watchdog timer...");
+    // Watchdog timer - 3s timeout, auto-reset przy zawieszeniu.
+    // TWDT monitoruje kazdy task niezaleznie (Core 1 loop + Core 0 web).
+    // Jesli DOWOLNY z nich nie zresetuje WDT w ciagu 3s — system resetuje sie.
+    Serial.println("[INIT] Watchdog timer (TWDT per-task)...");
     esp_task_wdt_init(WDT_TIMEOUT_SEC, true);
-    esp_task_wdt_add(NULL);
+    esp_task_wdt_add(NULL);  // Dodaj biezacy task (Core 1 loop)
 
     const char* modeNames[] = {"AUTO", "SEMI-AUTO", "RECZNY"};
     Serial.println();

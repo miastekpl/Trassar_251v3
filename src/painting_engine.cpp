@@ -436,17 +436,21 @@ void PaintingEngine::stop() {
 
 void PaintingEngine::setPattern(PatternID pat) {
     // --- Przelaczanie wzorcow (smart lub instant) ---
+    // Atomowy snapshot stanu i biezacego wzorca (g_state modyfikowany z Core 0)
     STATE_LOCK();
     MachineState snapState = g_state.machineState;
+    PatternID snapPattern = g_state.currentPattern;
     STATE_UNLOCK();
 
     if (snapState == STATE_PAINTING) {
-        if (pat == g_state.currentPattern) {
+        if (pat == snapPattern) {
             // Kliknieto biezacy wzorzec → anuluj pending
             if (patternChangePending) {
                 patternChangePending = false;
                 Serial.println("[ENGINE] Anulowano kolejkowana zmiane wzorca");
+                STATE_LOCK();
                 g_state.displayNeedsUpdate = true;
+                STATE_UNLOCK();
             }
             return;
         }
@@ -462,7 +466,9 @@ void PaintingEngine::setPattern(PatternID pat) {
                                 ? (int)(dist / cycle) : -1;
             Serial.printf("[ENGINE] Wzorzec %s kolejkowany (czeka na koniec cyklu)\n",
                           patternMgr.getPattern(pat).code);
+            STATE_LOCK();
             g_state.displayNeedsUpdate = true;
+            STATE_UNLOCK();
         } else {
             // INSTANT: natychmiastowa zmiana (utnij biezacy wzorzec)
             stats.notifyPatternChange(pat);
@@ -473,7 +479,9 @@ void PaintingEngine::setPattern(PatternID pat) {
             // Reset semi-auto state
             semiLineDist = 0;
             semiLineComplete = false;
+            STATE_LOCK();
             g_state.displayNeedsUpdate = true;
+            STATE_UNLOCK();
             buzzer.beep(1500, 80);
             Serial.printf("[ENGINE] Natychmiastowa zmiana wzorca -> %s\n",
                           patternMgr.getCurrent().code);
@@ -486,7 +494,9 @@ void PaintingEngine::setPattern(PatternID pat) {
     patternStartDist = encoderDist.getDistanceMeters();
     storage.saveLastPattern(pat);
     patternChangePending = false;
+    STATE_LOCK();
     g_state.displayNeedsUpdate = true;
+    STATE_UNLOCK();
     Serial.printf("[ENGINE] Zmiana wzorca -> %s\n",
                   patternMgr.getCurrent().code);
 }
@@ -511,13 +521,17 @@ void PaintingEngine::applyPendingPattern() {
     patternStartDist = encoderDist.getDistanceMeters();
     storage.saveLastPattern(pendingPattern);
     patternChangePending = false;
+    STATE_LOCK();
     g_state.displayNeedsUpdate = true;
+    STATE_UNLOCK();
     buzzer.beep(1500, 80);  // Krotki sygnal potwierdzenia
 }
 
 void PaintingEngine::toggleReverse() {
     patternMgr.toggleReverse();
+    STATE_LOCK();
     g_state.displayNeedsUpdate = true;
+    STATE_UNLOCK();
     Serial.printf("[ENGINE] Odwrocenie: %s\n",
                   g_state.patternReversed ? "TAK" : "NIE");
 }

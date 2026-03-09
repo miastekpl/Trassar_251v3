@@ -94,6 +94,14 @@ void MenuSystem::update() {
     // --- Renderowanie ---
     if (!g_state.displayNeedsUpdate) return;
 
+    // SPI wspoldzielone: TFT i SD na tej samej magistrali HSPI.
+    // Probuj zablokowac SPI — jesli SD jest zajete (Core 0), pomin klatke.
+    if (g_sdMutex && xSemaphoreTake(g_sdMutex, 0) != pdTRUE) {
+        return;  // SD zajete, sprobuj w nastepnej klatce
+    }
+    // Deselect SD przed operacjami TFT
+    digitalWrite(PIN_SD_CS, HIGH);
+
     bool fullRedraw = g_state.forceFullRedraw;
     g_state.displayNeedsUpdate = false;
     g_state.forceFullRedraw = false;
@@ -262,4 +270,7 @@ void MenuSystem::update() {
             // POST jest obslugiwany w setup(), ten case zapobiega warningowi
             break;
     }
+
+    // Zwolnij mutex SPI po renderowaniu TFT
+    SD_UNLOCK();
 }
