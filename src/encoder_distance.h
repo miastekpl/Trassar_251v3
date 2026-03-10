@@ -48,6 +48,7 @@ private:
     float currentSpeed = 0;
     long  lastSpeedPulses = 0;
     unsigned long lastSpeedTime = 0;
+    int   zeroSpeedCount = 0;
 
     // Stan kwadraturowy (2-bit: bit1=A, bit0=B)
     static volatile uint8_t quadState;
