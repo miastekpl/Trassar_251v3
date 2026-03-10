@@ -16,10 +16,20 @@ public:
     void prevPattern();
     void toggleReverse();
 
-    PatternID getCurrentID() const { return g_state.currentPattern; }
+    PatternID getCurrentID() const {
+        STATE_LOCK();
+        PatternID id = g_state.currentPattern;
+        STATE_UNLOCK();
+        return id;
+    }
     const PatternDef& getCurrent() const;
     const PatternDef& getPattern(PatternID id) const;
-    bool isReversed() const { return g_state.patternReversed; }
+    bool isReversed() const {
+        STATE_LOCK();
+        bool r = g_state.patternReversed;
+        STATE_UNLOCK();
+        return r;
+    }
 
     // Zwraca konfigurację pistoletu z uwzględnieniem odwrócenia
     GunPatternCfg getGunConfig(GunID gun) const;

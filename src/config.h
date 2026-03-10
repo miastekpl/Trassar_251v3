@@ -265,6 +265,9 @@ struct SystemState {
     bool gpsBufferWarningShown = false; // Flaga ostrzezenia GPS overflow (raz na sesje)
 };
 
+// ============ Pre-alokowany bufor SD (wspoldzielony) ============
+#define SD_BUF_SIZE       512  // Rozmiar bufora operacji SD [bajtow]
+
 // ============ Pre-alokowany bufor SD (unikniecie alokacji na stosie) ============
 extern uint8_t g_sdBuf[SD_BUF_SIZE];
 
@@ -280,15 +283,12 @@ extern portMUX_TYPE g_stateMux;
 // ============ Mutex dostepu do karty SD (SPI wspoldzielone) ============
 extern SemaphoreHandle_t g_sdMutex;
 
-// Makra bezpiecznego dostepu do SD (timeout 5s)
-#define SD_LOCK()   (g_sdMutex && xSemaphoreTake(g_sdMutex, pdMS_TO_TICKS(5000)))
+// Makra bezpiecznego dostepu do SD (timeout 2s — musi byc < WDT_TIMEOUT_SEC!)
+#define SD_LOCK()   (g_sdMutex && xSemaphoreTake(g_sdMutex, pdMS_TO_TICKS(2000)))
 #define SD_UNLOCK() do { if (g_sdMutex) xSemaphoreGive(g_sdMutex); } while(0)
 
 // ============ Wersja formatu danych NVS ============
 #define NVS_DATA_VERSION  4  // Inkrementuj przy zmianie struktur NVS (v4: checksum)
-
-// ============ Pre-alokowany bufor SD (wspoldzielony) ============
-#define SD_BUF_SIZE       512  // Rozmiar bufora operacji SD [bajtow]
 
 // ============ Timeout TFT/SD contention [ms] ============
 #define TFT_SD_MUTEX_TIMEOUT_MS  10  // Timeout oczekiwania na mutex SD przy renderowaniu TFT

@@ -29,12 +29,29 @@ public:
     void cancelRecording();     // Zatrzymaj bez zapisu
     void update();              // Sprawdz interwał i zapisz punkt
 
-    bool isRecording() const { return recording; }
-    uint16_t getPointCount() const { return pointCount; }
+    bool isRecording() const {
+        taskENTER_CRITICAL(&bufMux);
+        bool r = recording;
+        taskEXIT_CRITICAL(&bufMux);
+        return r;
+    }
+    uint16_t getPointCount() const {
+        taskENTER_CRITICAL(&bufMux);
+        uint16_t c = pointCount;
+        taskEXIT_CRITICAL(&bufMux);
+        return c;
+    }
     uint16_t getMaxPoints() const { return maxPoints; }
-    bool isOverflowed() const { return overflowed; }
+    bool isOverflowed() const {
+        taskENTER_CRITICAL(&bufMux);
+        bool o = overflowed;
+        taskEXIT_CRITICAL(&bufMux);
+        return o;
+    }
 
 private:
+    mutable portMUX_TYPE bufMux = portMUX_INITIALIZER_UNLOCKED;
+
     bool recording = false;
     unsigned long lastRecordMs = 0;
 

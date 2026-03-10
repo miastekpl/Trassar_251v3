@@ -17,7 +17,9 @@ void ButtonHandler::begin() {
 void ButtonHandler::initBtn(BtnState& b, uint8_t pin) {
     b.pin = pin;
     b.lastReading = true;
+    b.stableState = true;
     b.pressed = false;
+    b.lastChangeMs = 0;
     b.pressStart = 0;
     b.longFired = false;
     b.pendingShort = false;
@@ -27,22 +29,36 @@ void ButtonHandler::initBtn(BtnState& b, uint8_t pin) {
 
 void ButtonHandler::processBtn(BtnState& b) {
     bool reading = digitalRead(b.pin);
+    unsigned long now = millis();
 
+    // Restart debounce timer przy kazdej zmianie odczytu
     if (reading != b.lastReading) {
+        b.lastChangeMs = now;
         b.lastReading = reading;
+    }
+
+    // Akceptuj nowy stan dopiero po BTN_DEBOUNCE_MS stabilnego odczytu
+    if ((now - b.lastChangeMs) < BTN_DEBOUNCE_MS) return;
+
+    // Odczyt stabilny — sprawdz czy stan sie zmienil
+    if (reading == b.stableState) {
+        // Stan sie nie zmienil — sprawdz long press
+        if (reading == LOW && b.pressed) {
+            if (!b.longFired && (now - b.pressStart >= BTN_LONG_PRESS_MS)) {
+                b.longFired = true;
+                b.pendingLong = true;
+            }
+        }
         return;
     }
 
+    // Nowy stabilny stan
+    b.stableState = reading;
+
     if (reading == LOW && !b.pressed) {
         b.pressed = true;
-        b.pressStart = millis();
+        b.pressStart = now;
         b.longFired = false;
-    }
-    else if (reading == LOW && b.pressed) {
-        if (!b.longFired && (millis() - b.pressStart >= BTN_LONG_PRESS_MS)) {
-            b.longFired = true;
-            b.pendingLong = true;
-        }
     }
     else if (reading == HIGH && b.pressed) {
         b.pressed = false;

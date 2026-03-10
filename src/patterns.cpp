@@ -76,8 +76,10 @@ const PatternDef PatternManager::patterns[PREDEFINED_PAT_COUNT] = {
 #undef G_DASH
 
 void PatternManager::begin() {
+    STATE_LOCK();
     g_state.currentPattern = PAT_P1A;
     g_state.patternReversed = false;
+    STATE_UNLOCK();
     // Zaladuj sloty wzorcow wlasnych z NVS
     for (int s = 0; s < NUM_CUSTOM_SLOTS; s++) {
         CustomPatternCfg cfg = storage.loadCustomPattern(s);
@@ -90,45 +92,59 @@ void PatternManager::begin() {
 void PatternManager::setPattern(PatternID id) {
     if (id == PAT_CUSTOM) {
         if (!customValid) return;  // Nie przelacz na niewazny wzorzec
+        STATE_LOCK();
         g_state.currentPattern = PAT_CUSTOM;
         g_state.patternReversed = false;
+        STATE_UNLOCK();
         return;
     }
     if (id < PREDEFINED_PAT_COUNT) {
+        STATE_LOCK();
         g_state.currentPattern = id;
         // Wyłącz odwrócenie jeśli nowy wzorzec go nie obsługuje
         if (!patterns[id].hasReverse) {
             g_state.patternReversed = false;
         }
+        STATE_UNLOCK();
     }
 }
 
 void PatternManager::nextPattern() {
+    STATE_LOCK();
     int next = (int)g_state.currentPattern + 1;
+    STATE_UNLOCK();
     // Pomin PAT_CUSTOM w cyklicznym przelaczaniu
     if (next >= PREDEFINED_PAT_COUNT) next = 0;
     setPattern((PatternID)next);
 }
 
 void PatternManager::prevPattern() {
-    int prev = (int)g_state.currentPattern - 1;
+    STATE_LOCK();
+    PatternID cur = g_state.currentPattern;
+    STATE_UNLOCK();
+    int prev = (int)cur - 1;
     if (prev < 0) prev = PREDEFINED_PAT_COUNT - 1;
     // Jesli bylismy na PAT_CUSTOM, cofnij do ostatniego predefiniowanego
-    if (g_state.currentPattern == PAT_CUSTOM) prev = PREDEFINED_PAT_COUNT - 1;
+    if (cur == PAT_CUSTOM) prev = PREDEFINED_PAT_COUNT - 1;
     setPattern((PatternID)prev);
 }
 
 void PatternManager::toggleReverse() {
     const PatternDef& pat = getCurrent();
     if (pat.hasReverse) {
+        STATE_LOCK();
         g_state.patternReversed = !g_state.patternReversed;
+        STATE_UNLOCK();
     }
 }
 
 const PatternDef& PatternManager::getCurrent() const {
-    if (g_state.currentPattern == PAT_CUSTOM) return customPatDef;
-    if (g_state.currentPattern < PREDEFINED_PAT_COUNT)
-        return patterns[g_state.currentPattern];
+    STATE_LOCK();
+    PatternID curPat = g_state.currentPattern;
+    STATE_UNLOCK();
+    if (curPat == PAT_CUSTOM) return customPatDef;
+    if (curPat < PREDEFINED_PAT_COUNT)
+        return patterns[curPat];
     return patterns[0];  // Fallback
 }
 

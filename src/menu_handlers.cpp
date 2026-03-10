@@ -25,35 +25,54 @@ void MenuSystem::handleHomeScreen(ButtonEvent e) {
     switch (e) {
         case EVT_START_SHORT:
             // Alarm braku SD przy starcie malowania (jednorazowy)
-            if (!reportLogger.isReady() && !g_state.sdCardWarningShown) {
-                g_state.sdCardWarningShown = true;
-                buzzer.play(BUZ_SD_WARNING);
-                eventLog.log("MENU", "Ostrzezenie: start malowania bez karty SD");
+            {
+                STATE_LOCK();
+                bool warned = g_state.sdCardWarningShown;
+                STATE_UNLOCK();
+                if (!reportLogger.isReady() && !warned) {
+                    STATE_LOCK();
+                    g_state.sdCardWarningShown = true;
+                    STATE_UNLOCK();
+                    buzzer.play(BUZ_SD_WARNING);
+                    eventLog.log("MENU", "Ostrzezenie: start malowania bez karty SD");
+                }
             }
             paintEngine.start();
             goToScreen(SCREEN_PAINTING);
             break;
 
-        case EVT_START_LONG:
+        case EVT_START_LONG: {
             // Dlugie przytrzymanie START na HOME = ekran przygotowania (SETUP)
-            if (g_state.machineState == STATE_IDLE || g_state.machineState == STATE_STOPPED) {
+            STATE_LOCK();
+            MachineState ms = g_state.machineState;
+            STATE_UNLOCK();
+            if (ms == STATE_IDLE || ms == STATE_STOPPED) {
                 setupCursor = 0;
+                STATE_LOCK();
                 setupMode = (int)g_state.machineMode;
+                STATE_UNLOCK();
                 setupSmart = paintEngine.isSmartSwitch();
                 setupGapStart = false;
                 goToScreen(SCREEN_SETUP);
             }
             break;
+        }
 
-        case EVT_GAP_START:
+        case EVT_GAP_START: {
             // Alarm braku SD
-            if (!reportLogger.isReady() && !g_state.sdCardWarningShown) {
+            STATE_LOCK();
+            bool warnShown = g_state.sdCardWarningShown;
+            STATE_UNLOCK();
+            if (!reportLogger.isReady() && !warnShown) {
+                STATE_LOCK();
                 g_state.sdCardWarningShown = true;
+                STATE_UNLOCK();
                 buzzer.play(BUZ_SD_WARNING);
             }
             paintEngine.startFromGap();
             goToScreen(SCREEN_PAINTING);
             break;
+        }
 
         case EVT_STOP_LONG:
         case EVT_START_STOP_COMBO:
@@ -77,29 +96,38 @@ void MenuSystem::handleHomeScreen(ButtonEvent e) {
 
 void MenuSystem::handlePaintingScreen(ButtonEvent e) {
     switch (e) {
-        case EVT_START_SHORT:
-            if (g_state.machineMode == MODE_SEMI_AUTO &&
-                g_state.machineState == STATE_PAINTING &&
+        case EVT_START_SHORT: {
+            STATE_LOCK();
+            MachineMode curMode = g_state.machineMode;
+            MachineState curState = g_state.machineState;
+            STATE_UNLOCK();
+            if (curMode == MODE_SEMI_AUTO &&
+                curState == STATE_PAINTING &&
                 paintEngine.isSemiLineComplete()) {
                 // Semi-auto: START wyzwala kolejna linie
                 paintEngine.semiNextLine();
+                STATE_LOCK();
                 g_state.displayNeedsUpdate = true;
-            } else if (g_state.machineMode == MODE_MANUAL) {
+                STATE_UNLOCK();
+            } else if (curMode == MODE_MANUAL) {
                 // Manual: ignoruj krotkie START (trzymanie = strzal w update)
                 // Ale jesli na pauzie, wznow
-                if (g_state.machineState == STATE_PAUSED) {
+                if (curState == STATE_PAUSED) {
                     paintEngine.resume();
                 }
             } else {
                 // Auto / Semi (nie czeka na linie): pauza/wznowienie
-                if (g_state.machineState == STATE_PAINTING) {
+                if (curState == STATE_PAINTING) {
                     paintEngine.pause();
-                } else if (g_state.machineState == STATE_PAUSED) {
+                } else if (curState == STATE_PAUSED) {
                     paintEngine.resume();
                 }
             }
+            STATE_LOCK();
             g_state.displayNeedsUpdate = true;
+            STATE_UNLOCK();
             break;
+        }
 
         case EVT_STOP_SHORT: {
             // Zachowaj dane podsumowania PRZED zatrzymaniem
@@ -179,8 +207,13 @@ void MenuSystem::handleSetup(ButtonEvent e) {
         case EVT_START_LONG: {
             // Zapisz ustawienia i rozpocznij malowanie
             MachineMode newMode = (MachineMode)setupMode;
-            if (newMode != g_state.machineMode) {
+            STATE_LOCK();
+            MachineMode oldMode = g_state.machineMode;
+            if (newMode != oldMode) {
                 g_state.machineMode = newMode;
+            }
+            STATE_UNLOCK();
+            if (newMode != oldMode) {
                 storage.saveMode(newMode);
             }
             if (setupSmart != paintEngine.isSmartSwitch()) {
@@ -229,28 +262,39 @@ void MenuSystem::handleSetup(ButtonEvent e) {
 void MenuSystem::handleServiceMenu(ButtonEvent e) {
     switch (e) {
         case EVT_SELECT_SHORT:
+            STATE_LOCK();
             g_state.menuIndex++;
             if (g_state.menuIndex >= SERVICE_MENU_ITEMS) g_state.menuIndex = 0;
             g_state.displayNeedsUpdate = true;
+            STATE_UNLOCK();
             break;
 
         case EVT_STOP_SHORT:
+            STATE_LOCK();
             g_state.menuIndex--;
             if (g_state.menuIndex < 0) g_state.menuIndex = SERVICE_MENU_ITEMS - 1;
             g_state.displayNeedsUpdate = true;
+            STATE_UNLOCK();
             break;
 
-        case EVT_SELECT_LONG:
-            switch (g_state.menuIndex) {
+        case EVT_SELECT_LONG: {
+            STATE_LOCK();
+            int menuIdx = g_state.menuIndex;
+            STATE_UNLOCK();
+            switch (menuIdx) {
                 case 0: goToScreen(SCREEN_CALIBRATION);    break;
                 case 1: goToScreen(SCREEN_DISTANCE_METER); break;
                 case 2: goToScreen(SCREEN_REPORTS);         break;
-                case 3:
-                    nozzlePatternIdx = (int)g_state.currentPattern;
+                case 3: {
+                    STATE_LOCK();
+                    PatternID cp = g_state.currentPattern;
+                    STATE_UNLOCK();
+                    nozzlePatternIdx = (int)cp;
                     if (nozzlePatternIdx >= PatternManager::PREDEFINED_PAT_COUNT)
                         nozzlePatternIdx = 0;
                     goToScreen(SCREEN_NOZZLE_CLEAN);
                     break;
+                }
                 case 4:
                     goToScreen(SCREEN_LIFETIME_STATS);
                     break;
@@ -286,18 +330,23 @@ void MenuSystem::handleServiceMenu(ButtonEvent e) {
                     break;
             }
             break;
+        }
 
         case EVT_START_SHORT:
-        case EVT_START_LONG:
+        case EVT_START_LONG: {
             // Toggle trybu nocnego z poziomu menu serwisowego
+            STATE_LOCK();
             g_state.nightMode = !g_state.nightMode;
-            display.applyNightMode(g_state.nightMode);
-            storage.saveNightMode(g_state.nightMode);
-            buzzer.beep(1500, 60);
+            bool nm = g_state.nightMode;
             g_state.forceFullRedraw = true;
             g_state.displayNeedsUpdate = true;
-            Serial.printf("[MENU] Tryb nocny: %s\n", g_state.nightMode ? "ON" : "OFF");
+            STATE_UNLOCK();
+            display.applyNightMode(nm);
+            storage.saveNightMode(nm);
+            buzzer.beep(1500, 60);
+            Serial.printf("[MENU] Tryb nocny: %s\n", nm ? "ON" : "OFF");
             break;
+        }
 
         case EVT_STOP_LONG:
             goToScreen(SCREEN_HOME);
@@ -407,7 +456,9 @@ void MenuSystem::handleSessionReset(ButtonEvent e) {
         case EVT_START_LONG: {
             stats.resetSession();
             encoderDist.resetDistance();
+            STATE_LOCK();
             g_state.machineState = STATE_IDLE;
+            STATE_UNLOCK();
             buzzer.beep(2000, 150);
             Serial.println("[MENU] Reset etapu - liczniki wyzerowane");
             goToScreen(SCREEN_HOME);
@@ -433,7 +484,9 @@ void MenuSystem::handleCounterReset(ButtonEvent e) {
             stats.resetAll();
             encoderDist.resetDistance();
             storage.resetAllExceptCalibration();
+            STATE_LOCK();
             g_state.machineState = STATE_IDLE;
+            STATE_UNLOCK();
             buzzer.beep(1500, 300);
             Serial.println("[MENU] Reset wszystkich licznikow (kalibracja zachowana)");
             goToScreen(SCREEN_HOME);
@@ -463,7 +516,9 @@ void MenuSystem::handleSummary(ButtonEvent e) {
         case EVT_STOP_SHORT: {
             stats.resetSession();
             encoderDist.resetDistance();
+            STATE_LOCK();
             g_state.machineState = STATE_IDLE;
+            STATE_UNLOCK();
             buzzer.beep(2000, 100);
             Serial.println("[MENU] Podsumowanie -> Nowy etap (reset sesji)");
             goToScreen(SCREEN_HOME);

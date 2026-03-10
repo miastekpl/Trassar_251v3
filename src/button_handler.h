@@ -27,7 +27,9 @@ private:
     struct BtnState {
         uint8_t pin;
         bool lastReading;
+        bool stableState;          // Stan po debounce
         bool pressed;
+        unsigned long lastChangeMs; // Timestamp ostatniej zmiany odczytu
         unsigned long pressStart;
         bool longFired;
         bool pendingShort;

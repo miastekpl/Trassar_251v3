@@ -22,23 +22,34 @@ MenuSystem menu;
 // ============ Inicjalizacja ============
 
 void MenuSystem::begin() {
+    STATE_LOCK();
     g_state.currentScreen = SCREEN_HOME;
     g_state.menuIndex = 0;
     g_state.displayNeedsUpdate = true;
     g_state.forceFullRedraw = true;
+    STATE_UNLOCK();
 }
 
 // ============ Przejście między ekranami ============
 
 void MenuSystem::goToScreen(ScreenID screen) {
+    ScreenID prevScreen;
+    STATE_LOCK();
+    prevScreen = g_state.currentScreen;
+    STATE_UNLOCK();
+
     // Upewnij sie ze pistolety sa wylaczone przy wyjsciu z czyszczenia
-    if (g_state.currentScreen == SCREEN_NOZZLE_CLEAN) {
+    if (prevScreen == SCREEN_NOZZLE_CLEAN) {
         guns.allOff();
     }
+
+    STATE_LOCK();
     g_state.currentScreen = screen;
     g_state.menuIndex = 0;
     g_state.displayNeedsUpdate = true;
     g_state.forceFullRedraw = true;
+    STATE_UNLOCK();
+
     lastScreenChangeMs = millis();
     // Blokuj osie joysticka dopoki nie wroci do centrum —
     // zapobiega szumowi ADC2 (WiFi) generujacemu falszywe zdarzenia na nowym ekranie
@@ -50,7 +61,11 @@ void MenuSystem::goToScreen(ScreenID screen) {
 void MenuSystem::handleEvent(ButtonEvent event) {
     if (event == EVT_NONE) return;
 
-    switch (g_state.currentScreen) {
+    STATE_LOCK();
+    ScreenID screen = g_state.currentScreen;
+    STATE_UNLOCK();
+
+    switch (screen) {
         case SCREEN_HOME:           handleHomeScreen(event);      break;
         case SCREEN_PAINTING:       handlePaintingScreen(event);  break;
         case SCREEN_SERVICE_MENU:   handleServiceMenu(event);     break;
@@ -73,8 +88,13 @@ void MenuSystem::handleEvent(ButtonEvent event) {
 // ============ Renderowanie + logika ciagla ============
 
 void MenuSystem::update() {
+    // Odczytaj stan ekranu pod lockiem (Core 0 moze czytac rownoczesnie)
+    STATE_LOCK();
+    ScreenID curScreen = g_state.currentScreen;
+    STATE_UNLOCK();
+
     // --- Logika ciagla: pomiar dystansu ---
-    if (g_state.currentScreen == SCREEN_DISTANCE_METER && distMeasuring) {
+    if (curScreen == SCREEN_DISTANCE_METER && distMeasuring) {
         float current = encoderDist.getDistanceMeters();
         float delta = current - distMeterLast;
         distMeterLast = current;
@@ -82,7 +102,7 @@ void MenuSystem::update() {
     }
 
     // --- Logika ciagla: czyszczenie dysz ---
-    if (g_state.currentScreen == SCREEN_NOZZLE_CLEAN) {
+    if (curScreen == SCREEN_NOZZLE_CLEAN) {
         bool held = buttons.isStartHeld();
         const PatternDef& pat = patternMgr.getPattern((PatternID)nozzlePatternIdx);
         for (int i = 0; i < NUM_GUNS; i++) {
@@ -94,7 +114,10 @@ void MenuSystem::update() {
     }
 
     // --- Renderowanie ---
-    if (!g_state.displayNeedsUpdate) return;
+    STATE_LOCK();
+    bool needsUpdate = g_state.displayNeedsUpdate;
+    STATE_UNLOCK();
+    if (!needsUpdate) return;
 
     // SPI wspoldzielone: TFT i SD na tej samej magistrali HSPI.
     // Probuj zablokowac SPI z krotkim timeout — jesli SD jest zajete (Core 0),
@@ -105,27 +128,33 @@ void MenuSystem::update() {
     // Deselect SD przed operacjami TFT
     digitalWrite(PIN_SD_CS, HIGH);
 
+    STATE_LOCK();
     bool fullRedraw = g_state.forceFullRedraw;
     g_state.displayNeedsUpdate = false;
     g_state.forceFullRedraw = false;
+    curScreen = g_state.currentScreen;
+    STATE_UNLOCK();
 
     // Pelne czyszczenie tylko przy zmianie ekranu (eliminacja migania)
     if (fullRedraw) {
         display.clear();
     }
 
-    switch (g_state.currentScreen) {
+    switch (curScreen) {
 
         // ---- Ekran glowny ----
         case SCREEN_HOME: {
             const PatternDef& pat = patternMgr.getCurrent();
+            STATE_LOCK();
+            bool reversed = g_state.patternReversed;
+            STATE_UNLOCK();
             display.drawHomeScreen(
                 pat.code,
                 pat.name,
                 encoderDist.getSpeedKmh(),
                 stats.getSessionArea(),
                 pat.guns,
-                g_state.patternReversed,
+                reversed,
                 pat.hasReverse
             );
             break;
@@ -134,18 +163,22 @@ void MenuSystem::update() {
         // ---- Ekran malowania ----
         case SCREEN_PAINTING: {
             const PatternDef& pat = patternMgr.getCurrent();
+            STATE_LOCK();
+            MachineState mState = g_state.machineState;
+            bool reversed = g_state.patternReversed;
+            STATE_UNLOCK();
             bool gunStates[6];
             for (int i = 0; i < NUM_GUNS; i++) {
                 gunStates[i] = guns.getState(i);
             }
             display.drawPaintingScreen(
-                g_state.machineState,
+                mState,
                 pat.code,
                 encoderDist.getSpeedKmh(),
                 stats.getSessionArea(),
                 pat.guns,
                 gunStates,
-                g_state.patternReversed,
+                reversed,
                 paintEngine.isGapStart(),
                 paintEngine.isOverspeed(),
                 paintEngine.isLowSpeed(),
@@ -165,9 +198,13 @@ void MenuSystem::update() {
         }
 
         // ---- Menu serwisowe ----
-        case SCREEN_SERVICE_MENU:
-            display.drawServiceMenu(g_state.menuIndex);
+        case SCREEN_SERVICE_MENU: {
+            STATE_LOCK();
+            int menuIdx = g_state.menuIndex;
+            STATE_UNLOCK();
+            display.drawServiceMenu(menuIdx);
             break;
+        }
 
         // ---- Kalibracja ----
         case SCREEN_CALIBRATION:

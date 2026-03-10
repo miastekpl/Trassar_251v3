@@ -59,17 +59,22 @@ void GpsTrack::begin() {
 
 void GpsTrack::startRecording() {
     if (!buffer || maxPoints == 0) return;
+    taskENTER_CRITICAL(&bufMux);
     pointCount = 0;
     writeIdx = 0;
     overflowed = false;
     recording = true;
+    taskEXIT_CRITICAL(&bufMux);
     lastRecordMs = 0;  // Wymusza natychmiastowy zapis pierwszego punktu
     LOG_INFO("GPX", "Nagrywanie trasy rozpoczete");
 }
 
 void GpsTrack::stopRecording() {
-    if (!recording) return;
+    taskENTER_CRITICAL(&bufMux);
+    bool wasRecording = recording;
     recording = false;
+    taskEXIT_CRITICAL(&bufMux);
+    if (!wasRecording) return;
 
     uint16_t stored = getStoredCount();
     if (stored > 0) {
@@ -115,16 +120,20 @@ void GpsTrack::stopRecording() {
     } else {
         LOG_INFO("GPX", "Brak punktow — pliki nie utworzone");
     }
+    taskENTER_CRITICAL(&bufMux);
     pointCount = 0;
     writeIdx = 0;
     overflowed = false;
+    taskEXIT_CRITICAL(&bufMux);
 }
 
 void GpsTrack::cancelRecording() {
+    taskENTER_CRITICAL(&bufMux);
     recording = false;
     pointCount = 0;
     writeIdx = 0;
     overflowed = false;
+    taskEXIT_CRITICAL(&bufMux);
     LOG_INFO("GPX", "Nagrywanie anulowane");
 }
 
@@ -142,7 +151,8 @@ void GpsTrack::update() {
 }
 
 void GpsTrack::addPoint() {
-    GpxPoint& pt = buffer[writeIdx];
+    // Przygotuj dane punktu poza sekcja krytyczna
+    GpxPoint pt;
     pt.lat   = gpsHandler.getLat();
     pt.lng   = gpsHandler.getLng();
     pt.alt   = (float)gpsHandler.getAltitude();
@@ -154,6 +164,9 @@ void GpsTrack::addPoint() {
                                 now.hour(), now.minute(), now.second());
     pt._pad = 0;
 
+    bool justOverflowed = false;
+    taskENTER_CRITICAL(&bufMux);
+    buffer[writeIdx] = pt;
     writeIdx++;
     pointCount++;
 
@@ -162,9 +175,14 @@ void GpsTrack::addPoint() {
         writeIdx = 0;
         if (!overflowed) {
             overflowed = true;
-            LOG_WARN("GPX", "Bufor GPS pelny (%u pkt) — nadpisywanie najstarszych", maxPoints);
-            eventLog.logf("GPX", "Ring buffer overflow — najstarsze punkty nadpisywane (max=%u)", maxPoints);
+            justOverflowed = true;
         }
+    }
+    taskEXIT_CRITICAL(&bufMux);
+
+    if (justOverflowed) {
+        LOG_WARN("GPX", "Bufor GPS pelny (%u pkt) — nadpisywanie najstarszych", maxPoints);
+        eventLog.logf("GPX", "Ring buffer overflow — najstarsze punkty nadpisywane (max=%u)", maxPoints);
     }
 }
 
