@@ -17,7 +17,15 @@ public:
 
     // Cache listy raportow (odswiezany z Core 1, czytany z Core 0)
     void refreshReportCache();
-    const String& getReportListJson() const { return cachedReportList; }
+    String getReportListJson() const {
+        taskENTER_CRITICAL(&cacheMux);
+        String copy = cachedReportList;
+        taskEXIT_CRITICAL(&cacheMux);
+        return copy;
+    }
+
+    // Spinlock chroniacy cachedReportList (Core 0 czyta, Core 1 pisze)
+    mutable portMUX_TYPE cacheMux = portMUX_INITIALIZER_UNLOCKED;
 
 private:
     bool sdReady = false;

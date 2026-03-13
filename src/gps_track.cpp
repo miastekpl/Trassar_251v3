@@ -217,8 +217,11 @@ bool GpsTrack::writeGpxFile(const char* path) {
     for (uint16_t i = 0; i < stored; i++) {
         writeGpxPoint(f, getPoint(i));
 
-        // Co 100 punktow: flush, zeby nie stracic danych przy utracie zasilania
-        if (i % 100 == 99) f.flush();
+        // Co 50 punktow: flush + yield, zeby nie blokowac WDT i innych taskow
+        if (i % 50 == 49) {
+            f.flush();
+            yield();
+        }
     }
 
     writeGpxFooter(f);
@@ -251,7 +254,11 @@ bool GpsTrack::writeGeoJsonFile(const char* path) {
                  i > 0 ? "," : "",
                  pt.lng, pt.lat, pt.alt);
         f.print(coord);
-        if (i % 100 == 99) f.flush();
+        // Co 50 punktow: flush + yield, zeby nie blokowac WDT i innych taskow
+        if (i % 50 == 49) {
+            f.flush();
+            yield();
+        }
     }
 
     f.print(F("]},\"properties\":{\"name\":\"Trassar "));

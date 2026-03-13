@@ -150,6 +150,11 @@ void setup() {
     // 10. Karta SD (raporty)
     Serial.println("[INIT] SD mutex + karta SD...");
     g_sdMutex = xSemaphoreCreateMutex();
+    if (!g_sdMutex) {
+        Serial.println("[INIT] BLAD KRYTYCZNY: Nie mozna utworzyc mutexu SD!");
+        buzzer.play(BUZ_ERROR);
+        // Kontynuuj bez SD — SD_LOCK() zwroci false dzieki sprawdzeniu nullptr
+    }
     if (!reportLogger.begin()) {
         Serial.println("[INIT] UWAGA: Karta SD niedostepna!");
         buzzer.play(BUZ_ERROR);

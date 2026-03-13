@@ -79,12 +79,25 @@ int ReportLogger::getReportCount() {
 }
 
 void ReportLogger::refreshReportCache() {
-    if (!sdReady) { cachedReportList = "[]"; cacheValid = true; return; }
+    if (!sdReady) {
+        taskENTER_CRITICAL(&cacheMux);
+        cachedReportList = "[]";
+        cacheValid = true;
+        taskEXIT_CRITICAL(&cacheMux);
+        return;
+    }
 
     if (!SD_LOCK()) return;
 
     File dir = SD.open("/reports");
-    if (!dir) { SD_UNLOCK(); cachedReportList = "[]"; cacheValid = true; return; }
+    if (!dir) {
+        SD_UNLOCK();
+        taskENTER_CRITICAL(&cacheMux);
+        cachedReportList = "[]";
+        cacheValid = true;
+        taskEXIT_CRITICAL(&cacheMux);
+        return;
+    }
 
     // Zbierz nazwy plikow (max 50 najnowszych)
     struct FileInfo { char name[32]; size_t size; };
@@ -128,8 +141,10 @@ void ReportLogger::refreshReportCache() {
     }
     json += "]";
 
+    taskENTER_CRITICAL(&cacheMux);
     cachedReportList = json;
     cacheValid = true;
+    taskEXIT_CRITICAL(&cacheMux);
 }
 
 bool ReportLogger::getLastReport(char* buf, size_t len) {

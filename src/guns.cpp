@@ -20,30 +20,26 @@ void GunController::setGun(GunID gun, bool on) {
     if (gun >= NUM_GUNS) return;
     taskENTER_CRITICAL(&gunMux);
     gunStates[gun] = on;
-    taskEXIT_CRITICAL(&gunMux);
     hal::digitalWrite(GUN_PINS[gun], on ? HIGH : LOW);
+    taskEXIT_CRITICAL(&gunMux);
 }
 
 void GunController::allOff() {
     taskENTER_CRITICAL(&gunMux);
     for (int i = 0; i < NUM_GUNS; i++) {
         gunStates[i] = false;
-    }
-    taskEXIT_CRITICAL(&gunMux);
-    for (int i = 0; i < NUM_GUNS; i++) {
         hal::digitalWrite(GUN_PINS[i], LOW);
     }
+    taskEXIT_CRITICAL(&gunMux);
 }
 
 void GunController::allOn() {
     taskENTER_CRITICAL(&gunMux);
     for (int i = 0; i < NUM_GUNS; i++) {
         gunStates[i] = true;
-    }
-    taskEXIT_CRITICAL(&gunMux);
-    for (int i = 0; i < NUM_GUNS; i++) {
         hal::digitalWrite(GUN_PINS[i], HIGH);
     }
+    taskEXIT_CRITICAL(&gunMux);
 }
 
 bool GunController::isOn(GunID gun) const {
