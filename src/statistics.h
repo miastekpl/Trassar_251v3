@@ -10,6 +10,9 @@ class StatisticsManager {
 public:
     void begin();
 
+    // Spinlock do synchronizacji z web serverem (Core 0 czyta, Core 1 pisze)
+    mutable portMUX_TYPE statsMux = portMUX_INITIALIZER_UNLOCKED;
+
     // Aktualizacja (wywoływana w każdym cyklu malowania)
     void updatePainting(float distanceDelta, const bool gunStates[NUM_GUNS]);
 
@@ -75,6 +78,8 @@ private:
     // Licznik strzalow pistoletow (lifetime, zlicza tranzycje OFF->ON)
     uint32_t gunShotCounts[NUM_GUNS] = {};
     bool     gunWasOn[NUM_GUNS] = {};  // Stan poprzedni (do detekcji tranzycji)
+    unsigned long gunLastOnMs[NUM_GUNS] = {};  // Timestamp ostatniego ON (debounce)
+    static const unsigned long GUN_SHOT_DEBOUNCE_MS = 50;  // Min czas miedzy strzalami
 
     // Sledzenie wzorcow w sesji
     PatternEntry patEntries[MAX_PATTERN_ENTRIES] = {};

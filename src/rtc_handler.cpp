@@ -33,7 +33,22 @@ void RTCHandler::update() {
     unsigned long now = millis();
     if (now - lastUpdate >= 500) {
         lastUpdate = now;
-        currentTime = rtc.now();
+        DateTime t = rtc.now();
+        // Walidacja zakresu — I2C moze zwrocic smieci (rok 2165, data 0)
+        if (t.year() >= 2024 && t.year() <= 2035 &&
+            t.month() >= 1 && t.month() <= 12 &&
+            t.day() >= 1 && t.day() <= 31 &&
+            t.hour() <= 23 && t.minute() <= 59 && t.second() <= 59) {
+            currentTime = t;
+        } else {
+            // Smieci z I2C — zachowaj poprzedni czas, loguj raz
+            static bool rtcGarbageLogged = false;
+            if (!rtcGarbageLogged) {
+                Serial.printf("[RTC] WARN: nieprawidlowy odczyt %04d-%02d-%02d %02d:%02d:%02d — ignorowany\n",
+                              t.year(), t.month(), t.day(), t.hour(), t.minute(), t.second());
+                rtcGarbageLogged = true;
+            }
+        }
     }
 }
 

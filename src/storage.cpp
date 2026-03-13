@@ -284,7 +284,8 @@ void StorageManager::factoryReset() {
 // ============================================================
 // NVS Checksum — prosty CRC32 kluczowych wartosci
 // ============================================================
-uint32_t StorageManager::computeChecksum() {
+// Wewnetrzna funkcja hashujaca — wymaga otwartej sesji NVS (nie otwiera wlasnej)
+static uint32_t computeChecksumInternal() {
     // Prosty FNV-1a hash kluczowych danych NVS
     uint32_t hash = 2166136261u;  // FNV offset basis
     auto hashByte = [&hash](uint8_t b) {
@@ -299,8 +300,6 @@ uint32_t StorageManager::computeChecksum() {
         uint8_t* p = (uint8_t*)&v;
         for (int i = 0; i < 4; i++) hashByte(p[i]);
     };
-
-    NvsSession s(true);
 
     // Kalibracja
     hashFloat(prefs.getFloat("cal_ppm", 0));
@@ -323,6 +322,11 @@ uint32_t StorageManager::computeChecksum() {
     return hash;
 }
 
+uint32_t StorageManager::computeChecksum() {
+    NvsSession s(true);
+    return computeChecksumInternal();
+}
+
 bool StorageManager::verifyChecksum() {
     NvsSession s(true);
     uint32_t stored = prefs.getUInt("nvs_crc", 0);
@@ -331,12 +335,14 @@ bool StorageManager::verifyChecksum() {
         updateChecksum();
         return true;
     }
-    uint32_t computed = computeChecksum();
+    uint32_t computed = computeChecksumInternal();
     return (stored == computed);
 }
 
 void StorageManager::updateChecksum() {
-    uint32_t crc = computeChecksum();
+    // Jedna sesja read-write: oblicz hash i zapisz — unika zagniezdzonego
+    // prefs.end()/prefs.begin() ktore mogloby utracic niezapisane dane
     NvsSession s(false);
+    uint32_t crc = computeChecksumInternal();
     prefs.putUInt("nvs_crc", crc);
 }

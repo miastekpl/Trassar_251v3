@@ -14,6 +14,7 @@ EncoderDistance encoderDist;
 EncoderDistance* EncoderDistance::instance = nullptr;
 volatile long EncoderDistance::totalPulses = 0;
 volatile uint8_t EncoderDistance::quadState = 0;
+portMUX_TYPE EncoderDistance::encMux = portMUX_INITIALIZER_UNLOCKED;
 
 // Makra do szybkiego odczytu GPIO (piny 0-31 -> GPIO.in, piny 32-39 -> GPIO.in1.val)
 #define FAST_GPIO_READ(pin) \
@@ -50,10 +51,12 @@ void IRAM_ATTR EncoderDistance::encoderISR() {
 
     // Dekodowanie kierunku z tablicy stanow
     int8_t delta = QUAD_TABLE[quadState][newState];
+    taskENTER_CRITICAL_ISR(&encMux);
     if (delta != 0) {
         totalPulses += delta;
     }
     quadState = newState;
+    taskEXIT_CRITICAL_ISR(&encMux);
 }
 
 void EncoderDistance::begin() {
@@ -83,9 +86,9 @@ void EncoderDistance::begin() {
 void EncoderDistance::update() {
     unsigned long now = millis();
     if (now - lastSpeedTime >= SPEED_CALC_INTERVAL_MS) {
-        noInterrupts();
+        taskENTER_CRITICAL(&encMux);
         long currentPulses = totalPulses;
-        interrupts();
+        taskEXIT_CRITICAL(&encMux);
 
         long dPulses = currentPulses - lastSpeedPulses;
         float dt = (now - lastSpeedTime) / 1000.0f;
@@ -116,9 +119,9 @@ void EncoderDistance::update() {
 }
 
 float EncoderDistance::getDistanceMeters() const {
-    noInterrupts();
+    taskENTER_CRITICAL(&encMux);
     long p = totalPulses;
-    interrupts();
+    taskEXIT_CRITICAL(&encMux);
     return (pulsesPerMeter > 0) ? (float)abs(p) / pulsesPerMeter : 0;
 }
 
@@ -131,16 +134,16 @@ float EncoderDistance::getSpeedKmh() const {
 }
 
 long EncoderDistance::getTotalPulses() const {
-    noInterrupts();
+    taskENTER_CRITICAL(&encMux);
     long p = totalPulses;
-    interrupts();
+    taskEXIT_CRITICAL(&encMux);
     return p;
 }
 
 void EncoderDistance::resetDistance() {
-    noInterrupts();
+    taskENTER_CRITICAL(&encMux);
     totalPulses = 0;
-    interrupts();
+    taskEXIT_CRITICAL(&encMux);
     lastSpeedPulses = 0;
     currentSpeed = 0;
 }
@@ -148,18 +151,18 @@ void EncoderDistance::resetDistance() {
 // ============ Kalibracja ============
 
 void EncoderDistance::startCalibration() {
-    noInterrupts();
+    taskENTER_CRITICAL(&encMux);
     calStartPulses = totalPulses;
-    interrupts();
+    taskEXIT_CRITICAL(&encMux);
     calibrating = true;
     Serial.println("[CAL] Kalibracja rozpoczeta - przejedz 10m");
 }
 
 void EncoderDistance::finishCalibration() {
     if (!calibrating) return;
-    noInterrupts();
+    taskENTER_CRITICAL(&encMux);
     long endPulses = totalPulses;
-    interrupts();
+    taskEXIT_CRITICAL(&encMux);
 
     long diff = abs(endPulses - calStartPulses);
     if (diff > 10) { // Minimum sensownych impulsów
@@ -181,9 +184,9 @@ void EncoderDistance::cancelCalibration() {
 
 float EncoderDistance::getCalibrationPulses() const {
     if (!calibrating) return 0;
-    noInterrupts();
+    taskENTER_CRITICAL(&encMux);
     long current = totalPulses;
-    interrupts();
+    taskEXIT_CRITICAL(&encMux);
     return (float)abs(current - calStartPulses);
 }
 

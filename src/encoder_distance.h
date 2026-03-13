@@ -56,6 +56,9 @@ private:
 
     // Tablica dekodowania kwadraturowego x4
     static const int8_t QUAD_TABLE[4][4];
+
+    // Spinlock zamiast noInterrupts() — nie blokuje WDT na dual-core
+    static portMUX_TYPE encMux;
 };
 
 extern EncoderDistance encoderDist;

@@ -163,10 +163,15 @@ bool ReportLogger::getLastReport(char* buf, size_t len) {
     if (!f) { SD_UNLOCK(); buf[0] = 0; return false; }
 
     // Odczytaj ostatnia linie (pomijajac naglowek)
+    // Timeout: max 2000 bajtow aby uniknac deadlocku przy uszkodzonej SD
     char line[128] = {};
-    while (f.available()) {
+    size_t totalRead = 0;
+    const size_t MAX_READ_BYTES = 2000;
+    f.setTimeout(500);  // 500ms timeout na readBytesUntil
+    while (f.available() && totalRead < MAX_READ_BYTES) {
         size_t r = f.readBytesUntil('\n', line, sizeof(line) - 1);
         line[r] = 0;
+        totalRead += r + 1;
     }
     f.close();
     SD_UNLOCK();

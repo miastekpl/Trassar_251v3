@@ -146,9 +146,8 @@ void BuzzerController::play(BuzzerSignal signal) {
 }
 
 void BuzzerController::beep(uint16_t freq, uint16_t durationMs) {
-    static BuzzerStep singleStep;
-    singleStep = {freq, durationMs};
-    startSequence(&singleStep, 1);
+    singleBeepStep = {freq, durationMs};
+    startSequence(&singleBeepStep, 1);
 }
 
 void BuzzerController::stop() {

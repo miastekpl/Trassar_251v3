@@ -26,7 +26,7 @@
 
 // Licznik bledow I2C — po przekroczeniu progu wyłacza modul
 static uint8_t i2cErrorCount = 0;
-static const uint8_t I2C_ERROR_THRESHOLD = 5;  // 5 bledow z rzedu = modul offline
+static const uint8_t I2C_ERROR_THRESHOLD = 15;  // 15 bledow z rzedu = modul offline (EMI od pomp)
 
 PatternButtonHandler patternButtons;
 

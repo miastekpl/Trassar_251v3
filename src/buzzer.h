@@ -53,6 +53,7 @@ private:
     uint8_t seqLen = 0;
     uint8_t seqIdx = 0;
     unsigned long stepStartMs = 0;
+    BuzzerStep singleBeepStep;  // Bufor dla beep() — unika static shared
 };
 
 extern BuzzerController buzzer;

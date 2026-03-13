@@ -22,6 +22,10 @@ void StatisticsManager::begin() {
 void StatisticsManager::updatePainting(float distanceDelta, const bool gunStates[NUM_GUNS]) {
     if (distanceDelta <= 0) return;
 
+    unsigned long now = millis();
+
+    taskENTER_CRITICAL(&statsMux);
+
     sessionDistance += distanceDelta;
     lifetime.totalDistance += distanceDelta;
 
@@ -33,9 +37,10 @@ void StatisticsManager::updatePainting(float distanceDelta, const bool gunStates
             sessionArea += area;
             lifetime.totalArea += area;
             deltaArea += area;
-            // Zlicz tranzycje OFF->ON (= nowy strzal)
-            if (!gunWasOn[i]) {
+            // Zlicz tranzycje OFF->ON (= nowy strzal) z debounce
+            if (!gunWasOn[i] && (now - gunLastOnMs[i] >= GUN_SHOT_DEBOUNCE_MS)) {
                 gunShotCounts[i]++;
+                gunLastOnMs[i] = now;
             }
         }
         gunWasOn[i] = gunStates[i];
@@ -44,6 +49,8 @@ void StatisticsManager::updatePainting(float distanceDelta, const bool gunStates
     // Sledzenie wzorcow w sesji
     patCurrentDist += distanceDelta;
     patCurrentArea += deltaArea;
+
+    taskEXIT_CRITICAL(&statsMux);
 }
 
 void StatisticsManager::resetSession() {
@@ -124,11 +131,19 @@ void StatisticsManager::resumeSessionTimer() {
 }
 
 void StatisticsManager::saveLifetime() {
+    LifetimeStats ltCopy;
+    uint32_t shotsCopy[NUM_GUNS];
+
+    taskENTER_CRITICAL(&statsMux);
+    ltCopy = lifetime;
     if (sessionTimerRunning) {
-        lifetime.totalPaintTimeSec += getSessionTimeSec();
+        ltCopy.totalPaintTimeSec += getSessionTimeSec();
     }
-    storage.saveLifetimeStats(lifetime);
-    storage.saveGunShotCounts(gunShotCounts);
+    for (int i = 0; i < NUM_GUNS; i++) shotsCopy[i] = gunShotCounts[i];
+    taskEXIT_CRITICAL(&statsMux);
+
+    storage.saveLifetimeStats(ltCopy);
+    storage.saveGunShotCounts(shotsCopy);
 }
 
 void StatisticsManager::loadLifetime() {

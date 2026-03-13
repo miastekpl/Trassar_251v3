@@ -135,6 +135,12 @@ bool NvsBackup::backupToSD() {
         }
     }
 
+    // Sprawdz czy dokument nie zostal obciety (brak pamieci heap)
+    if (doc.overflowed()) {
+        Serial.println("[BACKUP] BLAD: JsonDocument overflow — za malo pamieci heap");
+        return false;
+    }
+
     // Zapis na SD (pod mutexem)
     if (!SD_LOCK()) {
         Serial.println("[BACKUP] Nie mozna zdobyc mutexu SD");

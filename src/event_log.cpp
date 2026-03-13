@@ -23,7 +23,14 @@ void EventLog::log(const char* category, const char* message) {
     // Zawsze drukuj na Serial niezaleznie od SD
     Serial.printf("[%s] %s\n", category, message);
 
+    // Guard rekurencji — jesli operacja SD zawiedzie i error handler
+    // probuje zalogowac blad, unikamy nieskonczonej rekurencji → WDT reset
+    static bool logInProgress = false;
+    if (logInProgress) return;
+
     if (!ready || !reportLogger.isReady()) return;
+
+    logInProgress = true;
 
     DateTime now = rtcModule.now();
 
@@ -38,11 +45,12 @@ void EventLog::log(const char* category, const char* message) {
              now.hour(), now.minute(), now.second(),
              category, message);
 
-    if (!SD_LOCK()) return;
+    if (!SD_LOCK()) { logInProgress = false; return; }
 
     if (!SD.exists("/logs")) {
         if (!SD.mkdir("/logs")) {
             SD_UNLOCK();
+            logInProgress = false;
             return;
         }
     }
@@ -50,19 +58,33 @@ void EventLog::log(const char* category, const char* message) {
     File f = SD.open(path, FILE_APPEND);
     if (!f) {
         SD_UNLOCK();
-        // Nie logujemy bledu Serial.print zeby uniknac rekurencji
+        logInProgress = false;
         return;
     }
 
     if (f.size() > EVENT_LOG_MAX_SIZE) {
         f.close();
-        SD_UNLOCK();
-        return;
+        // Rotacja: usun stary .old, przemianuj biezacy na .old
+        char oldPath[32];
+        snprintf(oldPath, sizeof(oldPath), "/logs/%04d%02d%02d.old",
+                 now.year(), now.month(), now.day());
+        SD.remove(oldPath);
+        SD.rename(path, oldPath);
+        // Otworz nowy plik
+        f = SD.open(path, FILE_WRITE);
+        if (!f) {
+            SD_UNLOCK();
+            logInProgress = false;
+            return;
+        }
+        f.println("--- Log rotated (64KB limit) ---");
     }
 
     size_t written = f.print(line);
     f.close();
     SD_UNLOCK();
+
+    logInProgress = false;
 
     if (written == 0) {
         Serial.printf("[WARN][LOG] Blad zapisu do %s\n", path);
