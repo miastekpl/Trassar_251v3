@@ -197,7 +197,7 @@ void PatternButtonHandler::update() {
             g_state.displayNeedsUpdate = true;
 
             // Potwierdzenie dźwiękowe
-            buzzer.beep(1500, 80);
+            buzzer.beep(BUZ_CONFIRM_FREQ, BUZ_CONFIRM_DURATION_MS);
 
             const PatternDef& def = patternMgr.getPattern(pat);
             Serial.printf("[PAT_BTN] Przycisk %d → wzorzec %s (%s)\n",

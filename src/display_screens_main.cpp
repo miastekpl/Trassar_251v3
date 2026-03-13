@@ -338,7 +338,7 @@ void DisplayManager::drawPaintingScreen(MachineState state, const char* patCode,
     // Kolor predkosci: czerwony migajacy = overspeed, zolty = low speed, bialy = OK
     uint16_t speedColor = cText;
     if (overspeed) {
-        bool blinkPhase = ((millis() / 300) % 2) == 0;
+        bool blinkPhase = ((millis() / BLINK_PERIOD_MS) % 2) == 0;
         speedColor = blinkPhase ? cError : cText;
     } else if (lowSpeed) {
         speedColor = cWarning;

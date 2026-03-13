@@ -90,6 +90,16 @@
 // ============ Gun keepalive ============
 #define GUN_KEEPALIVE_TIMEOUT_MS  300  // Awaryjne guns.allOff() jesli brak update >300ms
 
+// ============ Alarmy predkosci — interwaly buzzera ============
+#define LOW_SPEED_BUZZ_REPEAT_MS  3000   // Powtarzaj alarm niskiej predkosci co 3s
+#define OVERSPEED_BUZZ_REPEAT_MS  2000   // Powtarzaj alarm przekroczenia co 2s
+
+// ============ Buzzer — tony potwierdzenia (ad-hoc beepy) ============
+#define BUZ_CONFIRM_FREQ          1500   // Czestotliwosc potwierdzenia [Hz]
+#define BUZ_CONFIRM_DURATION_MS     80   // Czas trwania potwierdzenia [ms]
+#define BUZ_SEMI_LINE_FREQ        1000   // Czestotliwosc sygnalu konca linii semi-auto [Hz]
+#define BUZ_SEMI_LINE_DURATION_MS   50   // Czas trwania sygnalu konca linii [ms]
+
 // ============ Kalibracja ============
 #define DEFAULT_PULSES_PER_METER  100.0f
 #define CALIBRATION_DISTANCE_M     10.0f

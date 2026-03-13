@@ -86,7 +86,7 @@ void DisplayManager::drawGunRects(int y, const GunPatternCfg gunsCfg[6],
     const int totalW = NUM_GUNS * gunW + (NUM_GUNS - 1) * GUN_GAP;
     const int startX = (TFT_SCREEN_W - totalW) / 2;
 
-    bool blinkOn = ((millis() / 500) % 2) == 0;
+    bool blinkOn = ((millis() / BLINK_SLOW_MS) % 2) == 0;
 
     tft.setFreeFont(FSB9);
     tft.setTextDatum(MC_DATUM);

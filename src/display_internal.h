@@ -74,6 +74,10 @@
 #define SMENU_COUNT         10      // Liczba pozycji menu (SERVICE_MENU_ITEMS)
 #define SMENU_VISIBLE       6       // Max pozycji widocznych na ekranie
 
+// Miganie elementow UI
+#define BLINK_PERIOD_MS         300     // Okres migania overspeed [ms]
+#define BLINK_SLOW_MS           500     // Okres wolnego migania (pauza) [ms]
+
 // Ekran splasha
 #define SPLASH_TITLE_OFS    (-40)   // Offset Y tytulu od srodka ekranu
 #define SPLASH_SUB_OFS      10      // Offset Y podtytulu

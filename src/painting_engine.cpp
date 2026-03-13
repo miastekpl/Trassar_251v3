@@ -4,6 +4,7 @@
 // ============================================================
 
 #include "painting_engine.h"
+#include "gun_logic.h"
 #include "patterns.h"
 #include "guns.h"
 #include "encoder_distance.h"
@@ -42,20 +43,7 @@ void PaintingEngine::begin() {
 
 bool PaintingEngine::shouldGunFire(GunID gun, float distFromPatternStart) const {
     GunPatternCfg cfg = patternMgr.getGunConfig(gun);
-
-    switch (cfg.mode) {
-        case GUN_OFF:
-            return false;
-        case GUN_CONTINUOUS:
-            return true;
-        case GUN_DASHED: {
-            float cycle = cfg.lineLen + cfg.gapLen;
-            if (cycle <= 0) return false;
-            float pos = fmodf(distFromPatternStart, cycle);
-            return (pos < cfg.lineLen);
-        }
-    }
-    return false;
+    return shouldGunFirePure(cfg, distFromPatternStart);
 }
 
 void PaintingEngine::update() {
@@ -168,7 +156,7 @@ void PaintingEngine::update() {
         // Ustaw semiLineComplete gdy wszystkie DASHED pistolety skonczyly
         if (anyDashed && !semiLineComplete && allDashedDone) {
             semiLineComplete = true;
-            buzzer.beep(1000, 50);  // Krotki sygnal: linia gotowa
+            buzzer.beep(BUZ_SEMI_LINE_FREQ, BUZ_SEMI_LINE_DURATION_MS);
         }
 
     } else if (snapMode == MODE_DEMO) {
@@ -202,7 +190,7 @@ void PaintingEngine::update() {
         // Dopiero spadla ponizej progu - natychmiastowy sygnal
         buzzer.play(BUZ_LOW_SPEED);
         lastLowSpeedBuzMs = now;
-    } else if (lowSpeedActive && (now - lastLowSpeedBuzMs >= 3000)) {
+    } else if (lowSpeedActive && (now - lastLowSpeedBuzMs >= LOW_SPEED_BUZZ_REPEAT_MS)) {
         // Powtarzaj co 3s dopoki predkosc jest za niska
         buzzer.play(BUZ_LOW_SPEED);
         lastLowSpeedBuzMs = now;
@@ -216,7 +204,7 @@ void PaintingEngine::update() {
         lastOverspeedBuzMs = now;
         eventLog.logf("ENGINE", "PRZEKROCZENIE predkosci: %.1f > %.1f km/h",
                       speedKmh, maxSpeedKmh);
-    } else if (overspeedActive && (now - lastOverspeedBuzMs >= 2000)) {
+    } else if (overspeedActive && (now - lastOverspeedBuzMs >= OVERSPEED_BUZZ_REPEAT_MS)) {
         // Powtarzaj co 2s
         buzzer.play(BUZ_OVERSPEED);
         lastOverspeedBuzMs = now;
@@ -482,7 +470,7 @@ void PaintingEngine::setPattern(PatternID pat) {
             STATE_LOCK();
             g_state.displayNeedsUpdate = true;
             STATE_UNLOCK();
-            buzzer.beep(1500, 80);
+            buzzer.beep(BUZ_CONFIRM_FREQ, BUZ_CONFIRM_DURATION_MS);
             Serial.printf("[ENGINE] Natychmiastowa zmiana wzorca -> %s\n",
                           patternMgr.getCurrent().code);
         }
@@ -524,7 +512,7 @@ void PaintingEngine::applyPendingPattern() {
     STATE_LOCK();
     g_state.displayNeedsUpdate = true;
     STATE_UNLOCK();
-    buzzer.beep(1500, 80);  // Krotki sygnal potwierdzenia
+    buzzer.beep(BUZ_CONFIRM_FREQ, BUZ_CONFIRM_DURATION_MS);  // Krotki sygnal potwierdzenia
 }
 
 void PaintingEngine::toggleReverse() {
@@ -549,7 +537,7 @@ void PaintingEngine::semiNextLine() {
     semiLineDist = 0;
     semiLineComplete = false;
     semiSegmentNum++;
-    buzzer.beep(1500, 80);  // Krotki sygnal potwierdzenia
+    buzzer.beep(BUZ_CONFIRM_FREQ, BUZ_CONFIRM_DURATION_MS);  // Krotki sygnal potwierdzenia
     Serial.printf("[ENGINE] Semi-auto: rozpoczynam segment %d\n", semiSegmentNum);
 }
 
