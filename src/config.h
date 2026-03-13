@@ -288,7 +288,7 @@ extern SemaphoreHandle_t g_sdMutex;
 #define SD_UNLOCK() do { if (g_sdMutex) xSemaphoreGive(g_sdMutex); } while(0)
 
 // ============ Wersja formatu danych NVS ============
-#define NVS_DATA_VERSION  4  // Inkrementuj przy zmianie struktur NVS (v4: checksum)
+#define NVS_DATA_VERSION  5  // Inkrementuj przy zmianie struktur NVS (v5: versioned CustomPatternCfg)
 
 // ============ Timeout TFT/SD contention [ms] ============
 #define TFT_SD_MUTEX_TIMEOUT_MS  10  // Timeout oczekiwania na mutex SD przy renderowaniu TFT
@@ -297,7 +297,10 @@ extern SemaphoreHandle_t g_sdMutex;
 #define NUM_CUSTOM_SLOTS  3
 
 // ============ Konfiguracja wzorca wlasnego (NVS) ============
+#define CUSTOM_PAT_STRUCT_VER  1  // Wersja layoutu struktury CustomPatternCfg
+
 struct CustomPatternCfg {
+    uint8_t structVersion;       // Wersja layoutu struktury (migracja NVS)
     uint8_t gunModes[NUM_GUNS];  // GunMode per gun (OFF/CONT/DASHED)
     float lineLen[NUM_GUNS];     // Dlugosc linii [m] per gun (dla DASHED)
     float gapLen[NUM_GUNS];      // Dlugosc przerwy [m] per gun (dla DASHED)

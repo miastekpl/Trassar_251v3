@@ -302,6 +302,7 @@ void MenuSystem::handleServiceMenu(ButtonEvent e) {
                     custCfg = patternMgr.loadSlot(patternMgr.getActiveSlot());
                     if (!custCfg.valid) {
                         memset(&custCfg, 0, sizeof(custCfg));
+                        custCfg.structVersion = CUSTOM_PAT_STRUCT_VER;
                         custCfg.valid = true;
                         for (int i = 0; i < NUM_GUNS; i++) {
                             custCfg.lineLen[i] = 2.0f;

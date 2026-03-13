@@ -230,6 +230,7 @@ void TrassarWebServer::handleControl() {
     } else if (action == "save_custom_pattern") {
         // Parametry: g0..g5, ln0..ln5, gp0..gp5, slot (0-2)
         CustomPatternCfg cfg = {};
+        cfg.structVersion = CUSTOM_PAT_STRUCT_VER;
         cfg.valid = true;
         bool validationError = false;
         for (int i = 0; i < NUM_GUNS; i++) {

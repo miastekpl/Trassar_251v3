@@ -65,6 +65,11 @@ void StorageManager::checkNvsVersion() {
             prefs.remove("cust_p2");
             Serial.println("[NVS] Wyczyszczono wzorce wlasne (zmiana formatu)");
         }
+        if (ver < 5) {
+            // v5: CustomPatternCfg ma nowe pole structVersion — stare bloby
+            // maja inny rozmiar/layout, loadCustomPattern() je wykryje i zignoruje
+            Serial.println("[NVS] Migracja v5: wzorce wlasne beda zwalidowane przy ladowaniu");
+        }
         prefs.putUChar("nvs_ver", NVS_DATA_VERSION);
     } else {
         Serial.printf("[NVS] Wersja NVS: %d (OK)\n", ver);
@@ -153,9 +158,12 @@ void StorageManager::saveCustomPattern(const CustomPatternCfg& cfg, int slot) {
     if (slot < 0 || slot >= NUM_CUSTOM_SLOTS) slot = 0;
     char key[12];
     snprintf(key, sizeof(key), "cust_p%d", slot);
+    // Ustaw wersje struktury przed zapisem
+    CustomPatternCfg versioned = cfg;
+    versioned.structVersion = CUSTOM_PAT_STRUCT_VER;
     NvsSession s(false);
-    prefs.putBytes(key, &cfg, sizeof(cfg));
-    Serial.printf("[NVS] Zapisano wzorzec wlasny slot %d\n", slot);
+    prefs.putBytes(key, &versioned, sizeof(versioned));
+    Serial.printf("[NVS] Zapisano wzorzec wlasny slot %d (ver=%d)\n", slot, CUSTOM_PAT_STRUCT_VER);
 }
 
 CustomPatternCfg StorageManager::loadCustomPattern(int slot) {
@@ -165,7 +173,13 @@ CustomPatternCfg StorageManager::loadCustomPattern(int slot) {
     snprintf(key, sizeof(key), "cust_p%d", slot);
     NvsSession s(true);
     size_t len = prefs.getBytes(key, &cfg, sizeof(cfg));
-    if (len != sizeof(cfg)) {
+    if (len != sizeof(cfg) || cfg.structVersion != CUSTOM_PAT_STRUCT_VER) {
+        // Rozmiar lub wersja nie pasuje — blob pochodzi ze starszego firmware
+        if (len > 0) {
+            LOG_WARN("NVS", "Slot %d: niezgodna wersja struktury (len=%u ver=%u) — invalidated",
+                     slot, (unsigned)len, cfg.structVersion);
+        }
+        cfg = {};
         cfg.valid = false;
     }
     return cfg;

@@ -257,6 +257,7 @@ bool NvsBackup::restoreFromSD() {
         JsonObject slot = cpArr[s];
         if (slot["valid"].as<bool>()) {
             CustomPatternCfg cfg = {};
+            cfg.structVersion = CUSTOM_PAT_STRUCT_VER;
             cfg.valid = true;
             JsonArray gm = slot["gm"];
             JsonArray ln = slot["ln"];
