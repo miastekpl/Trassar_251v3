@@ -16,6 +16,7 @@ public:
     void update();      // Wywolywane przez task na Core 0 (nie z loop!)
     String getIPAddress();
     int getConnectedClients();
+    bool isLittleFsReady() const { return littleFsReady; }
 
     // Stack high-water mark tasku WWW (diagnostyka)
     uint32_t getTaskStackHWM() const;
@@ -25,6 +26,7 @@ private:
     WebSocketsServer wsServer{WS_PORT};
     TaskHandle_t webTaskHandle = nullptr;
     unsigned long lastWsBroadcast = 0;
+    bool littleFsReady = false;
 
     void setupRoutes();
     void handleRoot();
@@ -39,6 +41,7 @@ private:
     void handleHtmlReports();
     void handleHtmlReportDownload();
     void handleNotFound();
+    bool handleStaticFile(const String& path);
 
     String buildHtmlPage();
     String getStateJson();

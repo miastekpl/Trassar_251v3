@@ -8,6 +8,7 @@
 #include <cmath>
 #include <ArduinoJson.h>
 #include <esp_task_wdt.h>
+#include <LittleFS.h>
 #include "painting_engine.h"
 #include "menu.h"
 #include "encoder_distance.h"
@@ -28,6 +29,23 @@ TrassarWebServer webServer;
 // Inicjalizacja WiFi AP i serwera HTTP
 // ============================================================
 void TrassarWebServer::begin() {
+    // Mount LittleFS (web UI assets)
+    if (LittleFS.begin(false)) {
+        littleFsReady = true;
+        Serial.println("[LittleFS] Zamontowano pomyslnie");
+        // Sprawdz czy index.html istnieje
+        if (LittleFS.exists("/index.html")) {
+            Serial.printf("[LittleFS] index.html: %u bajtow\n",
+                          (unsigned)LittleFS.open("/index.html").size());
+        } else {
+            Serial.println("[LittleFS] UWAGA: brak /index.html — fallback PROGMEM");
+            littleFsReady = false;
+        }
+    } else {
+        Serial.println("[LittleFS] Blad montowania — fallback PROGMEM");
+        littleFsReady = false;
+    }
+
     WiFi.mode(WIFI_AP);
     WiFi.softAP(WIFI_AP_SSID, WIFI_AP_PASS, WIFI_AP_CHANNEL, 0, WIFI_AP_MAX_CON);
 
@@ -129,7 +147,13 @@ void TrassarWebServer::setupRoutes() {
     server.on("/api/control", HTTP_POST, [this]() { handleControl(); });
     server.on("/api/html_reports", HTTP_GET, [this]() { handleHtmlReports(); });
     server.on("/api/html_reports/download", HTTP_GET, [this]() { handleHtmlReportDownload(); });
-    server.onNotFound([this]() { handleNotFound(); });
+    // Obsluga plikow statycznych z LittleFS (CSS, JS, ikony itp.)
+    server.onNotFound([this]() {
+        if (littleFsReady && handleStaticFile(server.uri())) {
+            return;
+        }
+        handleNotFound();
+    });
 }
 
 // ============================================================
@@ -431,6 +455,39 @@ void TrassarWebServer::handleHtmlReportDownload() {
 }
 
 // ============================================================
+// Serwowanie plikow statycznych z LittleFS
+// ============================================================
+bool TrassarWebServer::handleStaticFile(const String& path) {
+    String filePath = path;
+    if (filePath.endsWith("/")) filePath += "index.html";
+
+    // Content type na podstawie rozszerzenia
+    const char* ct = "application/octet-stream";
+    if (filePath.endsWith(".html"))      ct = "text/html";
+    else if (filePath.endsWith(".css"))   ct = "text/css";
+    else if (filePath.endsWith(".js"))    ct = "application/javascript";
+    else if (filePath.endsWith(".json"))  ct = "application/json";
+    else if (filePath.endsWith(".png"))   ct = "image/png";
+    else if (filePath.endsWith(".ico"))   ct = "image/x-icon";
+    else if (filePath.endsWith(".svg"))   ct = "image/svg+xml";
+
+    if (!LittleFS.exists(filePath)) return false;
+
+    File f = LittleFS.open(filePath, "r");
+    if (!f) return false;
+
+    server.setContentLength(f.size());
+    server.send(200, ct, "");
+    uint8_t buf[512];
+    while (f.available()) {
+        int r = f.read(buf, sizeof(buf));
+        if (r > 0) server.sendContent((const char*)buf, r);
+    }
+    f.close();
+    return true;
+}
+
+// ============================================================
 // 404
 // ============================================================
 void TrassarWebServer::handleNotFound() {
@@ -505,6 +562,7 @@ String TrassarWebServer::getStateJson() {
     doc["uptime"] = millis() / 1000;
     doc["clients"] = WiFi.softAPgetStationNum();
     doc["webStackHWM"] = webServer.getTaskStackHWM();
+    doc["littleFs"] = webServer.isLittleFsReady();
 
     // Kalibracja
     doc["calibrated"] = encoderDist.isCalibrated();
@@ -568,16 +626,74 @@ String TrassarWebServer::getStateJson() {
 // HTML - zawartosc przeniesiona do web_html.h (PROGMEM)
 // ============================================================
 // ============================================================
-// GET / - Strona HTML (chunked transfer z PROGMEM)
-// Nie alokuje calej strony w RAM - wysyla fragmentami z flash
+// GET / - Strona HTML
+// LittleFS: strumieniowe wysylanie z pliku /index.html
+// Fallback: chunked transfer z PROGMEM (web_html.h)
 // ============================================================
 void TrassarWebServer::handleRoot() {
-    server.setContentLength(CONTENT_LENGTH_UNKNOWN);
-    server.send(200, "text/html", "");
-    server.sendContent_P(HTML_PART1);
-    server.sendContent(FW_VERSION);
-    server.sendContent_P(HTML_PART2);
-    server.sendContent("");  // koniec chunked
+    bool served = false;
+
+    if (littleFsReady) {
+        // --- LittleFS: strumieniowe wysylanie z pliku ---
+        File f = LittleFS.open("/index.html", "r");
+        if (f) {
+            server.setContentLength(CONTENT_LENGTH_UNKNOWN);
+            server.send(200, "text/html", "");
+
+            // Wysylaj plik chunkami, podmieniajac {{FW_VERSION}} na biezaco
+            const size_t BUF_SZ = 512;
+            char buf[BUF_SZ];
+            String leftover;
+
+            while (f.available()) {
+                int r = f.readBytes(buf, BUF_SZ - 1);
+                buf[r] = '\0';
+
+                String chunk = leftover + String(buf);
+                leftover = "";
+
+                int pos = chunk.indexOf("{{FW_VERSION}}");
+                if (pos >= 0) {
+                    server.sendContent(chunk.substring(0, pos));
+                    server.sendContent(FW_VERSION);
+                    server.sendContent(chunk.substring(pos + 14));
+                } else {
+                    // Sprawdz czy chunk konczy sie czescia "{{FW_VER..."
+                    int safeLen = chunk.length();
+                    if (f.available() && safeLen > 13) {
+                        int cutAt = safeLen;
+                        for (int i = 1; i <= 13 && i <= safeLen; i++) {
+                            String tail = chunk.substring(safeLen - i);
+                            if (String("{{FW_VERSION}}").startsWith(tail)) {
+                                cutAt = safeLen - i;
+                                leftover = tail;
+                                break;
+                            }
+                        }
+                        server.sendContent(chunk.substring(0, cutAt));
+                    } else {
+                        server.sendContent(chunk);
+                    }
+                }
+            }
+            if (leftover.length() > 0) {
+                server.sendContent(leftover);
+            }
+            f.close();
+            server.sendContent("");  // End chunked
+            served = true;
+        }
+    }
+
+    if (!served) {
+        // --- Fallback PROGMEM (web_html.h) ---
+        server.setContentLength(CONTENT_LENGTH_UNKNOWN);
+        server.send(200, "text/html", "");
+        server.sendContent_P(HTML_PART1);
+        server.sendContent(FW_VERSION);
+        server.sendContent_P(HTML_PART2);
+        server.sendContent("");
+    }
 }
 
 // ============================================================
