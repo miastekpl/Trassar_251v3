@@ -23,15 +23,24 @@ public:
 
     bool isRunning() const { return rtcOk; }
 
+    // Czy czas jest wiarygodny (poprawny zakres + brak ciagu bledow I2C)
+    bool isTimeReliable() const { return timeValid; }
+
 private:
     RTC_DS1307 rtc;
     bool rtcOk = false;
+    bool timeValid = false;         // Czy czas przeszedl walidacje
     DateTime currentTime;
+    DateTime compileTime;           // Fallback: czas kompilacji firmware
     unsigned long lastUpdate = 0;
+    uint16_t consecutiveErrors = 0; // Licznik kolejnych blednych odczytow I2C
 
     char timeBuf[12];
     char dateBuf[12];
     char dateTimeBuf[24];
+
+    // Sprawdza czy DateTime ma rozsadne wartosci (rok 2024-2035)
+    bool isDateTimeValid(const DateTime& t) const;
 };
 
 extern RTCHandler rtcModule;

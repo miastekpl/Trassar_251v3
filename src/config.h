@@ -301,7 +301,8 @@ extern SemaphoreHandle_t g_sdMutex;
 #define NVS_DATA_VERSION  5  // Inkrementuj przy zmianie struktur NVS (v5: versioned CustomPatternCfg)
 
 // ============ Timeout TFT/SD contention [ms] ============
-#define TFT_SD_MUTEX_TIMEOUT_MS  10  // Timeout oczekiwania na mutex SD przy renderowaniu TFT
+#define TFT_SD_MUTEX_TIMEOUT_MS  50  // Timeout oczekiwania na mutex SD przy renderowaniu TFT
+#define TFT_SD_MUTEX_RETRIES      2  // Ile razy ponowic probe zdobycia mutexu SD dla TFT
 
 // ============ Sloty wzorcow wlasnych ============
 #define NUM_CUSTOM_SLOTS  3

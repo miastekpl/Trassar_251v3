@@ -120,10 +120,17 @@ void MenuSystem::update() {
     if (!needsUpdate) return;
 
     // SPI wspoldzielone: TFT i SD na tej samej magistrali HSPI.
-    // Probuj zablokowac SPI z krotkim timeout — jesli SD jest zajete (Core 0),
-    // czekaj do TFT_SD_MUTEX_TIMEOUT_MS, potem pomin klatke (redukcja frame drops).
-    if (g_sdMutex && xSemaphoreTake(g_sdMutex, pdMS_TO_TICKS(TFT_SD_MUTEX_TIMEOUT_MS)) != pdTRUE) {
-        return;  // SD zajete, sprobuj w nastepnej klatce
+    // Probuj zablokowac SPI z retry — jesli SD jest zajete (Core 0 pisze GPX/raport),
+    // ponow probe do TFT_SD_MUTEX_RETRIES razy, potem pomin klatke.
+    if (g_sdMutex) {
+        bool acquired = false;
+        for (int attempt = 0; attempt <= TFT_SD_MUTEX_RETRIES; attempt++) {
+            if (xSemaphoreTake(g_sdMutex, pdMS_TO_TICKS(TFT_SD_MUTEX_TIMEOUT_MS)) == pdTRUE) {
+                acquired = true;
+                break;
+            }
+        }
+        if (!acquired) return;  // SD zajete zbyt dlugo, sprobuj w nastepnej klatce
     }
     // Deselect SD przed operacjami TFT
     digitalWrite(PIN_SD_CS, HIGH);

@@ -154,18 +154,47 @@ const PatternDef& PatternManager::getPattern(PatternID id) const {
     return patterns[0];  // Fallback
 }
 
+// Walidacja konfiguracji pistoletu — ochrona przed smieci z NVS/PSRAM
+static GunPatternCfg validateGunCfg(GunPatternCfg cfg) {
+    // Walidacja trybu — jesli spoza enum, traktuj jako OFF
+    if (cfg.mode != GUN_OFF && cfg.mode != GUN_CONTINUOUS && cfg.mode != GUN_DASHED) {
+        cfg.mode = GUN_OFF;
+        cfg.lineLen = 0;
+        cfg.gapLen = 0;
+        return cfg;
+    }
+    // DASHED wymaga dodatnich dlugosci linii i przerwy
+    if (cfg.mode == GUN_DASHED) {
+        if (cfg.lineLen <= 0 || cfg.lineLen > 100.0f) cfg.lineLen = 2.0f;
+        if (cfg.gapLen <= 0 || cfg.gapLen > 100.0f)   cfg.gapLen = 2.0f;
+    }
+    // CONTINUOUS/OFF nie uzywaja lineLen/gapLen
+    if (cfg.mode != GUN_DASHED) {
+        cfg.lineLen = 0;
+        cfg.gapLen = 0;
+    }
+    return cfg;
+}
+
 GunPatternCfg PatternManager::getGunConfig(GunID gun) const {
+    // Walidacja indeksu pistoletu
+    if (gun >= NUM_GUNS) {
+        return {GUN_OFF, 0, 0};
+    }
+
     STATE_LOCK();
     PatternID curPat = g_state.currentPattern;
     bool reversed = g_state.patternReversed;
     STATE_UNLOCK();
 
+    GunPatternCfg cfg;
+
     // Dla wzorca wlasnego: odczyt pod customMux
     if (curPat == PAT_CUSTOM) {
         taskENTER_CRITICAL(&customMux);
-        GunPatternCfg cfg = customPatDef.guns[gun];
+        cfg = customPatDef.guns[gun];
         taskEXIT_CRITICAL(&customMux);
-        return cfg;
+        return validateGunCfg(cfg);
     }
 
     const PatternDef& pat = (curPat < PREDEFINED_PAT_COUNT)

@@ -9,20 +9,38 @@ RTCHandler rtcModule;
 bool RTCHandler::begin() {
     Wire.begin(PIN_RTC_SDA, PIN_RTC_SCL);
 
+    // Domyslny czas = kompilacja (fallback gdy RTC niedostepny lub zwraca smieci)
+    compileTime = DateTime(F(__DATE__), F(__TIME__));
+    currentTime = compileTime;
+
     if (!rtc.begin()) {
         Serial.println("[RTC] DS1307 nie znaleziony!");
         rtcOk = false;
+        timeValid = false;
         return false;
     }
 
     if (!rtc.isrunning()) {
         Serial.println("[RTC] DS1307 nie dziala - ustawiam czas kompilacji");
-        rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
+        rtc.adjust(compileTime);
     }
 
     rtcOk = true;
-    currentTime = rtc.now();
-    Serial.println("[RTC] DS1307 zainicjalizowany poprawnie");
+
+    // Walidacja pierwszego odczytu — RTC moze zwrocic smieci po utracie baterii
+    DateTime t = rtc.now();
+    if (isDateTimeValid(t)) {
+        currentTime = t;
+        timeValid = true;
+        Serial.println("[RTC] DS1307 zainicjalizowany poprawnie");
+    } else {
+        Serial.printf("[RTC] WARN: nierozsadny czas %04d-%02d-%02d %02d:%02d:%02d — ustawiam kompilacji\n",
+                      t.year(), t.month(), t.day(), t.hour(), t.minute(), t.second());
+        rtc.adjust(compileTime);
+        currentTime = compileTime;
+        timeValid = true;
+    }
+
     return true;
 }
 
@@ -34,22 +52,32 @@ void RTCHandler::update() {
     if (now - lastUpdate >= 500) {
         lastUpdate = now;
         DateTime t = rtc.now();
-        // Walidacja zakresu — I2C moze zwrocic smieci (rok 2165, data 0)
-        if (t.year() >= 2024 && t.year() <= 2035 &&
-            t.month() >= 1 && t.month() <= 12 &&
-            t.day() >= 1 && t.day() <= 31 &&
-            t.hour() <= 23 && t.minute() <= 59 && t.second() <= 59) {
+        if (isDateTimeValid(t)) {
             currentTime = t;
+            timeValid = true;
+            consecutiveErrors = 0;
         } else {
-            // Smieci z I2C — zachowaj poprzedni czas, loguj raz
-            static bool rtcGarbageLogged = false;
-            if (!rtcGarbageLogged) {
-                Serial.printf("[RTC] WARN: nieprawidlowy odczyt %04d-%02d-%02d %02d:%02d:%02d — ignorowany\n",
+            consecutiveErrors++;
+            // Loguj pierwszy blad i co 60. (co ~30s przy 500ms polling)
+            if (consecutiveErrors == 1 || consecutiveErrors % 60 == 0) {
+                Serial.printf("[RTC] WARN: nieprawidlowy odczyt #%u: %04d-%02d-%02d %02d:%02d:%02d\n",
+                              consecutiveErrors,
                               t.year(), t.month(), t.day(), t.hour(), t.minute(), t.second());
-                rtcGarbageLogged = true;
+            }
+            // Po 10 kolejnych bledach: RTC prawdopodobnie uszkodzony
+            if (consecutiveErrors >= 10 && timeValid) {
+                timeValid = false;
+                Serial.println("[RTC] BLAD: zbyt wiele blednych odczytow — czas niewiarygodny");
             }
         }
     }
+}
+
+bool RTCHandler::isDateTimeValid(const DateTime& t) const {
+    return (t.year() >= 2024 && t.year() <= 2035 &&
+            t.month() >= 1 && t.month() <= 12 &&
+            t.day() >= 1 && t.day() <= 31 &&
+            t.hour() <= 23 && t.minute() <= 59 && t.second() <= 59);
 }
 
 DateTime RTCHandler::now() {

@@ -107,9 +107,10 @@ void setup() {
     // 3. Zegar RTC
     Serial.println("[INIT] Zegar RTC DS1307...");
     if (rtcModule.begin()) {
-        Serial.printf("[INIT] Czas: %s\n", rtcModule.getDateTimeStr());
+        Serial.printf("[INIT] Czas: %s%s\n", rtcModule.getDateTimeStr(),
+                      rtcModule.isTimeReliable() ? "" : " [FALLBACK: czas kompilacji]");
     } else {
-        Serial.println("[INIT] UWAGA: RTC niedostepny");
+        Serial.println("[INIT] UWAGA: RTC niedostepny — timestampy z czasu kompilacji");
         buzzer.play(BUZ_ERROR);
     }
 
