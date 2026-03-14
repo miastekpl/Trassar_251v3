@@ -17,8 +17,12 @@ void GpsHandler::begin() {
 }
 
 void GpsHandler::update() {
+    // Limit odczytow per wywolanie — zapobiega blokowaniu loop() przy burst GPS.
+    // NEO-6M @ 9600 baud = max ~960 bajtow/s. Przy update() co ~1ms,
+    // typowo dostepne 1-2 bajty. 256B = zapas na ~250ms burstow.
     bool gotData = false;
-    while (gpsSerial.available() > 0) {
+    int maxBytes = 256;
+    while (gpsSerial.available() > 0 && maxBytes-- > 0) {
         gps.encode(gpsSerial.read());
         gotData = true;
     }

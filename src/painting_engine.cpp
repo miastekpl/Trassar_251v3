@@ -57,14 +57,26 @@ void PaintingEngine::update() {
         overspeedActive = false;
         lowSpeedActive = false;
 
-        // --- Auto-resume: wznowienie po auto-pauzie gdy predkosc wzrosla ---
+        // --- Auto-resume z histereza: wznowienie po auto-pauzie ---
+        // Wymaga utrzymania predkosci >= prog przez AUTO_RESUME_DEBOUNCE_MS
+        // aby szum enkodera lub chwilowy skok nie wyzwalal resume.
         if (snapState == STATE_PAUSED && autoPaused && autoResumeEnabled) {
             float speedNow = encoderDist.getSpeedKmh();
+            unsigned long now = millis();
             if (speedNow >= minSpeedKmh) {
-                autoPaused = false;
-                resume();
-                eventLog.logf("ENGINE", "AUTO-RESUME: predkosc %.1f >= %.1f km/h",
-                              speedNow, minSpeedKmh);
+                if (!resumeSpeedTracking) {
+                    resumeSpeedTracking = true;
+                    resumeSpeedStartMs = now;
+                } else if (now - resumeSpeedStartMs >= AUTO_RESUME_DEBOUNCE_MS) {
+                    // Predkosc utrzymywana >= prog przez wymagany czas
+                    autoPaused = false;
+                    resumeSpeedTracking = false;
+                    resume();
+                    eventLog.logf("ENGINE", "AUTO-RESUME: predkosc %.1f >= %.1f km/h (debounce %ums)",
+                                  speedNow, minSpeedKmh, AUTO_RESUME_DEBOUNCE_MS);
+                }
+            } else {
+                resumeSpeedTracking = false;  // Reset jesli predkosc spadla
             }
         }
         return;
@@ -257,6 +269,7 @@ void PaintingEngine::start(float offsetDist) {
         semiSegmentNum = 1;
         autoPaused = false;
         autoPauseTracking = false;
+        resumeSpeedTracking = false;
 
         stats.startSessionTimer();
         lastGunUpdateMs = millis();

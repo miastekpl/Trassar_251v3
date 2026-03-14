@@ -81,11 +81,14 @@ private:
     bool  semiLineComplete = false; // Linia zakonczona, czeka na START
     int   semiSegmentNum = 0;      // Numer segmentu (linia) w sesji
 
-    // Auto-pauza przy zatrzymaniu
+    // Auto-pauza przy zatrzymaniu / auto-resume z histereza
     bool  autoPaused = false;          // Czy auto-pauza aktywna
     bool  autoResumeEnabled = true;    // Czy auto-resume po ruszeniu
     unsigned long lowSpeedStartMs = 0; // Kiedy predkosc spadla < progu
     bool  autoPauseTracking = false;   // Czy liczymy czas do auto-pauzy
+    unsigned long resumeSpeedStartMs = 0;  // Kiedy predkosc wzrosla >= prog resume
+    bool  resumeSpeedTracking = false;     // Czy liczymy czas do auto-resume
+    static const unsigned long AUTO_RESUME_DEBOUNCE_MS = 500; // Min czas utrzymania predkosci
 
     // Gun keepalive
     unsigned long lastGunUpdateMs = 0;

@@ -99,12 +99,13 @@ void ReportLogger::refreshReportCache() {
         return;
     }
 
-    // Zbierz nazwy plikow (max 50 najnowszych)
+    // Zbierz nazwy plikow (max 30 najnowszych)
+    // static: ~1KB w BSS zamiast na stosie (ochrona przed stack overflow)
     struct FileInfo { char name[32]; size_t size; };
-    FileInfo files[50];
+    static FileInfo files[30];
     int count = 0;
 
-    while (count < 50) {
+    while (count < 30) {
         File entry = dir.openNextFile();
         if (!entry) break;
         if (!entry.isDirectory()) {

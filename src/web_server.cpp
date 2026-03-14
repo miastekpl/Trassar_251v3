@@ -640,44 +640,63 @@ void TrassarWebServer::handleRoot() {
             server.setContentLength(CONTENT_LENGTH_UNKNOWN);
             server.send(200, "text/html", "");
 
-            // Wysylaj plik chunkami, podmieniajac {{FW_VERSION}} na biezaco
+            // Wysylaj plik chunkami, podmieniajac {{FW_VERSION}} na biezaco.
+            // Uzywa statycznego char bufora zamiast String — brak alokacji heap.
+            static const char MARKER[] = "{{FW_VERSION}}";
+            static const int MARKER_LEN = 14;  // strlen("{{FW_VERSION}}")
             const size_t BUF_SZ = 512;
             char buf[BUF_SZ];
-            String leftover;
+            char leftover[MARKER_LEN];  // Max rozmiar = dlugosc markera - 1
+            int leftoverLen = 0;
 
             while (f.available()) {
-                int r = f.readBytes(buf, BUF_SZ - 1);
+                int r = f.readBytes(buf, BUF_SZ - MARKER_LEN - 1);
                 buf[r] = '\0';
 
-                String chunk = leftover + String(buf);
-                leftover = "";
-
-                int pos = chunk.indexOf("{{FW_VERSION}}");
-                if (pos >= 0) {
-                    server.sendContent(chunk.substring(0, pos));
-                    server.sendContent(FW_VERSION);
-                    server.sendContent(chunk.substring(pos + 14));
+                // Polacz leftover z nowym buforem (w miejscu — bez alokacji)
+                char combined[BUF_SZ + MARKER_LEN];
+                if (leftoverLen > 0) {
+                    memcpy(combined, leftover, leftoverLen);
+                    memcpy(combined + leftoverLen, buf, r + 1);  // +1 dla '\0'
+                    r += leftoverLen;
+                    leftoverLen = 0;
                 } else {
-                    // Sprawdz czy chunk konczy sie czescia "{{FW_VER..."
-                    int safeLen = chunk.length();
-                    if (f.available() && safeLen > 13) {
-                        int cutAt = safeLen;
-                        for (int i = 1; i <= 13 && i <= safeLen; i++) {
-                            String tail = chunk.substring(safeLen - i);
-                            if (String("{{FW_VERSION}}").startsWith(tail)) {
-                                cutAt = safeLen - i;
-                                leftover = tail;
+                    memcpy(combined, buf, r + 1);
+                }
+
+                // Szukaj markera w combined
+                char* markerPos = strstr(combined, MARKER);
+                if (markerPos) {
+                    int pos = markerPos - combined;
+                    // Wyslij czesc przed markerem
+                    if (pos > 0) server.sendContent(combined, pos);
+                    server.sendContent(FW_VERSION);
+                    // Wyslij czesc po markerze
+                    int afterPos = pos + MARKER_LEN;
+                    int remaining = r - afterPos;
+                    if (remaining > 0) server.sendContent(combined + afterPos, remaining);
+                } else {
+                    // Zachowaj koniec bufora jako leftover jesli moze zawierac poczatek markera
+                    if (f.available() && r >= MARKER_LEN) {
+                        // Sprawdz czy koniec bufora zaczyna marker
+                        int safeEnd = r;
+                        for (int i = MARKER_LEN - 1; i >= 1; i--) {
+                            if (r >= i && memcmp(combined + r - i, MARKER, i) == 0) {
+                                safeEnd = r - i;
+                                memcpy(leftover, combined + safeEnd, i);
+                                leftoverLen = i;
                                 break;
                             }
                         }
-                        server.sendContent(chunk.substring(0, cutAt));
+                        if (safeEnd > 0) server.sendContent(combined, safeEnd);
                     } else {
-                        server.sendContent(chunk);
+                        server.sendContent(combined, r);
                     }
                 }
             }
-            if (leftover.length() > 0) {
-                server.sendContent(leftover);
+            // Flush leftover jesli zostal
+            if (leftoverLen > 0) {
+                server.sendContent(leftover, leftoverLen);
             }
             f.close();
             server.sendContent("");  // End chunked
