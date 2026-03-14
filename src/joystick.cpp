@@ -25,10 +25,26 @@ static const int JOY_ENTER_HI    = JOY_CENTER + JOY_DEAD_ZONE + JOY_HYSTERESIS; 
 static const int JOY_ENTER_LO    = JOY_CENTER - JOY_DEAD_ZONE - JOY_HYSTERESIS;  // 1398
 
 void JoystickHandler::begin() {
-    // GPIO 46 jest strap pinem ESP32-S3 — nie moze byc LOW przy starcie.
-    // Opoznienie zapewnia ze boot zakoncz sie przed aktywacja INPUT_PULLUP.
-    delay(50);
-    pinMode(PIN_JOY_SW, INPUT_PULLUP);
+    // GPIO 46 jest strap pinem ESP32-S3 (boot mode select).
+    // NIE moze byc LOW przy starcie — ryzyko blednego trybu boot.
+    // Mitigacja:
+    //   1. Opoznienie 200ms — boot w pelni zakonczony zanim ruszamy pin
+    //   2. Konfiguracja jako INPUT (floating) — nie wplywamy na stan pinu
+    //   3. Dopiero po weryfikacji stanu — wlaczamy pull-up
+    delay(200);
+    pinMode(PIN_JOY_SW, INPUT);  // Floating — bezpieczne dla strap pinu
+
+    // Sprawdz czy pin nie jest zwarty do GND (np. wcisniety przycisk)
+    if (digitalRead(PIN_JOY_SW) == LOW) {
+        // Pin jest LOW — prawdopodobnie przycisk wcisniety lub zwarcie.
+        // Nie wlaczamy pull-up, logujemy ostrzezenie.
+        Serial.println("[JOY] UWAGA: GPIO 46 (SW) = LOW przy starcie! Sprawdz joystick.");
+        _strapPinError = true;
+    } else {
+        pinMode(PIN_JOY_SW, INPUT_PULLUP);
+        _strapPinError = false;
+    }
+
     // Piny ADC nie wymagaja pinMode dla analogRead
     analogReadResolution(12);  // 12-bit (0-4095)
 }
@@ -91,7 +107,8 @@ void JoystickHandler::update() {
     unsigned long now = millis();
 
     // --- Przycisk SW (cyfrowy, aktywny LOW) ---
-    bool reading = digitalRead(PIN_JOY_SW);
+    // Jesli strap pin error — ignoruj SW (moze byc zwarty)
+    bool reading = _strapPinError ? HIGH : digitalRead(PIN_JOY_SW);
 
     if (reading == LOW && !swPressed) {
         swPressed = true;

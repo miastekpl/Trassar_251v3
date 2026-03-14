@@ -99,3 +99,77 @@ void EventLog::logf(const char* category, const char* fmt, ...) {
     va_end(args);
     log(category, buf);
 }
+
+void EventLog::cleanupOldLogs() {
+    // Wywolywane periodycznie — usuwanie logow starszych niz 7 dni
+    // Zabezpieczenie: max raz na 10 minut
+    unsigned long now = millis();
+    if (lastCleanupMs != 0 && (now - lastCleanupMs < 600000UL)) return;
+    lastCleanupMs = now;
+
+    if (!ready || !reportLogger.isReady()) return;
+    if (!SD_LOCK()) return;
+
+    if (!SD.exists("/logs")) {
+        SD_UNLOCK();
+        return;
+    }
+
+    // Zbierz liste plikow i usun najstarsze jesli > EVENT_LOG_MAX_FILES
+    File dir = SD.open("/logs");
+    if (!dir || !dir.isDirectory()) {
+        if (dir) dir.close();
+        SD_UNLOCK();
+        return;
+    }
+
+    // Prosta strategia: zlicz pliki, jesli > limit usun najstarsze
+    // Nazwy plikow to RRRRMMDD.log/.old — sortowanie leksykograficzne = chronologiczne
+    struct LogFile {
+        char name[20];
+    };
+    LogFile files[32];
+    int count = 0;
+
+    File entry = dir.openNextFile();
+    while (entry && count < 32) {
+        if (!entry.isDirectory()) {
+            const char* n = entry.name();
+            if (n && strlen(n) > 0 && strlen(n) < sizeof(files[0].name)) {
+                strncpy(files[count].name, n, sizeof(files[0].name) - 1);
+                files[count].name[sizeof(files[0].name) - 1] = '\0';
+                count++;
+            }
+        }
+        entry.close();
+        entry = dir.openNextFile();
+    }
+    dir.close();
+
+    if (count <= EVENT_LOG_MAX_FILES) {
+        SD_UNLOCK();
+        return;
+    }
+
+    // Sortuj leksykograficznie (= chronologicznie dzieki formatowi RRRRMMDD)
+    for (int i = 0; i < count - 1; i++) {
+        for (int j = i + 1; j < count; j++) {
+            if (strcmp(files[i].name, files[j].name) > 0) {
+                LogFile tmp = files[i];
+                files[i] = files[j];
+                files[j] = tmp;
+            }
+        }
+    }
+
+    // Usun najstarsze pliki az zostanie <= EVENT_LOG_MAX_FILES
+    int toDelete = count - EVENT_LOG_MAX_FILES;
+    for (int i = 0; i < toDelete; i++) {
+        char path[40];
+        snprintf(path, sizeof(path), "/logs/%s", files[i].name);
+        SD.remove(path);
+        Serial.printf("[LOG] Usuwam stary log: %s\n", path);
+    }
+
+    SD_UNLOCK();
+}

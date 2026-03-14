@@ -46,6 +46,7 @@ private:
 
     bool _wasAxisEvent = false;   // true = ostatnie zdarzenie z osi, false = z SW
     bool _centerRequired = false; // Blokada osi dopoki joystick nie wroci do centrum
+    bool _strapPinError = false;  // GPIO 46 zwarty do GND przy starcie — SW wylaczony
 
     JoyDir readDirection();
     ButtonEvent dirToEvent(JoyDir dir);

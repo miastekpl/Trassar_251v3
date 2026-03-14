@@ -232,11 +232,20 @@ void PaintingEngine::update() {
 }
 
 void PaintingEngine::start(float offsetDist) {
+    // Atomowe check-and-set: sprawdzenie + zmiana stanu w jednym locku
     STATE_LOCK();
-    MachineState curState = g_state.machineState;
+    bool canStart = (g_state.machineState == STATE_IDLE ||
+                     g_state.machineState == STATE_STOPPED);
+    MachineMode snapMode = g_state.machineMode;
+    if (canStart) {
+        g_state.machineState = STATE_PAINTING;
+        g_state.currentScreen = SCREEN_PAINTING;
+        g_state.displayNeedsUpdate = true;
+        g_state.forceFullRedraw = true;
+    }
     STATE_UNLOCK();
 
-    if (curState == STATE_IDLE || curState == STATE_STOPPED) {
+    if (canStart) {
         encoderDist.resetDistance();
         stats.resetSession();
         lastEncoderDist = 0;
@@ -248,14 +257,6 @@ void PaintingEngine::start(float offsetDist) {
         semiSegmentNum = 1;
         autoPaused = false;
         autoPauseTracking = false;
-
-        STATE_LOCK();
-        g_state.machineState = STATE_PAINTING;
-        g_state.currentScreen = SCREEN_PAINTING;
-        g_state.displayNeedsUpdate = true;
-        g_state.forceFullRedraw = true;
-        MachineMode snapMode = g_state.machineMode;
-        STATE_UNLOCK();
 
         stats.startSessionTimer();
         lastGunUpdateMs = millis();
@@ -271,6 +272,7 @@ void PaintingEngine::start(float offsetDist) {
 }
 
 void PaintingEngine::startFromGap() {
+    // Atomowy odczyt stanu i trybu
     STATE_LOCK();
     MachineState curState = g_state.machineState;
     MachineMode  curMode  = g_state.machineMode;
@@ -424,7 +426,7 @@ void PaintingEngine::stop() {
 
 void PaintingEngine::setPattern(PatternID pat) {
     // --- Przelaczanie wzorcow (smart lub instant) ---
-    // Atomowy snapshot stanu i biezacego wzorca (g_state modyfikowany z Core 0)
+    // Atomowy snapshot stanu, trybu i biezacego wzorca (g_state modyfikowany z Core 0)
     STATE_LOCK();
     MachineState snapState = g_state.machineState;
     PatternID snapPattern = g_state.currentPattern;

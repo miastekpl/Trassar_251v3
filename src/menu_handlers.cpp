@@ -83,7 +83,9 @@ void MenuSystem::handleHomeScreen(ButtonEvent e) {
             // Odwracanie wzorca (tylko P-3a, P-3b)
             if (patternMgr.getCurrent().hasReverse) {
                 patternMgr.toggleReverse();
+                STATE_LOCK();
                 g_state.displayNeedsUpdate = true;
+                STATE_UNLOCK();
             }
             break;
 
@@ -161,7 +163,9 @@ void MenuSystem::handlePaintingScreen(ButtonEvent e) {
             // Odwracanie wzorca (tylko P-3a, P-3b)
             if (patternMgr.getCurrent().hasReverse) {
                 paintEngine.toggleReverse();
+                STATE_LOCK();
                 g_state.displayNeedsUpdate = true;
+                STATE_UNLOCK();
             }
             break;
 
@@ -177,13 +181,17 @@ void MenuSystem::handleSetup(ButtonEvent e) {
         case EVT_SELECT_SHORT:
             setupCursor++;
             if (setupCursor > 2) setupCursor = 0;
+            STATE_LOCK();
             g_state.displayNeedsUpdate = true;
+            STATE_UNLOCK();
             break;
 
         case EVT_STOP_SHORT:
             setupCursor--;
             if (setupCursor < 0) setupCursor = 2;
+            STATE_LOCK();
             g_state.displayNeedsUpdate = true;
+            STATE_UNLOCK();
             break;
 
         case EVT_SELECT_LONG:
@@ -200,7 +208,9 @@ void MenuSystem::handleSetup(ButtonEvent e) {
                     break;
             }
             buzzer.beep(1500, 60);
+            STATE_LOCK();
             g_state.displayNeedsUpdate = true;
+            STATE_UNLOCK();
             break;
 
         case EVT_START_SHORT:
@@ -228,9 +238,16 @@ void MenuSystem::handleSetup(ButtonEvent e) {
                           setupGapStart ? "OD PRZERWY" : "NORMALNY");
 
             // Alarm braku SD
-            if (!reportLogger.isReady() && !g_state.sdCardWarningShown) {
-                g_state.sdCardWarningShown = true;
-                buzzer.play(BUZ_SD_WARNING);
+            {
+                STATE_LOCK();
+                bool warnShown = g_state.sdCardWarningShown;
+                STATE_UNLOCK();
+                if (!reportLogger.isReady() && !warnShown) {
+                    STATE_LOCK();
+                    g_state.sdCardWarningShown = true;
+                    STATE_UNLOCK();
+                    buzzer.play(BUZ_SD_WARNING);
+                }
             }
 
             // Uruchom malowanie
@@ -368,7 +385,9 @@ void MenuSystem::handleCalibration(ButtonEvent e) {
             } else {
                 encoderDist.finishCalibration();
             }
+            STATE_LOCK();
             g_state.displayNeedsUpdate = true;
+            STATE_UNLOCK();
             break;
 
         case EVT_STOP_LONG:
@@ -392,14 +411,18 @@ void MenuSystem::handleDistanceMeter(ButtonEvent e) {
             } else {
                 distMeasuring = false;
             }
+            STATE_LOCK();
             g_state.displayNeedsUpdate = true;
+            STATE_UNLOCK();
             break;
 
         case EVT_STOP_SHORT:
             distMeasuring = false;
             distMeterValue = 0;
             distMeterLast = encoderDist.getDistanceMeters();
+            STATE_LOCK();
             g_state.displayNeedsUpdate = true;
+            STATE_UNLOCK();
             break;
 
         case EVT_STOP_LONG:
@@ -429,14 +452,18 @@ void MenuSystem::handleNozzleClean(ButtonEvent e) {
             nozzlePatternIdx++;
             if (nozzlePatternIdx >= PatternManager::PREDEFINED_PAT_COUNT)
                 nozzlePatternIdx = 0;
+            STATE_LOCK();
             g_state.displayNeedsUpdate = true;
+            STATE_UNLOCK();
             break;
 
         case EVT_SELECT_LONG:
             nozzlePatternIdx--;
             if (nozzlePatternIdx < 0)
                 nozzlePatternIdx = PatternManager::PREDEFINED_PAT_COUNT - 1;
+            STATE_LOCK();
             g_state.displayNeedsUpdate = true;
+            STATE_UNLOCK();
             break;
 
         case EVT_STOP_LONG:
@@ -550,13 +577,17 @@ void MenuSystem::handleCustomPattern(ButtonEvent e) {
         case EVT_SELECT_SHORT:
             custCursor++;
             if (custCursor > 4) custCursor = 0;
+            STATE_LOCK();
             g_state.displayNeedsUpdate = true;
+            STATE_UNLOCK();
             break;
 
         case EVT_STOP_SHORT:
             custCursor--;
             if (custCursor < 0) custCursor = 4;
+            STATE_LOCK();
             g_state.displayNeedsUpdate = true;
+            STATE_UNLOCK();
             break;
 
         case EVT_SELECT_LONG:
@@ -593,7 +624,9 @@ void MenuSystem::handleCustomPattern(ButtonEvent e) {
                 }
             }
             buzzer.beep(1500, 60);
+            STATE_LOCK();
             g_state.displayNeedsUpdate = true;
+            STATE_UNLOCK();
             break;
 
         case EVT_START_SHORT:
@@ -618,7 +651,9 @@ void MenuSystem::handleCustomPattern(ButtonEvent e) {
                     break;
             }
             buzzer.beep(1500, 40);
+            STATE_LOCK();
             g_state.displayNeedsUpdate = true;
+            STATE_UNLOCK();
             break;
 
         case EVT_STOP_LONG:
@@ -676,7 +711,9 @@ void MenuSystem::handleStatsExport(ButtonEvent e) {
                 exportDone = true;
                 exportSuccess = false;
                 buzzer.play(BUZ_ERROR);
+                STATE_LOCK();
                 g_state.displayNeedsUpdate = true;
+                STATE_UNLOCK();
                 break;
             }
 
@@ -684,7 +721,9 @@ void MenuSystem::handleStatsExport(ButtonEvent e) {
                 exportDone = true;
                 exportSuccess = false;
                 buzzer.play(BUZ_ERROR);
+                STATE_LOCK();
                 g_state.displayNeedsUpdate = true;
+                STATE_UNLOCK();
                 break;
             }
             if (!SD.exists("/stats")) {
@@ -720,8 +759,10 @@ void MenuSystem::handleStatsExport(ButtonEvent e) {
                 exportSuccess = false;
                 buzzer.play(BUZ_ERROR);
             }
+            STATE_LOCK();
             g_state.forceFullRedraw = true;
             g_state.displayNeedsUpdate = true;
+            STATE_UNLOCK();
             break;
         }
 

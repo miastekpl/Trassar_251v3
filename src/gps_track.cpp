@@ -151,6 +151,9 @@ void GpsTrack::update() {
 }
 
 void GpsTrack::addPoint() {
+    // Ochrona przed nullptr — jesli alokacja bufora nie powiodla sie
+    if (!buffer || maxPoints == 0) return;
+
     // Przygotuj dane punktu poza sekcja krytyczna
     GpxPoint pt;
     pt.lat   = gpsHandler.getLat();

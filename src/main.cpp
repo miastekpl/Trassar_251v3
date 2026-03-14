@@ -265,6 +265,9 @@ void setup() {
                   patternMgr.getCurrent().code,
                   modeNames[(int)g_state.machineMode], minSpd, maxSpd);
 
+    // Czyszczenie starych logow (>7 dni)
+    eventLog.cleanupOldLogs();
+
     // Pierwszy backup NVS (jesli SD dostepna)
     if (reportLogger.isReady()) {
         nvsBackup.backupToSD();
@@ -376,38 +379,46 @@ void loop() {
     }
 
     // 10. Detekcja anomalii pistoletow (co 10s podczas malowania)
-    STATE_LOCK();
-    MachineState snapState = g_state.machineState;
-    STATE_UNLOCK();
+    //     Caly stan gunAnomaly chroniony STATE_LOCK (czytany z Core 0 przez WebSocket)
+    {
+        STATE_LOCK();
+        MachineState snapState = g_state.machineState;
+        unsigned long lastCheck = gunAnomaly.lastCheckMs;
+        bool wasAlerted = gunAnomaly.alerted;
+        STATE_UNLOCK();
 
-    if (snapState == STATE_PAINTING) {
-        if (now - gunAnomaly.lastCheckMs >= GUN_ANOMALY_CHECK_MS) {
-            gunAnomaly.lastCheckMs = now;
-            float sessionDist = stats.getSessionDistance();
-            if (sessionDist >= GUN_ANOMALY_DISTANCE_M) {
+        if (snapState == STATE_PAINTING) {
+            if (now - lastCheck >= GUN_ANOMALY_CHECK_MS) {
+                // Odczyty stats/patternMgr poza lockiem (maja wlasne mutexy)
+                float sessionDist = stats.getSessionDistance();
                 bool anyAnomaly = false;
                 bool localAlert[NUM_GUNS];
-                for (int i = 0; i < NUM_GUNS; i++) {
-                    GunPatternCfg cfg = patternMgr.getGunConfig((GunID)i);
-                    if (cfg.mode != GUN_OFF && stats.getGunDistance(i) < 1.0f) {
-                        localAlert[i] = true;
-                        anyAnomaly = true;
-                    } else {
-                        localAlert[i] = false;
+
+                if (sessionDist >= GUN_ANOMALY_DISTANCE_M) {
+                    for (int i = 0; i < NUM_GUNS; i++) {
+                        GunPatternCfg cfg = patternMgr.getGunConfig((GunID)i);
+                        if (cfg.mode != GUN_OFF && stats.getGunDistance(i) < 1.0f) {
+                            localAlert[i] = true;
+                            anyAnomaly = true;
+                        } else {
+                            localAlert[i] = false;
+                        }
                     }
+                } else {
+                    for (int i = 0; i < NUM_GUNS; i++) localAlert[i] = false;
                 }
-                // Atomowa aktualizacja stanu anomalii (czytany z Core 0)
+
+                // Atomowa aktualizacja calego stanu anomalii (czytany z Core 0)
                 STATE_LOCK();
+                gunAnomaly.lastCheckMs = now;
                 for (int i = 0; i < NUM_GUNS; i++) gunAnomaly.alert[i] = localAlert[i];
                 gunAnomaly.detected = anyAnomaly;
-                bool wasAlerted = gunAnomaly.alerted;
                 if (anyAnomaly && !wasAlerted) gunAnomaly.alerted = true;
                 STATE_UNLOCK();
 
                 if (anyAnomaly && !wasAlerted) {
                     buzzer.play(BUZ_GUN_ANOMALY);
 
-                    // Buduj liste pistoletow z anomalia
                     char anomList[32] = "";
                     int pos = 0;
                     for (int i = 0; i < NUM_GUNS; i++) {
@@ -419,17 +430,17 @@ void loop() {
                                   anomList, sessionDist);
                 }
             }
+        } else {
+            // Reset anomalii przy zatrzymaniu
+            STATE_LOCK();
+            bool needsReset = (gunAnomaly.detected || gunAnomaly.alerted);
+            if (needsReset) {
+                gunAnomaly.detected = false;
+                gunAnomaly.alerted = false;
+                for (int i = 0; i < NUM_GUNS; i++) gunAnomaly.alert[i] = false;
+            }
+            STATE_UNLOCK();
         }
-    } else {
-        // Reset anomalii przy zatrzymaniu
-        STATE_LOCK();
-        bool needsReset = (gunAnomaly.detected || gunAnomaly.alerted);
-        if (needsReset) {
-            gunAnomaly.detected = false;
-            gunAnomaly.alerted = false;
-            for (int i = 0; i < NUM_GUNS; i++) gunAnomaly.alert[i] = false;
-        }
-        STATE_UNLOCK();
     }
 
     // 11. Odswiezanie cache listy raportow SD (co 15s, na Core 1 - bezpieczny dostep SPI)
@@ -438,12 +449,13 @@ void loop() {
         reportLogger.refreshReportCache();
     }
 
-    // 12. Okresowy backup NVS na SD (co 30 min)
+    // 12. Okresowy backup NVS na SD (co 30 min) + czyszczenie starych logow
     if (now - lastNvsBackup >= NVS_BACKUP_INTERVAL_MS) {
         lastNvsBackup = now;
         if (nvsBackup.backupToSD()) {
             eventLog.log("NVS", "Okresowy backup NVS na SD");
         }
+        eventLog.cleanupOldLogs();
     }
 
     delay(1);
