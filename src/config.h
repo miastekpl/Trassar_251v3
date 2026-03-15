@@ -1,6 +1,6 @@
 #pragma once
 // ============================================================
-// TrassarV3 - Konfiguracja sprzętowa v2.52.0
+// TrassarV3 - Konfiguracja sprzętowa v2.52.0  [SAFETY PATCH]
 // Komputer pokładowy malowarki pasów drogowych
 // ============================================================
 
@@ -9,7 +9,7 @@
 // ============ WERSJA FIRMWARE ============
 // FW_VERSION definiowane w platformio.ini (build_flags) — jedno zrodlo prawdy
 #ifndef FW_VERSION
-  #define FW_VERSION    "2.51.0"
+  #define FW_VERSION    "2.52.0"
 #endif
 #define FW_NAME         "TrassarV3"
 #define FW_DATE         __DATE__
@@ -91,6 +91,20 @@
 
 // ============ Gun keepalive ============
 #define GUN_KEEPALIVE_TIMEOUT_MS  300  // Awaryjne guns.allOff() jesli brak update >300ms
+
+// ============ Bezpieczenstwo — overspeed wylacza pistolety ============
+#define OVERSPEED_GUN_DISABLE    true  // true = pistolety OFF przy przekroczeniu maxSpeedKmh
+
+// ============ Bezpieczenstwo — niski heap ============
+#define LOW_HEAP_CRITICAL_BYTES  32768  // <32KB = redukcja funkcji (wylacz WS broadcast)
+#define LOW_HEAP_WARNING_BYTES   65536  // <64KB = ostrzezenie w logu
+
+// ============ Auto-resume — cooldown po wznowieniu ============
+#define AUTO_RESUME_COOLDOWN_MS  2000   // Min czas malowania po auto-resume przed ponowna auto-pauza
+
+// ============ Detekcja zablokowanego przekaznika ============
+#define GUN_RELAY_STUCK_CHECK_MS   5000   // Interwał sprawdzania zablokowanych przekaznikow [ms]
+#define GUN_RELAY_MAX_CONT_ON_MS  60000   // Max ciagly czas ON bez cyklowania = podejrzenie zablokowania [ms]
 
 // ============ Alarmy predkosci — interwaly buzzera ============
 #define LOW_SPEED_BUZZ_REPEAT_MS  3000   // Powtarzaj alarm niskiej predkosci co 3s
@@ -331,6 +345,17 @@ struct GunAnomalyState {
 };
 
 extern GunAnomalyState gunAnomaly;
+
+// ============ Stan detekcji zablokowanych przekaznikow ============
+struct RelayStuckState {
+    bool suspected[NUM_GUNS] = {};           // Podejrzenie zablokowania per pistolet
+    unsigned long contOnStartMs[NUM_GUNS] = {};  // Poczatek ciaglego ON
+    bool wasOn[NUM_GUNS] = {};               // Poprzedni stan (do detekcji cyklowania)
+    unsigned long lastCheckMs = 0;
+    bool alerted = false;                    // Czy buzzer juz zagral
+};
+
+extern RelayStuckState relayStuck;
 
 // ============ Szerokości pistoletów [m] ============
 extern const float GUN_WIDTHS_M[NUM_GUNS];

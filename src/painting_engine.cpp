@@ -28,9 +28,11 @@ void PaintingEngine::begin() {
     gapStartActive = false;
     lastGunUpdateMs = millis();
     overspeedActive = false;
+    overspeedGunsOff = false;
     lowSpeedActive = false;
     lastLowSpeedBuzMs = 0;
     lastOverspeedBuzMs = 0;
+    lastAutoResumeMs = 0;
     semiLineDist = 0;
     semiLineComplete = false;
     semiSegmentNum = 0;
@@ -55,6 +57,7 @@ void PaintingEngine::update() {
 
     if (snapState != STATE_PAINTING) {
         overspeedActive = false;
+        overspeedGunsOff = false;
         lowSpeedActive = false;
 
         // --- Auto-resume z histereza: wznowienie po auto-pauzie ---
@@ -71,6 +74,7 @@ void PaintingEngine::update() {
                     // Predkosc utrzymywana >= prog przez wymagany czas
                     autoPaused = false;
                     resumeSpeedTracking = false;
+                    lastAutoResumeMs = now;  // Cooldown: zapobiega natychmiastowej re-pauzie
                     resume();
                     eventLog.logf("ENGINE", "AUTO-RESUME: predkosc %.1f >= %.1f km/h (debounce %ums)",
                                   speedNow, minSpeedKmh, AUTO_RESUME_DEBOUNCE_MS);
@@ -115,7 +119,9 @@ void PaintingEngine::update() {
     float speedKmh = encoderDist.getSpeedKmh();
 
     // Bezpieczenstwo: pistolety tylko przy >= prog minimalny
-    bool speedOK = (speedKmh >= minSpeedKmh);
+    // Fix #12: pistolety OFF takze przy przekroczeniu maxSpeedKmh (OVERSPEED_GUN_DISABLE)
+    overspeedGunsOff = OVERSPEED_GUN_DISABLE && (speedKmh > maxSpeedKmh);
+    bool speedOK = (speedKmh >= minSpeedKmh) && !overspeedGunsOff;
 
     // ============================================================
     // Sterowanie pistoletami zaleznie od trybu
@@ -214,8 +220,11 @@ void PaintingEngine::update() {
     if (overspeedActive && !wasOver) {
         buzzer.play(BUZ_OVERSPEED);
         lastOverspeedBuzMs = now;
-        eventLog.logf("ENGINE", "PRZEKROCZENIE predkosci: %.1f > %.1f km/h",
-                      speedKmh, maxSpeedKmh);
+        if (overspeedGunsOff) {
+            guns.allOff();  // Natychmiastowe wylaczenie przy wejsciu w overspeed
+        }
+        eventLog.logf("ENGINE", "PRZEKROCZENIE predkosci: %.1f > %.1f km/h | pistolety=%s",
+                      speedKmh, maxSpeedKmh, overspeedGunsOff ? "OFF" : "ON");
     } else if (overspeedActive && (now - lastOverspeedBuzMs >= OVERSPEED_BUZZ_REPEAT_MS)) {
         // Powtarzaj co 2s
         buzzer.play(BUZ_OVERSPEED);
@@ -223,7 +232,10 @@ void PaintingEngine::update() {
     }
 
     // --- Auto-pauza przy zatrzymaniu (tryb AUTO/SEMI/DEMO) ---
-    if (snapMode != MODE_MANUAL) {
+    // Fix #9: cooldown po auto-resume — zapobiega oscylacji pauza/resume
+    bool cooldownActive = (lastAutoResumeMs > 0) &&
+                          (now - lastAutoResumeMs < AUTO_RESUME_COOLDOWN_MS);
+    if (snapMode != MODE_MANUAL && !cooldownActive) {
         if (speedKmh < AUTO_PAUSE_SPEED_KMH) {
             if (!autoPauseTracking) {
                 autoPauseTracking = true;
@@ -277,6 +289,8 @@ void PaintingEngine::start(float offsetDist) {
         autoPaused = false;
         autoPauseTracking = false;
         resumeSpeedTracking = false;
+        lastAutoResumeMs = 0;
+        overspeedGunsOff = false;
 
         stats.startSessionTimer();
         lastGunUpdateMs = millis();

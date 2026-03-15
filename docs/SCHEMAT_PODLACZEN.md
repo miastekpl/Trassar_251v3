@@ -1,4 +1,4 @@
-# TrassarV3 - Dokumentacja techniczna i schemat podłączeń v2.23.0
+# TrassarV3 - Dokumentacja techniczna i schemat podłączeń v2.52.0
 
 ## Spis treści
 
@@ -55,7 +55,7 @@
 
 | Parametr | Wartość |
 |----------|---------|
-| Wersja | 2.51.0 |
+| Wersja | 2.52.0 |
 | Platforma | ESP32-S3 (PlatformIO) |
 | Biblioteki | TFT_eSPI v2.5.43, ArduinoJson v7.0.4, RTClib v2.1.4, TinyGPSPlus v1.0.3, WebSockets v2.4.1, SD, Wire, WiFi, esp_task_wdt |
 | Orientacja ekranu | Landscape (setRotation 1) |
@@ -1158,7 +1158,7 @@ paintEngine.update():
          fire = speedOK && buttons.isStartHeld() && (mode != GUN_OFF)
          Pistolety ON tylko gdy operator trzyma przycisk START
 
-       TRYB DEMO (v2.23.0):
+       TRYB DEMO (v2.52.0):
          Logika identyczna jak AUTO, ale:
          guns.setGun(i, false)    // Fizycznie zawsze OFF
          gunStates[i] = wouldFire // Wizualizacja na ekranie i WWW
@@ -1305,7 +1305,7 @@ Szczegółowa dokumentacja API → [API_WWW.md](API_WWW.md)
 
 ---
 
-## 11. Nowe moduły w v2.23.0
+## 11. Nowe moduły w v2.52.0
 
 ### 11.1 Zapis trasy GPS (GPX + GeoJSON)
 
@@ -1359,7 +1359,7 @@ Diagnostyka startowa: SD, RTC, GPS, MCP23017, enkoder, czujnik temp. Wynik wyśw
 
 ---
 
-## 11. Nowe moduły w v2.23.0 — szczegóły podłączeń
+## 11. Nowe moduły w v2.52.0 — szczegóły podłączeń
 
 ### 11.1 Czujnik temperatury DS18B20 (opcjonalny)
 
@@ -1768,7 +1768,149 @@ Diagnostyka startowa: SD, RTC, GPS, MCP23017, enkoder, czujnik temp. Wynik wyśw
 
 ---
 
-## 17. FAQ — Najczęściej zadawane pytania o podłączenia
+## 17. Zabezpieczenia sprzętowo-programowe (v2.52.0 SAFETY PATCH)
+
+### 17.1 Wielowarstwowa ochrona pistoletów
+
+System TrassarV3 v2.52.0 implementuje **5 warstw ochrony** przed niekontrolowanym działaniem pistoletów natryskowych:
+
+```
+Warstwa 1: Sprzętowy STOP awaryjny (ISR na GPIO 39)
+   │        Bezpośredni zapis do rejestrów GPIO — <1 µs, niezależny od oprogramowania
+   │
+Warstwa 2: Gun keepalive (300 ms timeout)
+   │        Core 1 + Core 0 monitorują niezależnie — brak update() → allOff()
+   │
+Warstwa 3: Overspeed gun disable (v2.52.0)
+   │        Przekroczenie maxSpeedKmh → natychmiastowe wyłączenie pistoletów + alarm
+   │
+Warstwa 4: Shutdown handler (v2.52.0)
+   │        esp_register_shutdown_handler() → guns OFF PRZED resetem WDT/panic
+   │        Bezpośredni GPIO register write — działa nawet w kontekście panic
+   │
+Warstwa 5: Watchdog timer (3s)
+           TWDT per-task — ostatnia linia obrony, reset całego ESP
+```
+
+### 17.2 Izolacja awarii Core 0 (serwer WWW)
+
+```
+    Core 1 (loop)                        Core 0 (web task)
+    ┌─────────────────┐                  ┌──────────────────┐
+    │  Enkoder        │                  │  HTTP server     │
+    │  Przyciski      │   monitoruje     │  WebSocket       │
+    │  Pistolety      │◄────────────────►│  REST API        │
+    │  Wyświetlacz    │  core0AliveMs    │                  │
+    │  GPS/RTC        │                  │  WDT per-task    │
+    │                 │                  │                  │
+    │ Soft watchdog   │  ┌────────────┐  │ Aktualizuje      │
+    │ sprawdza co 5s  │──│ Restart    │  │ core0AliveMs     │
+    │ isCore0Alive()  │  │ web task   │  │ co 2 ms          │
+    │                 │  │ (nie ESP!) │  │                  │
+    └─────────────────┘  └────────────┘  └──────────────────┘
+
+    Awaria Core 0:
+    1. core0AliveMs przestaje się aktualizować
+    2. Core 1 wykrywa po 10s (isCore0Alive timeout)
+    3. restartWebTask() — usuwa stary task, tworzy nowy
+    4. Malowanie NIE jest przerywane, pistolety NIE są wyłączane
+    5. Event log: "Core 0 web task nie odpowiada — restart tasku"
+```
+
+### 17.3 Detekcja zablokowanego przekaźnika
+
+```
+    ┌─── Normalny cykl (wzorzec DASHED) ───┐
+    │                                        │
+    │  ON ████████████      ON ████████████  │
+    │  OFF            ██████              ██ │
+    │     ← lineLen → ← gapLen →            │
+    │                                        │
+    └────────────────────────────────────────┘
+
+    ┌─── Podejrzenie zablokowanego przekaźnika ───┐
+    │                                              │
+    │  ON ██████████████████████████████████████████│  >60s ciągły ON
+    │                                              │  bez cyklowania!
+    │  → Alarm BUZ_ERROR                           │
+    │  → Event log: "Podejrzenie zablokowanego     │
+    │    przekaznika: P3 (ON > 60s)"               │
+    │                                              │
+    └──────────────────────────────────────────────┘
+```
+
+**Parametry:** Sprawdzanie co 5s (`GUN_RELAY_STUCK_CHECK_MS`), próg 60s ciągłego ON (`GUN_RELAY_MAX_CONT_ON_MS`). Dotyczy wyłącznie pistoletów w trybie `GUN_DASHED` — pistolet `GUN_CONTINUOUS` nie jest monitorowany (ciągły ON jest prawidłowy).
+
+### 17.4 Automatyczne działanie przy niskim heapie
+
+```
+    Heap wolny                    Działanie
+    ────────────────────────────────────────────────
+    > 64 KB                       Normalny tryb pracy
+    ────────────────────────────────────────────────
+    < 64 KB (WARNING)             Ostrzeżenie w logu
+    ────────────────────────────────────────────────
+    < 32 KB (CRITICAL)            • Wyłączenie broadcastu WebSocket
+                                  • Zatrzymanie malowania (stop)
+                                  • Alarm BUZ_ERROR
+                                  • Event log: "KRYTYCZNY heap"
+    ────────────────────────────────────────────────
+```
+
+### 17.5 Ochrona SPI (TFT vs karta SD)
+
+```
+    Przed KAŻDĄ operacją renderowania TFT:
+
+    digitalWrite(PIN_SD_CS, HIGH)  ← gwarantuje że karta SD
+         │                           nie odpowiada na ruch SPI
+         ▼
+    menu.update()                  ← bezpieczne renderowanie TFT
+         │
+         ▼
+    SD_LOCK() / SD_UNLOCK()        ← mutex chroni każdy dostęp do SD
+                                     (timeout 2s < WDT 3s)
+```
+
+### 17.6 Overspeed — wyłączenie pistoletów
+
+```
+    Prędkość          Działanie pistoletów     Alarm
+    ──────────────────────────────────────────────────
+    < minSpeed         OFF (za wolno)           BUZ_LOW_SPEED co 3s
+    ──────────────────────────────────────────────────
+    minSpeed...maxSpeed ON (normalny tryb)      Brak
+    ──────────────────────────────────────────────────
+    > maxSpeed          OFF (za szybko!)        BUZ_OVERSPEED co 2s
+                        + natychmiastowe        + log zdarzenia
+                        guns.allOff()
+    ──────────────────────────────────────────────────
+```
+
+### 17.7 Auto-resume z cooldown
+
+```
+    ┌──── Cykl auto-pauza / auto-resume ────┐
+    │                                         │
+    │  Malowanie → prędkość < 0.5 km/h       │
+    │     │                                   │
+    │     ▼  (1.5s delay)                     │
+    │  AUTO-PAUZA → pistolety OFF             │
+    │     │                                   │
+    │     ▼  prędkość >= minSpeed (0.5s debounce) │
+    │  AUTO-RESUME → pistolety ON             │
+    │     │                                   │
+    │     ▼  COOLDOWN 2s                      │
+    │  Auto-pauza ZABLOKOWANA na 2s           │
+    │  (zapobiega oscylacji pauza↔resume)     │
+    │     │                                   │
+    │     ▼  Po 2s — normalna detekcja        │
+    └─────────────────────────────────────────┘
+```
+
+---
+
+## 18. FAQ — Najczęściej zadawane pytania o podłączenia
 
 ### Q: Czy mogę użyć innych pinów GPIO?
 
@@ -1812,6 +1954,7 @@ Diagnostyka startowa: SD, RTC, GPS, MCP23017, enkoder, czujnik temp. Wynik wyśw
 
 ---
 
-*TrassarV3 — Dokumentacja techniczna v2.23.0*
+*TrassarV3 — Dokumentacja techniczna v2.52.0 (SAFETY PATCH)*
 *ESP32-S3 N16R8 | ILI9341 320×240 | GPS NEO-6M + GPX/GeoJSON | MCP23017 | 6 pistoletów | 16 wzorców | 15 przycisków | 4 tryby pracy | WiFi AP + WebSocket | backup NVS | motogodziny | predykcja farby | raporty HTML*
+*v2.52.0: shutdown handler, overspeed gun disable, relay stuck detection, Core 0 isolation, low heap protection, SPI contention fix, API validation, auto-resume cooldown*
 *Dokumentacja aktualizowana: marzec 2026*

@@ -1,4 +1,4 @@
-# TrassarV3 - API serwera WWW v2.23.0
+# TrassarV3 - API serwera WWW v2.52.0
 
 ## Informacje ogólne
 
@@ -386,7 +386,7 @@ Przycisk **START OD PRZERWY** jest aktywny tylko gdy maszyna jest w stanie `idle
 
 ---
 
-## WebSocket (port 81) — v2.23.0
+## WebSocket (port 81) — v2.52.0
 
 Oprócz HTTP polling system oferuje kanał WebSocket na porcie **81**. Panel WWW automatycznie łączy się i otrzymuje broadcast statusu co 500 ms.
 
@@ -401,7 +401,7 @@ Oprócz HTTP polling system oferuje kanał WebSocket na porcie **81**. Panel WWW
 
 ---
 
-## Nowe endpointy v2.23.0
+## Nowe endpointy v2.52.0
 
 ### GET /api/tracks
 
@@ -462,7 +462,7 @@ Eksport danych raportów w formacie GeoJSON.
 
 ---
 
-## Nowe akcje POST /api/control — v2.23.0
+## Nowe akcje POST /api/control — v2.52.0
 
 | Akcja | Wartość | Opis |
 |-------|---------|------|

@@ -21,6 +21,13 @@ public:
     // Stack high-water mark tasku WWW (diagnostyka)
     uint32_t getTaskStackHWM() const;
 
+    // Fix #15: Software watchdog Core 0 — monitorowane z Core 1
+    volatile unsigned long core0AliveMs = 0;  // Timestamp ostatniej aktywnosci tasku
+    bool isCore0Alive(unsigned long now, unsigned long timeoutMs = 5000) const {
+        return (now - core0AliveMs) < timeoutMs;
+    }
+    void restartWebTask();  // Restart tasku bez resetu calego ESP
+
 private:
     WebServer server{WEB_SERVER_PORT};
     WebSocketsServer wsServer{WS_PORT};

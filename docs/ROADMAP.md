@@ -1,6 +1,6 @@
 # TrassarV3 — Propozycje rozbudowy funkcjonalności
 
-## Stan obecny (v2.23.0)
+## Stan obecny (v2.52.0)
 
 System jest dojrzały i funkcjonalny. Poniżej propozycje ulepszeń pogrupowane w trzy kategorie priorytetowe.
 
@@ -307,5 +307,5 @@ System jest dojrzały i funkcjonalny. Poniżej propozycje ulepszeń pogrupowane 
 
 ---
 
-*TrassarV3 — Roadmap v2.23.0*
+*TrassarV3 — Roadmap v2.52.0*
 *Propozycje rozbudowy oparte na analizie kodu i architektury systemu*

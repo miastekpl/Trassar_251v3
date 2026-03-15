@@ -60,6 +60,9 @@ public:
     void setAutoResumeEnabled(bool en) { autoResumeEnabled = en; }
     bool isAutoResumeEnabled() const { return autoResumeEnabled; }
 
+    // Overspeed gun disable
+    bool isOverspeedGunsDisabled() const { return overspeedGunsOff; }
+
     // Dystans od startu wzorca (do podgladu na TFT)
     float getPatternDistance() const;
 
@@ -93,10 +96,14 @@ private:
     // Gun keepalive
     unsigned long lastGunUpdateMs = 0;
 
+    // Auto-resume cooldown (zapobiega oscylacji pauza/resume)
+    unsigned long lastAutoResumeMs = 0;    // Timestamp ostatniego auto-resume
+
     // Alarm predkosci
     float maxSpeedKmh = DEFAULT_MAX_PAINT_SPEED_KMH;
     float minSpeedKmh = DEFAULT_MIN_PAINT_SPEED_KMH;
     bool overspeedActive = false;
+    bool overspeedGunsOff = false;  // Pistolety wylaczone z powodu overspeed
     bool lowSpeedActive = false;
     bool smartSwitch = true;  // true=inteligentne, false=natychmiastowe
     unsigned long lastLowSpeedBuzMs = 0;   // Throttle buzzera niskiej predkosci

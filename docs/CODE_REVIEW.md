@@ -1,4 +1,4 @@
-# TrassarV3 — Raport weryfikacji kodu v2.23.0
+# TrassarV3 — Raport weryfikacji kodu v2.52.0
 
 ## Podsumowanie
 
@@ -176,5 +176,21 @@ Kod źródłowy (~9 600 linii, 45+ plików) jest dobrze napisany, spójny archit
 
 ---
 
-*Raport wygenerowany na podstawie analizy kodu v2.23.0*
+## Naprawy w v2.52.0 (SAFETY PATCH)
+
+| # raportu | Problem | Status | Opis naprawy |
+|-----------|---------|--------|-------------|
+| #7 | SPI contention: TFT vs SD | **NAPRAWIONY** | `digitalWrite(PIN_SD_CS, HIGH)` przed każdym renderowaniem TFT + SD_LOCK mutex |
+| #8 | Brak walidacji prędkości API | **NAPRAWIONY** | Cross-check min/max, walidacja NaN/Inf w `handleControl()` |
+| #9 | Auto-resume oscylacja | **NAPRAWIONY** | Cooldown 2s (`AUTO_RESUME_COOLDOWN_MS`) po auto-resume blokuje re-pauzę |
+| #10 | Brak reakcji na niski heap | **NAPRAWIONY** | <32KB → stop malowania + wyłączenie WS broadcast; <64KB → warning |
+| #11 | **WDT nie wyłącza pistoletów** | **NAPRAWIONY** | `esp_register_shutdown_handler(shutdownGunsHandler)` — GPIO register write |
+| #12 | Overspeed: pistolety strzelają | **NAPRAWIONY** | `OVERSPEED_GUN_DISABLE` — `speedOK = false` przy > maxSpeed |
+| #14 | Brak detekcji zablokowanego przekaźnika | **NAPRAWIONY** | Monitoring ciągłego ON >60s na pistoletach DASHED + alert |
+| #15 | Core 0 crash → reset ESP | **NAPRAWIONY** | Software watchdog Core 0 + `restartWebTask()` bez resetu ESP |
+
+---
+
+*Raport wygenerowany na podstawie analizy kodu v2.52.0*
+*Ostatnia aktualizacja: marzec 2026 — SAFETY PATCH*
 *Platforma: ESP32-S3 N16R8 | Framework: Arduino/PlatformIO*

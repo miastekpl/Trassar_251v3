@@ -1,4 +1,4 @@
-# TrassarV3 - Instrukcja obsługi v2.23.0
+# TrassarV3 - Instrukcja obsługi v2.52.0
 
 ## Spis treści
 
@@ -133,7 +133,7 @@ System zapewnia:
 | Parametr | Wartość |
 |----------|---------|
 | Mikrokontroler | ESP32-S3 N16R8 (16 MB Flash, 8 MB PSRAM) |
-| Firmware | v2.23.0 |
+| Firmware | v2.52.0 |
 | Wyświetlacz | ILI9341 2.8" TFT, 320×240 px, tryb landscape |
 | Interfejs SPI | HSPI (SPI3), 27 MHz |
 | Zegar RTC | DS1307 z baterią CR2032 |
@@ -858,24 +858,52 @@ Niezależna od watchdoga warstwa bezpieczeństwa. Chroni przed scenariuszem, w k
 - Jeśli silnik malowania nie zaktualizuje stanu pistoletów przez **300 ms**, system wykonuje awaryjne wyłączenie wszystkich pistoletów (`guns.allOff()`)
 - Informacja o zadziałaniu keepalive jest logowana na port szeregowy
 
-### 12.5 Alarm przekroczenia prędkości
+### 12.5 Alarm przekroczenia prędkości + wyłączenie pistoletów (v2.52.0)
 
-Przy zbyt dużej prędkości jakość malowania spada (farba się rozpryskuje, linie nie są równe). System alarmuje operatora:
+Przy zbyt dużej prędkości jakość malowania spada (farba się rozpryskuje, linie nie są równe). System alarmuje operatora **i wyłącza pistolety**:
 
 - **Próg domyślny:** 15 km/h
 - **Konfiguracja:** Panel WWW → sekcja "Alarm prędkości" → suwak 5–30 km/h → przycisk "Zapisz"
 - **Próg jest zapisywany trwale w NVS** — przetrwa restart urządzenia
+- **Pistolety OFF:** Przy przekroczeniu prędkości maksymalnej pistolety są natychmiast wyłączane (v2.52.0)
+- Po spadku prędkości poniżej progu pistolety włączają się automatycznie
 
 **Sygnalizacja przy przekroczeniu:**
 - **Wyświetlacz:** Prędkość miga na czerwono (cykl 300 ms)
 - **Buzzer:** Trojkowy alarm 3 kHz, powtarzany co 2 sekundy
 - **Panel WWW:** Napis "PRZEKROCZENIE!" w sekcji alarmu prędkości, kolor prędkości na czerwono
+- **Pistolety:** Wyłączone do momentu spadku prędkości poniżej maxSpeed
 
 **Sygnalizacja przy niskiej prędkości (<3 km/h podczas malowania):**
 - **Wyświetlacz:** Prędkość wyświetlana na żółto
 - **Buzzer:** Podwójny puls 1.5 kHz, powtarzany co 3 sekundy
 
-### 12.6 Odszumianie enkodera
+### 12.6 Shutdown handler — pistolety OFF przed resetem (v2.52.0)
+
+System rejestruje specjalny handler `shutdownGunsHandler()` wywoływany automatycznie PRZED każdym resetem ESP32 (w tym resetem WDT, panic, czy `esp_restart()`). Handler bezpośrednio zapisuje LOW do rejestrów GPIO pinów przekaźników — działa nawet w kontekście panic handlera, nie wymaga mutex ani Serial.
+
+### 12.7 Izolacja awarii serwera WWW (v2.52.0)
+
+Jeśli task serwera WWW na Core 0 zawiesi się:
+- Core 1 wykrywa brak aktywności po 10 sekundach
+- Task Core 0 jest usuwany i tworzony od nowa (`restartWebTask()`)
+- **Malowanie NIE jest przerywane** — pistolety działają normalnie
+- Zdarzenie jest logowane w event_log
+
+### 12.8 Detekcja zablokowanego przekaźnika (v2.52.0)
+
+System monitoruje czas ciągłego ON każdego pistoletu w trybie DASHED (przerywany). Jeśli pistolet jest nieprzerwanie ON przez ponad 60 sekund bez cyklowania:
+- Alarm dźwiękowy BUZ_ERROR
+- Wpis w event_log z identyfikacją pistoletu
+- Podejrzenie mechanicznie zablokowanego przekaźnika
+
+### 12.9 Ochrona przy niskim heapie (v2.52.0)
+
+System monitoruje dostępną pamięć RAM co 30 sekund:
+- **< 64 KB:** Ostrzeżenie w logu diagnostycznym
+- **< 32 KB:** Automatyczne zatrzymanie malowania, wyłączenie broadcastu WebSocket, alarm dźwiękowy
+
+### 12.10 Odszumianie enkodera
 
 Podczas inicjalizacji systemu enkoder może rejestrować drobne drgania. Po zakończeniu inicjalizacji system automatycznie zeruje licznik dystansu (`resetDistance()`), eliminując szum nazbierany podczas startu.
 
@@ -1497,7 +1525,7 @@ data,godzina,wzorzec,dystans_m,powierzchnia_m2,lat,lon
 
 ---
 
-## 23. Predykcja zużycia farby (v2.23.0)
+## 23. Predykcja zużycia farby (v2.52.0)
 
 ### 23.1 Opis
 
@@ -1525,7 +1553,7 @@ Gdy pozostaje mniej niż **20 litrów** farby, raport sesji oznacza to kolorem c
 
 ---
 
-## 24. Czujnik temperatury (v2.23.0, opcjonalny)
+## 24. Czujnik temperatury (v2.52.0, opcjonalny)
 
 ### 24.1 Opis
 
@@ -1544,7 +1572,7 @@ Czujnik podłączony do GPIO 15 (współdzielony z Touch CS — jeśli Touch nie
 
 ---
 
-## 25. Raporty HTML sesji (v2.23.0)
+## 25. Raporty HTML sesji (v2.52.0)
 
 ### 25.1 Opis
 
@@ -1566,7 +1594,7 @@ Po każdym zatrzymaniu malowania (STOP) system automatycznie generuje raport HTM
 
 ---
 
-## 26. Zapis trasy GPS — GPX i GeoJSON (v2.23.0)
+## 26. Zapis trasy GPS — GPX i GeoJSON (v2.52.0)
 
 ### 26.1 Opis
 
@@ -1586,7 +1614,7 @@ Punkty GPS buforowane są w pamięci PSRAM (max 4320 punktów = ~6 godzin ciąg�
 
 ---
 
-## 27. Backup NVS na kartę SD (v2.23.0)
+## 27. Backup NVS na kartę SD (v2.52.0)
 
 ### 27.1 Opis
 
@@ -1611,7 +1639,7 @@ Podczas przywracania system sprawdza:
 
 ---
 
-## 28. Motogodziny (v2.23.0)
+## 28. Motogodziny (v2.52.0)
 
 ### 28.1 Opis
 
@@ -1631,7 +1659,7 @@ System rejestruje czas pracy silnika malowania (motogodziny, MTH) niezależnie o
 
 ---
 
-## 29. Auto-pauza i auto-wznowienie (v2.23.0)
+## 29. Auto-pauza i auto-wznowienie (v2.52.0)
 
 ### 29.1 Opis
 
@@ -1661,7 +1689,7 @@ POST /api/control  action=set_auto_resume&value=0  (wyłącz)
 
 ---
 
-## 30. Tryb DEMO (v2.23.0)
+## 30. Tryb DEMO (v2.52.0)
 
 ### 30.1 Opis
 
@@ -1679,7 +1707,7 @@ Tryb DEMO dostępny jako czwarta opcja w selektorze trybu pracy (AUTO → SEMI �
 
 ---
 
-## 31. WebSocket — aktualizacje w czasie rzeczywistym (v2.23.0)
+## 31. WebSocket — aktualizacje w czasie rzeczywistym (v2.52.0)
 
 ### 31.1 Opis
 
@@ -1697,7 +1725,7 @@ Jeśli WebSocket nie jest dostępny (starsza przeglądarka), panel automatycznie
 
 ---
 
-## 32. Tryb nocny (v2.23.0)
+## 32. Tryb nocny (v2.52.0)
 
 ### 32.1 Opis
 
@@ -1720,7 +1748,7 @@ Tryb nocny zapisywany jest w NVS i można go przełączyć z panelu WWW.
 
 ---
 
-## 33. Ekran POST — diagnostyka startowa (v2.23.0)
+## 33. Ekran POST — diagnostyka startowa (v2.52.0)
 
 ### 33.1 Opis
 
@@ -2322,7 +2350,7 @@ Firmware TrassarV3 jest dostarczany w stanie "AS IS". Gwarancja obejmuje poprawn
 │            KARTA IDENTYFIKACYJNA               │
 ├───────────────────────────────────────────────┤
 │  Nazwa:        TrassarV3                       │
-│  Firmware:     v2.23.0                         │
+│  Firmware:     v2.52.0                         │
 │  MCU:          ESP32-S3 N16R8                  │
 │  Flash:        16 MB                           │
 │  PSRAM:        8 MB                            │
@@ -2345,5 +2373,5 @@ Firmware TrassarV3 jest dostarczany w stanie "AS IS". Gwarancja obejmuje poprawn
 ---
 
 *TrassarV3 — Komputer pokładowy malowarki pasów drogowych*
-*Firmware v2.23.0 | ESP32-S3 N16R8 | GPS NEO-6M + GPX/GeoJSON | 6 pistoletów, 16 wzorców, 4 tryby pracy (AUTO/SEMI/MANUAL/DEMO), Smart/Instant, auto-pauza, backup NVS, motogodziny, predykcja farby, raporty HTML, tryb nocny, WebSocket*
+*Firmware v2.52.0 | ESP32-S3 N16R8 | GPS NEO-6M + GPX/GeoJSON | 6 pistoletów, 16 wzorców, 4 tryby pracy (AUTO/SEMI/MANUAL/DEMO), Smart/Instant, auto-pauza, backup NVS, motogodziny, predykcja farby, raporty HTML, tryb nocny, WebSocket*
 *Dokumentacja aktualizowana: marzec 2026*

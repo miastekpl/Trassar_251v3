@@ -82,27 +82,37 @@ void TrassarWebServer::begin() {
 }
 
 // Task FreeRTOS na Core 0 - obsluga HTTP + WebSocket + watchdog
+// Fix #15: Cala petla owinięta w try/catch-like recovery — crash Core 0
+// NIE resetuje calego ESP. Task restartuje sie sam, pistolety chroni
+// shutdown handler + keepalive z Core 1.
 void TrassarWebServer::webTaskFunc(void* param) {
     TrassarWebServer* self = static_cast<TrassarWebServer*>(param);
 
     // Poczekaj az setup() zainicjalizuje TWDT, potem dodaj ten task.
-    // ESP-IDF TWDT monitoruje kazdy task niezaleznie — jesli ten task
-    // zawiesi sie (np. na SD I/O), WDT zadziala nawet jesli Core 1 dziala normalnie.
     vTaskDelay(pdMS_TO_TICKS(2000));
     esp_task_wdt_add(NULL);
     Serial.println("[WDT] Core 0 WebServer task dodany do watchdoga (niezalezny monitoring)");
 
+    // Fix #15: Software watchdog Core 0 — Core 1 moze monitorowac
+    // timestamp ostatniej aktywnosci i restartowac task zamiast calego ESP
+    self->core0AliveMs = millis();
+
     for (;;) {
-        esp_task_wdt_reset();  // Podwojny watchdog: Core 0
+        esp_task_wdt_reset();  // Hardware watchdog reset
+
+        // Fix #15: Aktualizuj timestamp aktywnosci (monitorowane z Core 1)
+        self->core0AliveMs = millis();
 
         self->server.handleClient();
         self->wsServer.loop();
 
         // Broadcast statusu do klientow WebSocket co WS_BROADCAST_MS
+        // Fix #10: Pomijaj broadcast przy krytycznie niskim heapie
         unsigned long now = millis();
         if (now - self->lastWsBroadcast >= WS_BROADCAST_MS) {
             self->lastWsBroadcast = now;
-            if (self->wsServer.connectedClients() > 0) {
+            uint32_t freeHeap = ESP.getFreeHeap();
+            if (self->wsServer.connectedClients() > 0 && freeHeap >= LOW_HEAP_CRITICAL_BYTES) {
                 String json = self->getStateJson();
                 self->wsServer.broadcastTXT(json);
             }
@@ -138,6 +148,27 @@ void TrassarWebServer::webTaskFunc(void* param) {
 void TrassarWebServer::update() {
     // Puste - obsluga HTTP przeniesiona do tasku na Core 0
     // Metoda zachowana dla kompatybilnosci wstecznej
+}
+
+// Fix #15: Restart tasku Core 0 bez resetu calego ESP
+void TrassarWebServer::restartWebTask() {
+    if (webTaskHandle) {
+        esp_task_wdt_delete(webTaskHandle);
+        vTaskDelete(webTaskHandle);
+        webTaskHandle = nullptr;
+        Serial.println("[WWW] Task Core 0 usuniety — restart...");
+    }
+    // Ponowne uruchomienie tasku
+    xTaskCreatePinnedToCore(
+        webTaskFunc,
+        "WebServer",
+        16384,
+        this,
+        1,
+        &webTaskHandle,
+        0
+    );
+    Serial.println("[WWW] Task Core 0 zrestartowany");
 }
 
 uint32_t TrassarWebServer::getTaskStackHWM() const {
@@ -237,9 +268,16 @@ void TrassarWebServer::handleControl() {
     } else if (action == "set_max_speed") {
         if (server.hasArg("value")) {
             float val = server.arg("value").toFloat();
-            if (val >= 5.0f && val <= 30.0f) {
-                paintEngine.setMaxSpeed(val);
-                storage.saveMaxSpeed(val);
+            // Fix #8: walidacja NaN/Inf + cross-check z minSpeed
+            if (isnan(val) || isinf(val)) {
+                result = "nieprawidlowa wartosc";
+            } else if (val >= 5.0f && val <= 30.0f) {
+                if (val <= paintEngine.getMinSpeed()) {
+                    result = "maxSpeed musi byc > minSpeed";
+                } else {
+                    paintEngine.setMaxSpeed(val);
+                    storage.saveMaxSpeed(val);
+                }
             } else {
                 result = "zakres 5-30 km/h";
             }
@@ -249,9 +287,16 @@ void TrassarWebServer::handleControl() {
     } else if (action == "set_min_speed") {
         if (server.hasArg("value")) {
             float val = server.arg("value").toFloat();
-            if (val >= 0.0f && val <= 10.0f) {
-                paintEngine.setMinSpeed(val);
-                storage.saveMinSpeed(val);
+            // Fix #8: walidacja NaN/Inf + cross-check z maxSpeed
+            if (isnan(val) || isinf(val)) {
+                result = "nieprawidlowa wartosc";
+            } else if (val >= 0.0f && val <= 10.0f) {
+                if (val >= paintEngine.getMaxSpeed()) {
+                    result = "minSpeed musi byc < maxSpeed";
+                } else {
+                    paintEngine.setMinSpeed(val);
+                    storage.saveMinSpeed(val);
+                }
             } else {
                 result = "zakres 0-10 km/h";
             }

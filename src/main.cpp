@@ -35,6 +35,8 @@
 #include "temp_sensor.h"
 #include <esp_task_wdt.h>
 #include <esp_heap_caps.h>
+#include <esp_system.h>
+#include <soc/gpio_struct.h>
 
 // Globalny stan systemu
 SystemState g_state;
@@ -42,6 +44,9 @@ portMUX_TYPE g_stateMux = portMUX_INITIALIZER_UNLOCKED;
 
 // Stan detekcji anomalii pistoletow
 GunAnomalyState gunAnomaly;
+
+// Stan detekcji zablokowanych przekaznikow
+RelayStuckState relayStuck;
 
 // Mutex dostepu do karty SD (SPI wspoldzielone miedzy TFT i SD)
 SemaphoreHandle_t g_sdMutex = nullptr;
@@ -73,6 +78,24 @@ const unsigned long DYNAMIC_UPDATE_MS  = 500;
 const unsigned long DIAG_PRINT_MS      = 30000;  // Diagnostyka co 30s
 const unsigned long LIFETIME_SAVE_MS   = 60000;  // Zapis statystyk co 60s
 const unsigned long REPORT_CACHE_MS    = 15000;  // Odswiezanie cache raportow SD co 15s
+
+// ============================================================
+// Fix #11 (KRYTYCZNE): Wylaczenie pistoletow PRZED resetem WDT
+// esp_register_shutdown_handler() wywolywany przez esp_restart()
+// oraz przez panic handler — gwarantuje guns OFF przed restartem.
+// ============================================================
+static void IRAM_ATTR shutdownGunsHandler() {
+    // Bezposredni zapis do rejestrow GPIO — bez mutex, bez Serial
+    // (kontekst moze byc ISR lub panic handler)
+    for (int i = 0; i < NUM_GUNS; i++) {
+        uint8_t pin = GUN_PINS[i];
+        if (pin < 32) {
+            GPIO.out_w1tc = (1UL << pin);
+        } else {
+            GPIO.out1_w1tc.val = (1UL << (pin - 32));
+        }
+    }
+}
 
 void setup() {
     Serial.begin(115200);
@@ -130,6 +153,10 @@ void setup() {
     Serial.println("[INIT] Pistolety P1-P6...");
     guns.begin();
     guns.beginEmergencyStop();  // Sprzetowy STOP awaryjny (ISR na PIN_BTN_STOP)
+
+    // Fix #11 (KRYTYCZNE): Rejestracja handlera shutdown — pistolety OFF przed resetem
+    esp_register_shutdown_handler(shutdownGunsHandler);
+    Serial.println("[INIT] Shutdown handler (guns OFF) zarejestrowany");
 
     // 7. Wzorce malowania
     Serial.println("[INIT] Wzorce malowania...");
@@ -246,7 +273,9 @@ void setup() {
 
     // Watchdog timer - 3s timeout, auto-reset przy zawieszeniu.
     // TWDT monitoruje kazdy task niezaleznie (Core 1 loop + Core 0 web).
-    // Jesli DOWOLNY z nich nie zresetuje WDT w ciagu 3s — system resetuje sie.
+    // Fix #11: shutdown handler gwarantuje guns OFF przed resetem WDT.
+    // Fix #15: Core 0 web task ma wlasny software watchdog (soft recovery
+    //          restartuje task zamiast calego ESP — patrz web_server.cpp).
     Serial.println("[INIT] Watchdog timer (TWDT per-task)...");
     esp_task_wdt_init(WDT_TIMEOUT_SEC, true);
     esp_task_wdt_add(NULL);  // Dodaj biezacy task (Core 1 loop)
@@ -388,8 +417,12 @@ void loop() {
     }
 
     // 6. Renderowanie wyświetlacza
+    // Fix #7: Deassert SD CS przed kazda operacja TFT — zapobiega SPI contention.
+    // SD i TFT wspoldziela HSPI. Jesli SD CS jest LOW (np. po nieudanej operacji SD),
+    // karta SD odpowiada na ruch SPI i psuje rendering TFT.
     if (now - lastDisplayRefresh >= DISPLAY_REFRESH_MS) {
         lastDisplayRefresh = now;
+        digitalWrite(PIN_SD_CS, HIGH);  // Gwarantuj SD CS HIGH przed TFT
         menu.update();
     }
 
@@ -406,17 +439,40 @@ void loop() {
         lastLifetimeSave = now;  // Reset timera gdy nie malujemy
     }
 
-    // 9. Diagnostyka systemowa (co 30s)
+    // 9. Diagnostyka systemowa (co 30s) + Fix #10: automatyczne dzialanie przy niskim heapie
     if (now - lastDiagPrint >= DIAG_PRINT_MS) {
         lastDiagPrint = now;
+        uint32_t freeHeap = ESP.getFreeHeap();
+        uint32_t minFreeHeap = ESP.getMinFreeHeap();
         Serial.printf("[DIAG] Heap: %u/%u B (min: %u)  Frag: %.0f%%  WWW-stack: %u  Core: %d\n",
-                      ESP.getFreeHeap(),
+                      freeHeap,
                       ESP.getHeapSize(),
-                      ESP.getMinFreeHeap(),
+                      minFreeHeap,
                       100.0f * (1.0f - (float)heap_caps_get_largest_free_block(MALLOC_CAP_8BIT) /
-                                        (float)ESP.getFreeHeap()),
+                                        (float)freeHeap),
                       webServer.getTaskStackHWM(),
                       xPortGetCoreID());
+
+        // Fix #10: Automatyczne dzialanie przy niskim heapie
+        if (freeHeap < LOW_HEAP_CRITICAL_BYTES) {
+            // Krytyczny poziom — wylacz broadcast WebSocket, zatrzymaj malowanie
+            Serial.printf("[HEAP] KRYTYCZNY: %u B < %u B — redukcja funkcji!\n",
+                          freeHeap, LOW_HEAP_CRITICAL_BYTES);
+            eventLog.logf("HEAP", "KRYTYCZNY: %u B wolnego heapa — awaryjne dzialania", freeHeap);
+
+            STATE_LOCK();
+            MachineState heapState = g_state.machineState;
+            STATE_UNLOCK();
+            if (heapState == STATE_PAINTING) {
+                paintEngine.stop();
+                menu.goToScreen(SCREEN_HOME);
+                buzzer.play(BUZ_ERROR);
+                eventLog.log("HEAP", "Malowanie zatrzymane — krytycznie niski heap");
+            }
+        } else if (freeHeap < LOW_HEAP_WARNING_BYTES) {
+            Serial.printf("[HEAP] OSTRZEZENIE: %u B < %u B\n",
+                          freeHeap, LOW_HEAP_WARNING_BYTES);
+        }
     }
 
     // 10. Detekcja anomalii pistoletow (co 10s podczas malowania)
@@ -484,10 +540,89 @@ void loop() {
         }
     }
 
+    // 10b. Fix #14: Detekcja zablokowanego przekaznika (co 5s podczas malowania)
+    //      Sprawdza czy pistolet DASHED jest ciagly ON dluzej niz GUN_RELAY_MAX_CONT_ON_MS.
+    //      Moze wskazywac na mechanicznie zablokowany przekaznik.
+    {
+        STATE_LOCK();
+        MachineState relaySnapState = g_state.machineState;
+        STATE_UNLOCK();
+
+        if (relaySnapState == STATE_PAINTING) {
+            if (now - relayStuck.lastCheckMs >= GUN_RELAY_STUCK_CHECK_MS) {
+                relayStuck.lastCheckMs = now;
+                bool anyStuck = false;
+
+                for (int i = 0; i < NUM_GUNS; i++) {
+                    bool currentlyOn = guns.getState(i);
+                    GunPatternCfg cfg = patternMgr.getGunConfig((GunID)i);
+
+                    if (currentlyOn && !relayStuck.wasOn[i]) {
+                        // Wlasnie wlaczony — zapamietaj poczatek
+                        relayStuck.contOnStartMs[i] = now;
+                    }
+
+                    if (currentlyOn && cfg.mode == GUN_DASHED) {
+                        // Pistolet DASHED powinien cyklowac ON/OFF
+                        unsigned long onDuration = now - relayStuck.contOnStartMs[i];
+                        if (onDuration > GUN_RELAY_MAX_CONT_ON_MS) {
+                            relayStuck.suspected[i] = true;
+                            anyStuck = true;
+                        }
+                    } else if (!currentlyOn) {
+                        // Reset — pistolet sie wylaczyl (przekaznik dziala)
+                        relayStuck.suspected[i] = false;
+                        relayStuck.contOnStartMs[i] = 0;
+                    }
+
+                    relayStuck.wasOn[i] = currentlyOn;
+                }
+
+                if (anyStuck && !relayStuck.alerted) {
+                    relayStuck.alerted = true;
+                    buzzer.play(BUZ_ERROR);
+
+                    char stuckList[32] = "";
+                    int pos = 0;
+                    for (int i = 0; i < NUM_GUNS; i++) {
+                        if (relayStuck.suspected[i]) {
+                            pos += snprintf(stuckList + pos, sizeof(stuckList) - pos, " P%d", i + 1);
+                        }
+                    }
+                    eventLog.logf("RELAY", "Podejrzenie zablokowanego przekaznika:%s (ON > %us)",
+                                  stuckList, GUN_RELAY_MAX_CONT_ON_MS / 1000);
+                }
+            }
+        } else {
+            // Reset stanu detekcji przy zatrzymaniu
+            if (relayStuck.alerted) {
+                relayStuck.alerted = false;
+                for (int i = 0; i < NUM_GUNS; i++) {
+                    relayStuck.suspected[i] = false;
+                    relayStuck.contOnStartMs[i] = 0;
+                    relayStuck.wasOn[i] = false;
+                }
+            }
+        }
+    }
+
     // 11. Odswiezanie cache listy raportow SD (co 15s, na Core 1 - bezpieczny dostep SPI)
     if (now - lastReportCacheRefresh >= REPORT_CACHE_MS) {
         lastReportCacheRefresh = now;
         reportLogger.refreshReportCache();
+    }
+
+    // 11b. Fix #15: Monitoring zdrowia Core 0 — restart tasku zamiast calego ESP
+    {
+        static unsigned long lastCore0Check = 0;
+        if (now - lastCore0Check >= 5000) {  // Sprawdzaj co 5s
+            lastCore0Check = now;
+            if (!webServer.isCore0Alive(now, 10000)) {  // 10s timeout
+                Serial.println("[WDT-CORE1] Core 0 web task nie odpowiada — restart tasku!");
+                eventLog.log("SAFETY", "Core 0 web task nie odpowiada — restart tasku (bez resetu ESP)");
+                webServer.restartWebTask();
+            }
+        }
     }
 
     // 12. Okresowy backup NVS na SD (co 30 min) + czyszczenie starych logow
