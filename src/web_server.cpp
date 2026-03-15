@@ -108,6 +108,29 @@ void TrassarWebServer::webTaskFunc(void* param) {
             }
         }
 
+        // Gun keepalive z Core 0 — ochrona przed zawieszeniem Core 1.
+        // Jesli Core 1 (loop) zawiesi sie, WDT zresetuje po 3s. Ale w tym
+        // czasie pistolety moglyby pozostac otwarte. Core 0 sprawdza
+        // niezaleznie czy update() bylo wywolywane i awaryjnie wylacza.
+        {
+            STATE_LOCK();
+            MachineState snapState = g_state.machineState;
+            STATE_UNLOCK();
+            if (snapState == STATE_PAINTING) {
+                unsigned long lastUpdate = paintEngine.getLastGunUpdateMs();
+                if (now - lastUpdate > GUN_KEEPALIVE_TIMEOUT_MS) {
+                    guns.allOff();
+                    // Loguj tylko raz — nie zalewaj seriala
+                    static bool keepaliveLogged = false;
+                    if (!keepaliveLogged) {
+                        Serial.printf("[WDT-CORE0] KEEPALIVE: awaryjne guns.allOff() (brak update %lu ms)\n",
+                                      now - lastUpdate);
+                        keepaliveLogged = true;
+                    }
+                }
+            }
+        }
+
         vTaskDelay(pdMS_TO_TICKS(2));  // 2ms yield - nie blokuj innych taskow
     }
 }
@@ -239,12 +262,19 @@ void TrassarWebServer::handleControl() {
         if (server.hasArg("value")) {
             int val = server.arg("value").toInt();
             if (val >= 0 && val <= 3) {
-                MachineMode newMode = (MachineMode)val;
+                // Nie zmieniaj trybu podczas malowania — niebezpieczne
                 STATE_LOCK();
-                g_state.machineMode = newMode;
-                STATE_UNLOCK();
-                storage.saveMode(newMode);
-                Serial.printf("[WWW] Tryb pracy: %d\n", val);
+                MachineState modeState = g_state.machineState;
+                if (modeState == STATE_IDLE || modeState == STATE_STOPPED) {
+                    MachineMode newMode = (MachineMode)val;
+                    g_state.machineMode = newMode;
+                    STATE_UNLOCK();
+                    storage.saveMode(newMode);
+                    Serial.printf("[WWW] Tryb pracy: %d\n", val);
+                } else {
+                    STATE_UNLOCK();
+                    result = "nie mozna zmienic trybu podczas malowania";
+                }
             } else {
                 result = "nieprawidlowy tryb (0-3)";
             }
@@ -305,12 +335,16 @@ void TrassarWebServer::handleControl() {
     } else if (action == "semi_next_line") {
         paintEngine.semiNextLine();
     } else if (action == "send_event") {
-        // Wirtualne przyciski z panelu www — wstrzykniecie zdarzenia do menu
+        // Wirtualne przyciski z panelu www — kolejkowanie zdarzenia do Core 1.
+        // NIE wywoluj menu.handleEvent() bezposrednio z Core 0 — race condition
+        // z obsluga przyciskow/joysticka w loop() na Core 1.
         if (server.hasArg("value")) {
             int val = server.arg("value").toInt();
             if (val > 0 && val <= (int)EVT_GAP_START) {
-                menu.handleEvent((ButtonEvent)val);
-                Serial.printf("[WWW] Event: %d\n", val);
+                STATE_LOCK();
+                g_state.pendingWebEvent = (ButtonEvent)val;
+                STATE_UNLOCK();
+                Serial.printf("[WWW] Event kolejkowany: %d\n", val);
             } else {
                 result = "nieprawidlowy event";
             }

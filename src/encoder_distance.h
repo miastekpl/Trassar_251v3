@@ -26,6 +26,7 @@ public:
     float getCalibrationPulses() const;
     float getPulsesPerMeter() const { return pulsesPerMeter; }
     bool  isCalibrated() const { return calibrated; }
+    int   getZeroSpeedCount() const { return zeroSpeedCount; }
 
     // Zapis/odczyt z NVS
     void loadCalibration();

@@ -228,14 +228,21 @@ void PaintingEngine::update() {
             if (!autoPauseTracking) {
                 autoPauseTracking = true;
                 lowSpeedStartMs = now;
-            } else if (!autoPaused && (now - lowSpeedStartMs >= AUTO_PAUSE_DELAY_MS)) {
-                // Predkosc < prog przez AUTO_PAUSE_DELAY_MS -> auto-pauza
-                autoPaused = true;
-                autoPauseTracking = false;
-                pause();
-                buzzer.play(BUZ_AUTO_PAUSE);
-                eventLog.logf("ENGINE", "AUTO-PAUZA: predkosc %.1f < %.1f km/h",
-                              speedKmh, (float)AUTO_PAUSE_SPEED_KMH);
+            } else if (!autoPaused) {
+                // Szybsza auto-pauza gdy enkoder nie generuje impulsow (awaria/rozlaczenie).
+                // zeroSpeedCount >= prog = calkowite zatrzymanie potwierdzone wieloma cyklami.
+                unsigned long pauseDelay = AUTO_PAUSE_DELAY_MS;
+                if (encoderDist.getZeroSpeedCount() >= ENCODER_ZERO_SPEED_THRESHOLD) {
+                    pauseDelay = AUTO_PAUSE_ZERO_PULSE_MS;
+                }
+                if (now - lowSpeedStartMs >= pauseDelay) {
+                    autoPaused = true;
+                    autoPauseTracking = false;
+                    pause();
+                    buzzer.play(BUZ_AUTO_PAUSE);
+                    eventLog.logf("ENGINE", "AUTO-PAUZA: predkosc %.1f < %.1f km/h (delay=%lums)",
+                                  speedKmh, (float)AUTO_PAUSE_SPEED_KMH, pauseDelay);
+                }
             }
         } else {
             autoPauseTracking = false;

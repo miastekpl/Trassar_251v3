@@ -80,6 +80,8 @@
 // ============ Auto-pauza przy zatrzymaniu (tryb AUTO) ============
 #define AUTO_PAUSE_SPEED_KMH   0.5f   // Prog predkosci do auto-pauzy [km/h]
 #define AUTO_PAUSE_DELAY_MS   1500     // Opoznienie przed auto-pauza [ms]
+#define AUTO_PAUSE_ZERO_PULSE_MS  500  // Szybsza auto-pauza gdy 0 impulsow (awaria/zatrzymanie) [ms]
+#define ENCODER_ZERO_SPEED_THRESHOLD  2  // Ile cykli zerowych predkosci = pewne zatrzymanie
 
 // ============ Motogodziny (MTH) ============
 #define MTH_SAVE_INTERVAL_MS  300000UL  // Zapis MTH co 5 min
@@ -273,6 +275,8 @@ struct SystemState {
     bool nightMode = false;           // Tryb nocny (amber UI)
     bool sdCardWarningShown = false;  // Flaga jednorazowego ostrzezenia SD
     bool gpsBufferWarningShown = false; // Flaga ostrzezenia GPS overflow (raz na sesje)
+
+    uint8_t pendingWebEvent = 0;     // Zdarzenie z panelu WWW (Core 0 -> Core 1)
 };
 
 // ============ Pre-alokowany bufor SD (wspoldzielony) ============

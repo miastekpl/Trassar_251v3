@@ -129,6 +129,7 @@ void setup() {
     // 6. Pistolety (przekaźniki)
     Serial.println("[INIT] Pistolety P1-P6...");
     guns.begin();
+    guns.beginEmergencyStop();  // Sprzetowy STOP awaryjny (ISR na PIN_BTN_STOP)
 
     // 7. Wzorce malowania
     Serial.println("[INIT] Wzorce malowania...");
@@ -289,12 +290,25 @@ void loop() {
         menu.handleEvent(event);
     }
 
+    // 1a2. Zdarzenia z panelu WWW (kolejkowane z Core 0, obslugiwane na Core 1)
+    {
+        STATE_LOCK();
+        uint8_t webEvt = g_state.pendingWebEvent;
+        g_state.pendingWebEvent = 0;
+        STATE_UNLOCK();
+        if (webEvt != 0) {
+            menu.handleEvent((ButtonEvent)webEvt);
+        }
+    }
+
     // 1b. Odczyt joysticka KY-023
     // requireCenter() w goToScreen() blokuje osie dopoki joystick nie wroci
     // do centrum — eliminuje falszywe zdarzenia z szumu ADC2 (WiFi)
     joystick.update();
     ButtonEvent joyEvent = joystick.getEvent();
     if (joyEvent != EVT_NONE) {
+        bool isAxis = joystick.wasAxisEvent();
+
         // Na ekranach operacyjnych (HOME/PAINTING/SUMMARY) blokuj zdarzenia z osi
         // analogowych — szum ADC moze generowac falszywe EVT_STOP_LONG.
         // Przepuszczamy tylko SW (przycisk).
@@ -302,13 +316,39 @@ void loop() {
                               g_state.currentScreen == SCREEN_PAINTING ||
                               g_state.currentScreen == SCREEN_SUMMARY);
 
-        if (!isOperational || !joystick.wasAxisEvent()) {
+        // Na WSZYSTKICH ekranach: blokuj falszywe EVT_STOP_LONG z osi joysticka
+        // krotko po zmianie ekranu (cooldown 600ms). requireCenter() blokuje
+        // osie dopoki joystick nie wroci do centrum, ale jesli szum ADC2
+        // generuje krotkie skoki wychodzace i wracajace do strefy martwej,
+        // moze wygenerowac falszywy event zaraz po powrocie do centrum.
+        bool cooldownActive = isAxis &&
+            (now - menu.lastScreenChangeMs < 600);
+
+        if (cooldownActive) {
+            // Ignoruj — zbyt blisko zmiany ekranu
+        } else if (isOperational && isAxis) {
+            // Ekrany operacyjne — blokuj wszystkie zdarzenia osi
+        } else {
             menu.handleEvent(joyEvent);
         }
     }
 
     // 1c. Odczyt przycisków wzorców (MCP23017 I2C)
     patternButtons.update();
+
+    // 1d. Sprzetowy STOP awaryjny — synchronizacja stanu po ISR
+    if (guns.emergencyStopTriggered) {
+        guns.emergencyStopTriggered = false;
+        guns.allOff();  // Synchronizuj gunStates[] z fizycznym stanem pinow
+        STATE_LOCK();
+        MachineState es = g_state.machineState;
+        STATE_UNLOCK();
+        if (es == STATE_PAINTING || es == STATE_PAUSED) {
+            paintEngine.stop();
+            menu.goToScreen(SCREEN_HOME);
+            eventLog.log("SAFETY", "SPRZETOWY STOP AWARYJNY (ISR) — pistolety wylaczone");
+        }
+    }
 
     // 2. Aktualizacja enkodera (prędkość)
     encoderDist.update();

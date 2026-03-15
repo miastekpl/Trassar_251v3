@@ -4,6 +4,7 @@
 
 #include "guns.h"
 #include "hal.h"
+#include <soc/gpio_struct.h>
 
 GunController guns;
 
@@ -56,4 +57,32 @@ bool GunController::getState(int index) const {
     bool state = gunStates[index];
     taskEXIT_CRITICAL(&gunMux);
     return state;
+}
+
+// ============================================================
+// Sprzetowy STOP awaryjny — ISR na PIN_BTN_STOP
+// Natychmiastowe wylaczenie pistoletow bez debounce/menu.
+// Bypass programowej obslugi przycisku — rejestr GPIO bezposrednio.
+// ============================================================
+void IRAM_ATTR GunController::emergencyStopISR() {
+    // Bezposredni zapis do rejestrow GPIO — natychmiastowe LOW na pinach przekaznikow.
+    // Nie uzywamy gunMux w ISR — portMUX_TYPE nie jest IRAM-safe w nested ISR.
+    // Zamiast tego piszemy bezposrednio do GPIO output register.
+    for (int i = 0; i < NUM_GUNS; i++) {
+        uint8_t pin = GUN_PINS[i];
+        if (pin < 32) {
+            GPIO.out_w1tc = (1UL << pin);       // Clear bit = LOW
+        } else {
+            GPIO.out1_w1tc.val = (1UL << (pin - 32));
+        }
+    }
+    guns.emergencyStopTriggered = true;
+}
+
+void GunController::beginEmergencyStop() {
+    // ISR na FALLING edge przycisku STOP (aktywny LOW, INPUT_PULLUP)
+    // Nie koliduje z button_handler — ISR wylacza pistolety natychmiast,
+    // button_handler dalej generuje EVT_STOP_SHORT/LONG dla menu.
+    attachInterrupt(digitalPinToInterrupt(PIN_BTN_STOP), emergencyStopISR, FALLING);
+    Serial.println("[GUNS] Sprzetowy STOP awaryjny (ISR) aktywny na PIN_BTN_STOP");
 }
