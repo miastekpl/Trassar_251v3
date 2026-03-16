@@ -53,6 +53,21 @@ void TrassarWebServer::begin() {
     WiFi.mode(WIFI_AP);
     WiFi.softAP(WIFI_AP_SSID, wifiPassword, WIFI_AP_CHANNEL, 0, WIFI_AP_MAX_CON);
 
+    // Fix #16: Monitoruj polaczenia/rozlaczenia stacji WiFi
+    // Przy rozlaczeniu klienta WiFi proaktywnie zamknij WS — zapobiega
+    // blokowaniu broadcastTXT() na martwych TCP socketach (crash Core 0)
+    WiFi.onEvent([this](WiFiEvent_t event, WiFiEventInfo_t info) {
+        if (event == ARDUINO_EVENT_WIFI_AP_STADISCONNECTED) {
+            wifiStationConnected = (WiFi.softAPgetStationNum() > 0);
+            DBG_PRINTF("[WiFi] Stacja rozlaczona (pozostalo: %d)\n", WiFi.softAPgetStationNum());
+            // Rozlacz WS klienty — ich TCP sockety sa juz martwe
+            disconnectAllWsClients();
+        } else if (event == ARDUINO_EVENT_WIFI_AP_STACONNECTED) {
+            wifiStationConnected = true;
+            DBG_PRINTF("[WiFi] Nowa stacja polaczona (lacznie: %d)\n", WiFi.softAPgetStationNum());
+        }
+    });
+
     delay(100);
     DBG_PRINT("[WiFi] AP uruchomiony. IP: ");
     DBG_PRINTLN(WiFi.softAPIP());
@@ -112,13 +127,16 @@ void TrassarWebServer::webTaskFunc(void* param) {
 
         // Broadcast statusu do klientow WebSocket co WS_BROADCAST_MS
         // Fix #10: Pomijaj broadcast przy krytycznie niskim heapie
+        // Fix #16: Pomijaj broadcast gdy brak podlaczonych stacji WiFi
         unsigned long now = millis();
         if (now - self->lastWsBroadcast >= WS_BROADCAST_MS) {
             self->lastWsBroadcast = now;
-            uint32_t freeHeap = ESP.getFreeHeap();
-            if (self->wsServer.connectedClients() > 0 && freeHeap >= LOW_HEAP_CRITICAL_BYTES) {
-                String json = self->getStateJson();
-                self->wsServer.broadcastTXT(json);
+            if (self->wifiStationConnected && self->wsServer.connectedClients() > 0) {
+                uint32_t freeHeap = ESP.getFreeHeap();
+                if (freeHeap >= LOW_HEAP_CRITICAL_BYTES) {
+                    String json = self->getStateJson();
+                    self->wsServer.broadcastTXT(json);
+                }
             }
         }
 
@@ -154,8 +172,22 @@ void TrassarWebServer::update() {
     // Metoda zachowana dla kompatybilnosci wstecznej
 }
 
+// Fix #16: Rozlacz wszystkie klienty WebSocket (martwe TCP sockety)
+#ifndef WEBSOCKETS_SERVER_CLIENT_MAX
+  #define WEBSOCKETS_SERVER_CLIENT_MAX 5
+#endif
+void TrassarWebServer::disconnectAllWsClients() {
+    for (uint8_t i = 0; i < WEBSOCKETS_SERVER_CLIENT_MAX; i++) {
+        wsServer.disconnect(i);
+    }
+    DBG_PRINTLN("[WS] Wszystkie klienty WS rozlaczone (cleanup)");
+}
+
 // Fix #15: Restart tasku Core 0 bez resetu calego ESP
 void TrassarWebServer::restartWebTask() {
+    // Fix #16: Rozlacz WS klienty przed usunieciem tasku
+    disconnectAllWsClients();
+
     if (webTaskHandle) {
         esp_task_wdt_delete(webTaskHandle);
         vTaskDelete(webTaskHandle);
