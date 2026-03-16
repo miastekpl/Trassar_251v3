@@ -626,7 +626,7 @@ function drawPatPreview(patIdx){
         cvs.height=50;cvs.style.height='50px';
         ctx.clearRect(0,0,cvs.width,cvs.height);
         ctx.fillStyle='#6b7d9a';ctx.font='12px sans-serif';ctx.textAlign='center';
-        ctx.fillText('Wzorzec wlasny',cvs.width/2,28);return;
+        ctx.fillText('Brak zdefiniowanego wzorca',cvs.width/2,28);return;
     }
     let nG=guns.length;
     let rowH=32,pad=4,lblW=72,topM=4;
@@ -847,6 +847,10 @@ function applyStatus(d){
         document.getElementById('sCli').textContent=d.clients;
         let wsEl=document.getElementById('sWs');
         if(wsEl){wsEl.textContent=wsOk?'Polaczony':'Polling';wsEl.style.color=wsOk?'#2ae67a':'#f0c040';}
+
+        /* Update custom pattern preview data */
+        if(d.customGuns&&d.customGuns.length>0){PAT_DEFS[15]=d.customGuns;}
+        else{PAT_DEFS[15]=[];}
 
         /* Pattern preview canvas */
         drawPatPreview(d.patternIdx);

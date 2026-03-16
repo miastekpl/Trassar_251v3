@@ -628,6 +628,20 @@ String TrassarWebServer::getStateJson() {
     JsonArray slotsArr = doc["slotsValid"].to<JsonArray>();
     for (int s = 0; s < NUM_CUSTOM_SLOTS; s++) slotsArr.add(patternMgr.isSlotValid(s));
 
+    // Wzorzec wlasny — konfiguracja pistoletow do podgladu w web UI
+    if (patternMgr.isCustomValid()) {
+        CustomPatternCfg cpCfg = patternMgr.loadSlot(patternMgr.getActiveSlot());
+        JsonArray cpArr = doc["customGuns"].to<JsonArray>();
+        for (int i = 0; i < NUM_GUNS; i++) {
+            if (cpCfg.gunModes[i] == GUN_OFF) continue;
+            JsonArray g = cpArr.add<JsonArray>();
+            g.add(String("P") + String(i + 1));
+            g.add((int)(GUN_WIDTHS_M[i] * 100.0f));
+            g.add(cpCfg.gunModes[i] == GUN_CONTINUOUS ? 0 : cpCfg.lineLen[i]);
+            g.add(cpCfg.gunModes[i] == GUN_CONTINUOUS ? 0 : cpCfg.gapLen[i]);
+        }
+    }
+
     // Predkosc i dystans
     doc["speed"] = serialized(String(encoderDist.getSpeedKmh(), 1));
     doc["distance"] = serialized(String(stats.getSessionDistance(), 1));
