@@ -48,6 +48,7 @@ void TrassarWebServer::begin() {
     }
 
     generatePassword();
+    DBG_PRINTF("[WiFi] SSID: %s  Haslo: %s\n", WIFI_AP_SSID, wifiPassword);
 
     WiFi.mode(WIFI_AP);
     WiFi.softAP(WIFI_AP_SSID, wifiPassword, WIFI_AP_CHANNEL, 0, WIFI_AP_MAX_CON);
