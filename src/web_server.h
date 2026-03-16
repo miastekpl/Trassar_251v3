@@ -18,6 +18,9 @@ public:
     int getConnectedClients();
     bool isLittleFsReady() const { return littleFsReady; }
 
+    // Haslo WiFi (generowane z MAC adresu)
+    const char* getPassword() const { return wifiPassword; }
+
     // Stack high-water mark tasku WWW (diagnostyka)
     uint32_t getTaskStackHWM() const;
 
@@ -34,6 +37,9 @@ private:
     TaskHandle_t webTaskHandle = nullptr;
     unsigned long lastWsBroadcast = 0;
     bool littleFsReady = false;
+    char wifiPassword[16] = {};  // Haslo WiFi generowane z MAC
+
+    void generatePassword();
 
     void setupRoutes();
     void handleRoot();

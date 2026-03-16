@@ -1,3 +1,4 @@
+#include "sys_log.h"
 // ============================================================
 // TrassarV3 - Enkoder kwadraturowy: dystans, prędkość, kalibracja
 // v2.21.0 - Pelne dekodowanie kwadraturowe x4 (oba kanaly A+B)
@@ -79,7 +80,7 @@ void EncoderDistance::begin() {
     attachInterrupt(digitalPinToInterrupt(PIN_ENC_DT),  encoderISR, CHANGE);
 
     loadCalibration();
-    Serial.printf("[ENC] Kwadraturowy x4 | Impulsy/metr: %.1f  Skalibrowany: %s\n",
+    DBG_PRINTF("[ENC] Kwadraturowy x4 | Impulsy/metr: %.1f  Skalibrowany: %s\n",
                   pulsesPerMeter, calibrated ? "TAK" : "NIE");
 }
 
@@ -155,7 +156,7 @@ void EncoderDistance::startCalibration() {
     calStartPulses = totalPulses;
     taskEXIT_CRITICAL(&encMux);
     calibrating = true;
-    Serial.println("[CAL] Kalibracja rozpoczeta - przejedz 10m");
+    DBG_PRINTLN("[CAL] Kalibracja rozpoczeta - przejedz 10m");
 }
 
 void EncoderDistance::finishCalibration() {
@@ -169,17 +170,17 @@ void EncoderDistance::finishCalibration() {
         pulsesPerMeter = (float)diff / CALIBRATION_DISTANCE_M;
         calibrated = true;
         saveCalibration();
-        Serial.printf("[CAL] Kalibracja zakonczona: %ld impulsow / 10m = %.1f imp/m\n",
+        DBG_PRINTF("[CAL] Kalibracja zakonczona: %ld impulsow / 10m = %.1f imp/m\n",
                       diff, pulsesPerMeter);
     } else {
-        Serial.println("[CAL] Za malo impulsow - kalibracja anulowana");
+        DBG_PRINTLN("[CAL] Za malo impulsow - kalibracja anulowana");
     }
     calibrating = false;
 }
 
 void EncoderDistance::cancelCalibration() {
     calibrating = false;
-    Serial.println("[CAL] Kalibracja anulowana");
+    DBG_PRINTLN("[CAL] Kalibracja anulowana");
 }
 
 float EncoderDistance::getCalibrationPulses() const {

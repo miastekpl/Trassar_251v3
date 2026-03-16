@@ -1,3 +1,4 @@
+#include "sys_log.h"
 // ============================================================
 // TrassarV3 - Log zdarzen na karte SD
 // v2.21.0 - Zapis zdarzen systemowych do /logs/RRRRMMDD.log
@@ -16,12 +17,12 @@ EventLog eventLog;
 
 void EventLog::begin() {
     ready = true;
-    Serial.println("[LOG] Event log gotowy");
+    DBG_PRINTLN("[LOG] Event log gotowy");
 }
 
 void EventLog::log(const char* category, const char* message) {
     // Zawsze drukuj na Serial niezaleznie od SD
-    Serial.printf("[%s] %s\n", category, message);
+    DBG_PRINTF("[%s] %s\n", category, message);
 
     // Guard rekurencji — jesli operacja SD zawiedzie i error handler
     // probuje zalogowac blad, unikamy nieskonczonej rekurencji → WDT reset
@@ -87,7 +88,7 @@ void EventLog::log(const char* category, const char* message) {
     logInProgress = false;
 
     if (written == 0) {
-        Serial.printf("[WARN][LOG] Blad zapisu do %s\n", path);
+        DBG_PRINTF("[WARN][LOG] Blad zapisu do %s\n", path);
     }
 }
 
@@ -168,7 +169,7 @@ void EventLog::cleanupOldLogs() {
         char path[40];
         snprintf(path, sizeof(path), "/logs/%s", files[i].name);
         SD.remove(path);
-        Serial.printf("[LOG] Usuwam stary log: %s\n", path);
+        DBG_PRINTF("[LOG] Usuwam stary log: %s\n", path);
     }
 
     SD_UNLOCK();

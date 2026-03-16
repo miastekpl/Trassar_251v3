@@ -110,7 +110,7 @@ void PatternButtonHandler::begin() {
     uint8_t err = Wire.endTransmission();
 
     if (err != 0) {
-        Serial.printf("[PAT_BTN] MCP23017 niedostepny na 0x%02X (err=%d)\n",
+        DBG_PRINTF("[PAT_BTN] MCP23017 niedostepny na 0x%02X (err=%d)\n",
                       MCP23017_I2C_ADDR, err);
         ready = false;
         return;
@@ -131,7 +131,7 @@ void PatternButtonHandler::begin() {
     lastReadMs = millis();
 
     ready = true;
-    Serial.printf("[PAT_BTN] MCP23017 OK na 0x%02X — 15 przyciskow wzorcow\n",
+    DBG_PRINTF("[PAT_BTN] MCP23017 OK na 0x%02X — 15 przyciskow wzorcow\n",
                   MCP23017_I2C_ADDR);
 }
 
@@ -200,7 +200,7 @@ void PatternButtonHandler::update() {
             buzzer.beep(BUZ_CONFIRM_FREQ, BUZ_CONFIRM_DURATION_MS);
 
             const PatternDef& def = patternMgr.getPattern(pat);
-            Serial.printf("[PAT_BTN] Przycisk %d → wzorzec %s (%s)\n",
+            DBG_PRINTF("[PAT_BTN] Przycisk %d → wzorzec %s (%s)\n",
                           i, def.code, def.name);
 
             eventLog.logf("PAT_BTN", "Przycisk %d -> wzorzec %s", i, def.code);

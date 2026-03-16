@@ -1,3 +1,4 @@
+#include "sys_log.h"
 // ============================================================
 // TrassarV3 - Handlery zdarzen per ekran
 // Wydzielone z menu.cpp dla czytelnosci
@@ -232,7 +233,7 @@ void MenuSystem::handleSetup(ButtonEvent e) {
             }
 
             const char* modeNames[] = {"AUTO", "SEMI-AUTO", "RECZNY"};
-            Serial.printf("[MENU] SETUP -> Tryb: %s, Smart: %s, Start: %s\n",
+            DBG_PRINTF("[MENU] SETUP -> Tryb: %s, Smart: %s, Start: %s\n",
                           modeNames[setupMode],
                           setupSmart ? "TAK" : "NIE",
                           setupGapStart ? "OD PRZERWY" : "NORMALNY");
@@ -362,7 +363,7 @@ void MenuSystem::handleServiceMenu(ButtonEvent e) {
             display.applyNightMode(nm);
             storage.saveNightMode(nm);
             buzzer.beep(1500, 60);
-            Serial.printf("[MENU] Tryb nocny: %s\n", nm ? "ON" : "OFF");
+            DBG_PRINTF("[MENU] Tryb nocny: %s\n", nm ? "ON" : "OFF");
             break;
         }
 
@@ -488,7 +489,7 @@ void MenuSystem::handleSessionReset(ButtonEvent e) {
             g_state.machineState = STATE_IDLE;
             STATE_UNLOCK();
             buzzer.beep(2000, 150);
-            Serial.println("[MENU] Reset etapu - liczniki wyzerowane");
+            DBG_PRINTLN("[MENU] Reset etapu - liczniki wyzerowane");
             goToScreen(SCREEN_HOME);
             break;
         }
@@ -516,7 +517,7 @@ void MenuSystem::handleCounterReset(ButtonEvent e) {
             g_state.machineState = STATE_IDLE;
             STATE_UNLOCK();
             buzzer.beep(1500, 300);
-            Serial.println("[MENU] Reset wszystkich licznikow (kalibracja zachowana)");
+            DBG_PRINTLN("[MENU] Reset wszystkich licznikow (kalibracja zachowana)");
             goToScreen(SCREEN_HOME);
             break;
         }
@@ -548,7 +549,7 @@ void MenuSystem::handleSummary(ButtonEvent e) {
             g_state.machineState = STATE_IDLE;
             STATE_UNLOCK();
             buzzer.beep(2000, 100);
-            Serial.println("[MENU] Podsumowanie -> Nowy etap (reset sesji)");
+            DBG_PRINTLN("[MENU] Podsumowanie -> Nowy etap (reset sesji)");
             goToScreen(SCREEN_HOME);
             break;
         }
@@ -617,7 +618,7 @@ void MenuSystem::handleCustomPattern(ButtonEvent e) {
                     patternMgr.saveSlot(slot, custCfg);
                     patternMgr.activateSlot(slot);
                     buzzer.beep(2000, 150);
-                    Serial.printf("[MENU] Wzorzec wlasny zapisany (slot %d)\n", slot);
+                    DBG_PRINTF("[MENU] Wzorzec wlasny zapisany (slot %d)\n", slot);
                     eventLog.logf("MENU", "Wzorzec wlasny zapisany (slot %d)", slot);
                     goToScreen(SCREEN_SERVICE_MENU);
                     return;
@@ -683,7 +684,7 @@ void MenuSystem::handleFactoryReset(ButtonEvent e) {
             storage.factoryReset();
             buzzer.beep(500, 1000);  // Dlugi niski sygnal
             eventLog.log("MENU", "FACTORY RESET wykonany");
-            Serial.println("[MENU] FACTORY RESET — restart za 2s...");
+            DBG_PRINTLN("[MENU] FACTORY RESET — restart za 2s...");
             delay(2000);
             ESP.restart();
             break;

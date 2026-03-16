@@ -1,3 +1,4 @@
+#include "sys_log.h"
 // ============================================================
 // TrassarV3 - Implementacja GPS NEO-6M
 // UART2, 9600 baud, NMEA -> TinyGPS++
@@ -10,10 +11,10 @@ GpsHandler gpsHandler;
 static HardwareSerial gpsSerial(2);  // UART2 na ESP32-S3
 
 void GpsHandler::begin() {
-    gpsSerial.begin(GPS_BAUD, SERIAL_8N1, PIN_GPS_RX, PIN_GPS_TX);
+    gpsDBG_BEGIN(GPS_BAUD, SERIAL_8N1, PIN_GPS_RX, PIN_GPS_TX);
     lastDataMs = millis();
-    Serial.println("[GPS] Modul GPS zainicjalizowany (UART2)");
-    Serial.printf("[GPS] Piny: RX=%d TX=%d Baud=%d\n", PIN_GPS_RX, PIN_GPS_TX, GPS_BAUD);
+    DBG_PRINTLN("[GPS] Modul GPS zainicjalizowany (UART2)");
+    DBG_PRINTF("[GPS] Piny: RX=%d TX=%d Baud=%d\n", PIN_GPS_RX, PIN_GPS_TX, GPS_BAUD);
 }
 
 void GpsHandler::update() {

@@ -1,3 +1,4 @@
+#include "sys_log.h"
 // ============================================================
 // TrassarV3 - Silnik malowania
 // Tryby: AUTO / SEMI_AUTO / MANUAL
@@ -320,7 +321,7 @@ void PaintingEngine::startFromGap() {
         start();
         semiLineComplete = true;  // Zaczyna od przerwy - czeka na START
         gapStartActive = true;
-        Serial.println("[ENGINE] Semi-auto: start od przerwy (czeka na START)");
+        DBG_PRINTLN("[ENGINE] Semi-auto: start od przerwy (czeka na START)");
         return;
     }
 
@@ -348,7 +349,7 @@ void PaintingEngine::startFromGap() {
 
     // Przesuniecie o lineLen sprawia, ze cykl zaczyna od przerwy
     start(-lineLen);
-    Serial.printf("[ENGINE] Start OD PRZERWY - wzorzec %s, offset %.1fm\n",
+    DBG_PRINTF("[ENGINE] Start OD PRZERWY - wzorzec %s, offset %.1fm\n",
                   pat.code, lineLen);
 }
 
@@ -406,7 +407,7 @@ void PaintingEngine::stop() {
             patternMgr.setPattern(pendingPattern);
             storage.saveLastPattern(pendingPattern);
             patternChangePending = false;
-            Serial.printf("[ENGINE] Stop: zastosowano oczekujacy wzorzec %s\n",
+            DBG_PRINTF("[ENGINE] Stop: zastosowano oczekujacy wzorzec %s\n",
                           patternMgr.getCurrent().code);
         }
         guns.allOff();
@@ -471,7 +472,7 @@ void PaintingEngine::setPattern(PatternID pat) {
             // Kliknieto biezacy wzorzec → anuluj pending
             if (patternChangePending) {
                 patternChangePending = false;
-                Serial.println("[ENGINE] Anulowano kolejkowana zmiane wzorca");
+                DBG_PRINTLN("[ENGINE] Anulowano kolejkowana zmiane wzorca");
                 STATE_LOCK();
                 g_state.displayNeedsUpdate = true;
                 STATE_UNLOCK();
@@ -488,7 +489,7 @@ void PaintingEngine::setPattern(PatternID pat) {
             if (dist < 0) dist = 0;
             pendingCycleCount = (cycle > 0 && dist > 0)
                                 ? (int)(dist / cycle) : -1;
-            Serial.printf("[ENGINE] Wzorzec %s kolejkowany (czeka na koniec cyklu)\n",
+            DBG_PRINTF("[ENGINE] Wzorzec %s kolejkowany (czeka na koniec cyklu)\n",
                           patternMgr.getPattern(pat).code);
             STATE_LOCK();
             g_state.displayNeedsUpdate = true;
@@ -507,7 +508,7 @@ void PaintingEngine::setPattern(PatternID pat) {
             g_state.displayNeedsUpdate = true;
             STATE_UNLOCK();
             buzzer.beep(BUZ_CONFIRM_FREQ, BUZ_CONFIRM_DURATION_MS);
-            Serial.printf("[ENGINE] Natychmiastowa zmiana wzorca -> %s\n",
+            DBG_PRINTF("[ENGINE] Natychmiastowa zmiana wzorca -> %s\n",
                           patternMgr.getCurrent().code);
         }
         return;
@@ -521,7 +522,7 @@ void PaintingEngine::setPattern(PatternID pat) {
     STATE_LOCK();
     g_state.displayNeedsUpdate = true;
     STATE_UNLOCK();
-    Serial.printf("[ENGINE] Zmiana wzorca -> %s\n",
+    DBG_PRINTF("[ENGINE] Zmiana wzorca -> %s\n",
                   patternMgr.getCurrent().code);
 }
 
@@ -538,7 +539,7 @@ float PaintingEngine::getPrimaryCycle() const {
 
 // Zastosuj oczekujaca zmiane wzorca
 void PaintingEngine::applyPendingPattern() {
-    Serial.printf("[ENGINE] Inteligentne przelaczenie -> %s\n",
+    DBG_PRINTF("[ENGINE] Inteligentne przelaczenie -> %s\n",
                   patternMgr.getPattern(pendingPattern).code);
     stats.notifyPatternChange(pendingPattern);
     patternMgr.setPattern(pendingPattern);
@@ -556,7 +557,7 @@ void PaintingEngine::toggleReverse() {
     STATE_LOCK();
     g_state.displayNeedsUpdate = true;
     STATE_UNLOCK();
-    Serial.printf("[ENGINE] Odwrocenie: %s\n",
+    DBG_PRINTF("[ENGINE] Odwrocenie: %s\n",
                   g_state.patternReversed ? "TAK" : "NIE");
 }
 
@@ -574,7 +575,7 @@ void PaintingEngine::semiNextLine() {
     semiLineComplete = false;
     semiSegmentNum++;
     buzzer.beep(BUZ_CONFIRM_FREQ, BUZ_CONFIRM_DURATION_MS);  // Krotki sygnal potwierdzenia
-    Serial.printf("[ENGINE] Semi-auto: rozpoczynam segment %d\n", semiSegmentNum);
+    DBG_PRINTF("[ENGINE] Semi-auto: rozpoczynam segment %d\n", semiSegmentNum);
 }
 
 float PaintingEngine::getPatternDistance() const {

@@ -1,3 +1,4 @@
+#include "sys_log.h"
 // ============================================================
 // TrassarV3 - Logger raportow na karte SD
 // Pliki CSV: /reports/RRRRMMDD.csv
@@ -20,9 +21,9 @@ bool ReportLogger::begin() {
         if (!SD.exists("/reports")) {
             SD.mkdir("/reports");
         }
-        Serial.println("[SD] Karta SD gotowa");
+        DBG_PRINTLN("[SD] Karta SD gotowa");
     } else {
-        Serial.println("[SD] UWAGA: Brak karty SD");
+        DBG_PRINTLN("[SD] UWAGA: Brak karty SD");
     }
     return sdReady;
 }
@@ -55,7 +56,7 @@ void ReportLogger::logSession(const char* patCode, float distanceM, float areaM2
     f.close();
     SD_UNLOCK();
 
-    Serial.printf("[SD] Raport: %s\n", line);
+    DBG_PRINTF("[SD] Raport: %s\n", line);
 }
 
 int ReportLogger::getReportCount() {

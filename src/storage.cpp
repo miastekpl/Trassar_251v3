@@ -57,22 +57,22 @@ void StorageManager::checkNvsVersion() {
     NvsSession s(false);
     uint8_t ver = prefs.getUChar("nvs_ver", 0);
     if (ver != NVS_DATA_VERSION) {
-        Serial.printf("[NVS] Wersja NVS: %d -> %d (migracja)\n", ver, NVS_DATA_VERSION);
+        DBG_PRINTF("[NVS] Wersja NVS: %d -> %d (migracja)\n", ver, NVS_DATA_VERSION);
         if (ver < 2) {
             prefs.remove("cust_pat");
             prefs.remove("cust_p0");
             prefs.remove("cust_p1");
             prefs.remove("cust_p2");
-            Serial.println("[NVS] Wyczyszczono wzorce wlasne (zmiana formatu)");
+            DBG_PRINTLN("[NVS] Wyczyszczono wzorce wlasne (zmiana formatu)");
         }
         if (ver < 5) {
             // v5: CustomPatternCfg ma nowe pole structVersion — stare bloby
             // maja inny rozmiar/layout, loadCustomPattern() je wykryje i zignoruje
-            Serial.println("[NVS] Migracja v5: wzorce wlasne beda zwalidowane przy ladowaniu");
+            DBG_PRINTLN("[NVS] Migracja v5: wzorce wlasne beda zwalidowane przy ladowaniu");
         }
         prefs.putUChar("nvs_ver", NVS_DATA_VERSION);
     } else {
-        Serial.printf("[NVS] Wersja NVS: %d (OK)\n", ver);
+        DBG_PRINTF("[NVS] Wersja NVS: %d (OK)\n", ver);
     }
 }
 
@@ -122,7 +122,7 @@ PatternID StorageManager::loadLastPattern() {
 void StorageManager::saveMaxSpeed(float kmh) {
     NvsSession s(false);
     prefs.putFloat("max_spd", kmh);
-    Serial.printf("[NVS] Zapisano max predkosc: %.1f km/h\n", kmh);
+    DBG_PRINTF("[NVS] Zapisano max predkosc: %.1f km/h\n", kmh);
 }
 
 float StorageManager::loadMaxSpeed() {
@@ -133,7 +133,7 @@ float StorageManager::loadMaxSpeed() {
 void StorageManager::saveMinSpeed(float kmh) {
     NvsSession s(false);
     prefs.putFloat("min_spd", kmh);
-    Serial.printf("[NVS] Zapisano min predkosc: %.1f km/h\n", kmh);
+    DBG_PRINTF("[NVS] Zapisano min predkosc: %.1f km/h\n", kmh);
 }
 
 float StorageManager::loadMinSpeed() {
@@ -144,7 +144,7 @@ float StorageManager::loadMinSpeed() {
 void StorageManager::saveMode(MachineMode mode) {
     NvsSession s(false);
     prefs.putUChar("mode", (uint8_t)mode);
-    Serial.printf("[NVS] Zapisano tryb: %d\n", mode);
+    DBG_PRINTF("[NVS] Zapisano tryb: %d\n", mode);
 }
 
 MachineMode StorageManager::loadMode() {
@@ -163,7 +163,7 @@ void StorageManager::saveCustomPattern(const CustomPatternCfg& cfg, int slot) {
     versioned.structVersion = CUSTOM_PAT_STRUCT_VER;
     NvsSession s(false);
     prefs.putBytes(key, &versioned, sizeof(versioned));
-    Serial.printf("[NVS] Zapisano wzorzec wlasny slot %d (ver=%d)\n", slot, CUSTOM_PAT_STRUCT_VER);
+    DBG_PRINTF("[NVS] Zapisano wzorzec wlasny slot %d (ver=%d)\n", slot, CUSTOM_PAT_STRUCT_VER);
 }
 
 CustomPatternCfg StorageManager::loadCustomPattern(int slot) {
@@ -201,7 +201,7 @@ void StorageManager::loadGunShotCounts(uint32_t counts[NUM_GUNS]) {
 void StorageManager::saveSwitchMode(bool smart) {
     NvsSession s(false);
     prefs.putBool("sw_smart", smart);
-    Serial.printf("[NVS] Tryb przelaczania: %s\n", smart ? "SMART" : "INSTANT");
+    DBG_PRINTF("[NVS] Tryb przelaczania: %s\n", smart ? "SMART" : "INSTANT");
 }
 
 bool StorageManager::loadSwitchMode() {
@@ -232,7 +232,7 @@ bool StorageManager::loadNightMode() {
 void StorageManager::saveTankCapacity(float liters) {
     NvsSession s(false);
     prefs.putFloat("tank_cap", liters);
-    Serial.printf("[NVS] Zapisano pojemnosc zbiornika: %.0f L\n", liters);
+    DBG_PRINTF("[NVS] Zapisano pojemnosc zbiornika: %.0f L\n", liters);
 }
 
 float StorageManager::loadTankCapacity() {
@@ -243,7 +243,7 @@ float StorageManager::loadTankCapacity() {
 void StorageManager::saveConsumptionRate(float lPerM2) {
     NvsSession s(false);
     prefs.putFloat("cons_rate", lPerM2);
-    Serial.printf("[NVS] Zapisano zuzycie farby: %.2f l/m2\n", lPerM2);
+    DBG_PRINTF("[NVS] Zapisano zuzycie farby: %.2f l/m2\n", lPerM2);
 }
 
 float StorageManager::loadConsumptionRate() {
@@ -254,7 +254,7 @@ float StorageManager::loadConsumptionRate() {
 void StorageManager::saveAutoResume(bool enabled) {
     NvsSession s(false);
     prefs.putBool("auto_res", enabled);
-    Serial.printf("[NVS] Auto-resume: %s\n", enabled ? "ON" : "OFF");
+    DBG_PRINTF("[NVS] Auto-resume: %s\n", enabled ? "ON" : "OFF");
 }
 
 bool StorageManager::loadAutoResume() {

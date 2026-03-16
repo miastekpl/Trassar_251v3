@@ -1,3 +1,4 @@
+#include "sys_log.h"
 // ============================================================
 // TrassarV3 - Statystyki malowania
 // ============================================================
@@ -13,10 +14,10 @@ void StatisticsManager::begin() {
     loadMTH();
     storage.loadGunShotCounts(gunShotCounts);
     for (int i = 0; i < NUM_GUNS; i++) gunWasOn[i] = false;
-    Serial.printf("[STATS] Gun shots lifetime: P1=%u P2=%u P3=%u P4=%u P5=%u P6=%u\n",
+    DBG_PRINTF("[STATS] Gun shots lifetime: P1=%u P2=%u P3=%u P4=%u P5=%u P6=%u\n",
                   gunShotCounts[0], gunShotCounts[1], gunShotCounts[2],
                   gunShotCounts[3], gunShotCounts[4], gunShotCounts[5]);
-    Serial.printf("[STATS] MTH: %u s (%.1f h)\n", mthTotalSec, mthTotalSec / 3600.0f);
+    DBG_PRINTF("[STATS] MTH: %u s (%.1f h)\n", mthTotalSec, mthTotalSec / 3600.0f);
 }
 
 void StatisticsManager::updatePainting(float distanceDelta, const bool gunStates[NUM_GUNS]) {

@@ -1,3 +1,4 @@
+#include "sys_log.h"
 // ============================================================
 // TrassarV3 - Sterowanie przekaźnikami pistoletów
 // ============================================================
@@ -14,7 +15,7 @@ void GunController::begin() {
         hal::digitalWrite(GUN_PINS[i], LOW);
         gunStates[i] = false;
     }
-    Serial.println("[GUNS] 6 przekaznikow zainicjalizowanych");
+    DBG_PRINTLN("[GUNS] 6 przekaznikow zainicjalizowanych");
 }
 
 void GunController::setGun(GunID gun, bool on) {
@@ -84,5 +85,5 @@ void GunController::beginEmergencyStop() {
     // Nie koliduje z button_handler — ISR wylacza pistolety natychmiast,
     // button_handler dalej generuje EVT_STOP_SHORT/LONG dla menu.
     attachInterrupt(digitalPinToInterrupt(PIN_BTN_STOP), emergencyStopISR, FALLING);
-    Serial.println("[GUNS] Sprzetowy STOP awaryjny (ISR) aktywny na PIN_BTN_STOP");
+    DBG_PRINTLN("[GUNS] Sprzetowy STOP awaryjny (ISR) aktywny na PIN_BTN_STOP");
 }

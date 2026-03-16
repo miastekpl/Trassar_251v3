@@ -5,6 +5,7 @@
 // ============================================================
 
 #include "display_internal.h"
+#include <qrcode.h>
 
 // ============================================================
 //  MENU SERWISOWE  (9 pozycji, scrollowane) - landscape, bez clear()
@@ -416,4 +417,69 @@ void DisplayManager::drawNozzleClean(const char* patCode, const char* patName,
 
     // ---- DOL: 6 prostokatow pistoletow ----
     drawGunRects(GUN_RECTS_Y, gunsCfg, gunStates, false);
+}
+
+// ============================================================
+//  Ekran QR code WiFi — wyswietlany przy starcie systemu
+//  Umozliwia polaczenie smartfonem przez skanowanie kodu QR
+//  Format: WIFI:T:WPA;S:<ssid>;P:<password>;;
+// ============================================================
+void DisplayManager::drawWifiQRScreen(const char* ssid, const char* password, const char* ip) {
+    tft.fillScreen(TFT_WHITE);
+
+    // Przygotuj string WiFi QR
+    char qrContent[80];
+    snprintf(qrContent, sizeof(qrContent), "WIFI:T:WPA;S:%s;P:%s;;", ssid, password);
+
+    // Generuj QR code (wersja 3 = 29x29 modulow, ECC_LOW)
+    QRCode qrcode;
+    uint8_t qrcodeData[qrcode_getBufferSize(3)];
+    qrcode_initText(&qrcode, qrcodeData, 3, ECC_LOW, qrContent);
+
+    // Rysuj QR code wycentrowany w gornej czesci ekranu
+    const int scale = 5;  // 5px na modul -> 29*5 = 145px
+    const int qrSize = qrcode.size * scale;
+    const int qrX = (TFT_SCREEN_W - qrSize) / 2;
+    const int qrY = 8;
+
+    // Biale tlo z marginesem (quiet zone)
+    tft.fillRect(qrX - 10, qrY - 4, qrSize + 20, qrSize + 8, TFT_WHITE);
+
+    for (uint8_t y = 0; y < qrcode.size; y++) {
+        for (uint8_t x = 0; x < qrcode.size; x++) {
+            uint16_t color = qrcode_getModule(&qrcode, x, y) ? TFT_BLACK : TFT_WHITE;
+            tft.fillRect(qrX + x * scale, qrY + y * scale, scale, scale, color);
+        }
+    }
+
+    // Tekst pod QR kodem
+    int textY = qrY + qrSize + 8;
+
+    tft.setFreeFont(FSB9);
+    tft.setTextColor(TFT_BLACK, TFT_WHITE);
+    tft.setTextDatum(TC_DATUM);
+
+    // SSID
+    char buf[48];
+    snprintf(buf, sizeof(buf), "WiFi: %s", ssid);
+    tft.drawString(buf, TFT_SCREEN_W / 2, textY);
+    textY += 18;
+
+    // Haslo
+    tft.setFreeFont(FM9);
+    snprintf(buf, sizeof(buf), "Haslo: %s", password);
+    tft.drawString(buf, TFT_SCREEN_W / 2, textY);
+    textY += 18;
+
+    // IP
+    snprintf(buf, sizeof(buf), "http://%s", ip);
+    tft.drawString(buf, TFT_SCREEN_W / 2, textY);
+    textY += 22;
+
+    // Podpowiedz
+    tft.setFreeFont(FS9);
+    tft.setTextColor(0x4208, TFT_WHITE);  // Szary tekst
+    tft.drawString("Nacisnij START", TFT_SCREEN_W / 2, textY);
+
+    tft.setTextDatum(TL_DATUM);
 }

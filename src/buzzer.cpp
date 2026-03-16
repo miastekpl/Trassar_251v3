@@ -1,3 +1,4 @@
+#include "sys_log.h"
 // ============================================================
 // TrassarV3 - Modul buzzera (sygnalizacja dzwiekowa)
 // Pasywny buzzer sterowany LEDC PWM, non-blocking
@@ -84,7 +85,7 @@ void BuzzerController::begin() {
     ledcSetup(BUZZER_LEDC_CH, 2000, 8);
     ledcAttachPin(PIN_BUZZER, BUZZER_LEDC_CH);
     ledcWrite(BUZZER_LEDC_CH, 0);  // Cisza
-    Serial.println("[BUZZER] Zainicjalizowany na GPIO " + String(PIN_BUZZER));
+    DBG_PRINTLN("[BUZZER] Zainicjalizowany na GPIO " + String(PIN_BUZZER));
 }
 
 void BuzzerController::update() {

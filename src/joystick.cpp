@@ -1,3 +1,4 @@
+#include "sys_log.h"
 // ============================================================
 // TrassarV3 - Implementacja joysticka analogowego KY-023
 //
@@ -38,7 +39,7 @@ void JoystickHandler::begin() {
     if (digitalRead(PIN_JOY_SW) == LOW) {
         // Pin jest LOW — prawdopodobnie przycisk wcisniety lub zwarcie.
         // Nie wlaczamy pull-up, logujemy ostrzezenie.
-        Serial.println("[JOY] UWAGA: GPIO 46 (SW) = LOW przy starcie! Sprawdz joystick.");
+        DBG_PRINTLN("[JOY] UWAGA: GPIO 46 (SW) = LOW przy starcie! Sprawdz joystick.");
         _strapPinError = true;
     } else {
         pinMode(PIN_JOY_SW, INPUT_PULLUP);

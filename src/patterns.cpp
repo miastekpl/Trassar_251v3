@@ -1,3 +1,4 @@
+#include "sys_log.h"
 // ============================================================
 // TrassarV3 - Implementacja wzorców malowania
 // ============================================================
@@ -241,7 +242,7 @@ void PatternManager::setCustomPattern(const CustomPatternCfg& cfg) {
     customValid = cfg.valid;
     taskEXIT_CRITICAL(&customMux);
 
-    Serial.printf("[PAT] Wzorzec wlasny %s: %d pistoletow aktywnych\n",
+    DBG_PRINTF("[PAT] Wzorzec wlasny %s: %d pistoletow aktywnych\n",
                   cfg.valid ? "zapisany" : "niewazny",
                   (int)(cfg.gunModes[0]!=0)+(cfg.gunModes[1]!=0)+(cfg.gunModes[2]!=0)+
                   (cfg.gunModes[3]!=0)+(cfg.gunModes[4]!=0)+(cfg.gunModes[5]!=0));
@@ -256,7 +257,7 @@ void PatternManager::saveSlot(int slot, const CustomPatternCfg& cfg) {
     if (slot < 0 || slot >= NUM_CUSTOM_SLOTS) return;
     storage.saveCustomPattern(cfg, slot);
     slotValid[slot] = cfg.valid;
-    Serial.printf("[PAT] Slot %d zapisany\n", slot);
+    DBG_PRINTF("[PAT] Slot %d zapisany\n", slot);
 }
 
 CustomPatternCfg PatternManager::loadSlot(int slot) {
@@ -274,5 +275,5 @@ void PatternManager::activateSlot(int slot) {
     activeCustomSlot = slot;
     CustomPatternCfg cfg = storage.loadCustomPattern(slot);
     setCustomPattern(cfg);
-    Serial.printf("[PAT] Aktywowano slot %d\n", slot);
+    DBG_PRINTF("[PAT] Aktywowano slot %d\n", slot);
 }

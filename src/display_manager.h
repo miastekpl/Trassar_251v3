@@ -82,6 +82,9 @@ public:
     // Ikona ostrzezenia SD na ekranie malowania
     void drawSdWarningIcon();
 
+    // Ekran QR code WiFi (startowy)
+    void drawWifiQRScreen(const char* ssid, const char* password, const char* ip);
+
     // ---- Elementy pomocnicze ----
     void drawHeader(const char* title);
     void drawGunRects(int y, const GunPatternCfg gunsCfg[6],

@@ -1,3 +1,4 @@
+#include "sys_log.h"
 // ============================================================
 // TrassarV3 - Automatyczny raport HTML po sesji malowania
 // ============================================================
@@ -136,7 +137,7 @@ bool SessionReport::generateReport(const char* patCode, float distM, float areaM
     // Zapamietaj nazwe pliku (bez sciezki /html_reports/)
     strncpy(lastReportFile, fname + 14, sizeof(lastReportFile) - 1);  // pomiń "/html_reports/"
 
-    Serial.printf("[REPORT] Raport HTML: %s\n", fname);
+    DBG_PRINTF("[REPORT] Raport HTML: %s\n", fname);
     eventLog.logf("REPORT", "Wygenerowano raport HTML: %s", lastReportFile);
 
     return true;

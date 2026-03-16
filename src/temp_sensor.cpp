@@ -1,3 +1,4 @@
+#include "sys_log.h"
 // ============================================================
 // TrassarV3 - Czujnik temperatury DS18B20
 // Prosty sterownik OneWire bez zewnetrznej biblioteki
@@ -13,11 +14,11 @@ void TempSensor::begin() {
     // Sprawdz czy czujnik jest obecny
     sensorFound = owReset();
     if (sensorFound) {
-        Serial.println("[TEMP] Czujnik DS18B20 wykryty");
+        DBG_PRINTLN("[TEMP] Czujnik DS18B20 wykryty");
         // Pierwszy odczyt
         readTemperature();
     } else {
-        Serial.println("[TEMP] Brak czujnika temperatury (opcjonalny)");
+        DBG_PRINTLN("[TEMP] Brak czujnika temperatury (opcjonalny)");
     }
 }
 

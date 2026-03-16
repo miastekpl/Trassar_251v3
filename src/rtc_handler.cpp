@@ -1,3 +1,4 @@
+#include "sys_log.h"
 // ============================================================
 // TrassarV3 - Implementacja modułu RTC DS1307
 // ============================================================
@@ -14,14 +15,14 @@ bool RTCHandler::begin() {
     currentTime = compileTime;
 
     if (!rtc.begin()) {
-        Serial.println("[RTC] DS1307 nie znaleziony!");
+        DBG_PRINTLN("[RTC] DS1307 nie znaleziony!");
         rtcOk = false;
         timeValid = false;
         return false;
     }
 
     if (!rtc.isrunning()) {
-        Serial.println("[RTC] DS1307 nie dziala - ustawiam czas kompilacji");
+        DBG_PRINTLN("[RTC] DS1307 nie dziala - ustawiam czas kompilacji");
         rtc.adjust(compileTime);
     }
 
@@ -32,9 +33,9 @@ bool RTCHandler::begin() {
     if (isDateTimeValid(t)) {
         currentTime = t;
         timeValid = true;
-        Serial.println("[RTC] DS1307 zainicjalizowany poprawnie");
+        DBG_PRINTLN("[RTC] DS1307 zainicjalizowany poprawnie");
     } else {
-        Serial.printf("[RTC] WARN: nierozsadny czas %04d-%02d-%02d %02d:%02d:%02d — ustawiam kompilacji\n",
+        DBG_PRINTF("[RTC] WARN: nierozsadny czas %04d-%02d-%02d %02d:%02d:%02d — ustawiam kompilacji\n",
                       t.year(), t.month(), t.day(), t.hour(), t.minute(), t.second());
         rtc.adjust(compileTime);
         currentTime = compileTime;
@@ -60,14 +61,14 @@ void RTCHandler::update() {
             consecutiveErrors++;
             // Loguj pierwszy blad i co 60. (co ~30s przy 500ms polling)
             if (consecutiveErrors == 1 || consecutiveErrors % 60 == 0) {
-                Serial.printf("[RTC] WARN: nieprawidlowy odczyt #%u: %04d-%02d-%02d %02d:%02d:%02d\n",
+                DBG_PRINTF("[RTC] WARN: nieprawidlowy odczyt #%u: %04d-%02d-%02d %02d:%02d:%02d\n",
                               consecutiveErrors,
                               t.year(), t.month(), t.day(), t.hour(), t.minute(), t.second());
             }
             // Po 10 kolejnych bledach: RTC prawdopodobnie uszkodzony
             if (consecutiveErrors >= 10 && timeValid) {
                 timeValid = false;
-                Serial.println("[RTC] BLAD: zbyt wiele blednych odczytow — czas niewiarygodny");
+                DBG_PRINTLN("[RTC] BLAD: zbyt wiele blednych odczytow — czas niewiarygodny");
             }
         }
     }

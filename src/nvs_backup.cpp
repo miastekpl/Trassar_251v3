@@ -1,3 +1,4 @@
+#include "sys_log.h"
 // ============================================================
 // TrassarV3 - Backup NVS na karte SD
 // v2.21.0 - Serializacja wszystkich ustawien NVS do JSON
@@ -46,10 +47,10 @@ void NvsBackup::markNvsPopulated() {
 void NvsBackup::begin() {
     if (!isNvsPopulated()) {
         nvsWasEmpty = true;
-        Serial.println("[BACKUP] NVS pusty/wyczyszczony");
+        DBG_PRINTLN("[BACKUP] NVS pusty/wyczyszczony");
 
         if (isBackupAvailable()) {
-            Serial.println("[BACKUP] Znaleziono backup na SD — przywracanie...");
+            DBG_PRINTLN("[BACKUP] Znaleziono backup na SD — przywracanie...");
             if (restoreFromSD()) {
                 markNvsPopulated();
                 eventLog.log("BACKUP", "Auto-restore NVS z karty SD — OK");
@@ -57,11 +58,11 @@ void NvsBackup::begin() {
                 eventLog.log("BACKUP", "Auto-restore NVS z karty SD — BLAD");
             }
         } else {
-            Serial.println("[BACKUP] Brak backupu na SD — pierwsze uruchomienie");
+            DBG_PRINTLN("[BACKUP] Brak backupu na SD — pierwsze uruchomienie");
             markNvsPopulated();
         }
     } else {
-        Serial.println("[BACKUP] NVS OK (dane obecne)");
+        DBG_PRINTLN("[BACKUP] NVS OK (dane obecne)");
     }
 
     lastBackupMs = millis();
@@ -137,13 +138,13 @@ bool NvsBackup::backupToSD() {
 
     // Sprawdz czy dokument nie zostal obciety (brak pamieci heap)
     if (doc.overflowed()) {
-        Serial.println("[BACKUP] BLAD: JsonDocument overflow — za malo pamieci heap");
+        DBG_PRINTLN("[BACKUP] BLAD: JsonDocument overflow — za malo pamieci heap");
         return false;
     }
 
     // Zapis na SD (pod mutexem)
     if (!SD_LOCK()) {
-        Serial.println("[BACKUP] Nie mozna zdobyc mutexu SD");
+        DBG_PRINTLN("[BACKUP] Nie mozna zdobyc mutexu SD");
         return false;
     }
 
@@ -154,7 +155,7 @@ bool NvsBackup::backupToSD() {
     File f = SD.open(BACKUP_PATH, FILE_WRITE);
     if (!f) {
         SD_UNLOCK();
-        Serial.println("[BACKUP] Blad otwarcia pliku backup");
+        DBG_PRINTLN("[BACKUP] Blad otwarcia pliku backup");
         return false;
     }
 
@@ -165,7 +166,7 @@ bool NvsBackup::backupToSD() {
     if (written > 0) {
         lastBackupMs = millis();
         markNvsPopulated();
-        Serial.printf("[BACKUP] Backup NVS zapisany (%u bajtow)\n", written);
+        DBG_PRINTF("[BACKUP] Backup NVS zapisany (%u bajtow)\n", written);
         return true;
     }
     return false;
@@ -189,14 +190,14 @@ bool NvsBackup::restoreFromSD() {
     SD_UNLOCK();
 
     if (err) {
-        Serial.printf("[BACKUP] Blad parsowania JSON: %s\n", err.c_str());
+        DBG_PRINTF("[BACKUP] Blad parsowania JSON: %s\n", err.c_str());
         return false;
     }
 
     // Sprawdz wersje
     uint8_t ver = doc["v"] | 0;
     if (ver != NVS_DATA_VERSION) {
-        Serial.printf("[BACKUP] Niekompatybilna wersja backupu: %d (oczekiwana: %d)\n",
+        DBG_PRINTF("[BACKUP] Niekompatybilna wersja backupu: %d (oczekiwana: %d)\n",
                       ver, NVS_DATA_VERSION);
         return false;
     }
@@ -271,6 +272,6 @@ bool NvsBackup::restoreFromSD() {
         }
     }
 
-    Serial.println("[BACKUP] Restore NVS z SD — wszystkie ustawienia przywrocone");
+    DBG_PRINTLN("[BACKUP] Restore NVS z SD — wszystkie ustawienia przywrocone");
     return true;
 }

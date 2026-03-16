@@ -1,3 +1,4 @@
+#include "sys_log.h"
 // ============================================================
 // TrassarV3 - Predykcja zuzycia farby
 // ============================================================
@@ -10,6 +11,6 @@ PaintConsumption paintConsumption;
 void PaintConsumption::begin() {
     tankCapacityL = storage.loadTankCapacity();
     consumptionRateL = storage.loadConsumptionRate();
-    Serial.printf("[PAINT] Zbiornik: %.0f L, zuzycie: %.2f l/m2\n",
+    DBG_PRINTF("[PAINT] Zbiornik: %.0f L, zuzycie: %.2f l/m2\n",
                   tankCapacityL, consumptionRateL);
 }

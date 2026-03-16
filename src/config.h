@@ -16,7 +16,7 @@
 
 // ============ WIFI AP ============
 #define WIFI_AP_SSID    "TrassarV3"
-#define WIFI_AP_PASS    "12345678"
+// Haslo WiFi generowane dynamicznie z MAC adresu ESP32 (patrz web_server.cpp)
 #define WIFI_AP_CHANNEL 6
 #define WIFI_AP_MAX_CON 4
 #define WEB_SERVER_PORT 80

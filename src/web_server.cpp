@@ -1,3 +1,4 @@
+#include "sys_log.h"
 // ============================================================
 // TrassarV3 - Implementacja serwera WWW (WiFi AP) + WebSocket
 // v2.20.0 - WebSocket push, GeoJSON, GPS tracks API, WDT Core 0
@@ -32,41 +33,43 @@ void TrassarWebServer::begin() {
     // Mount LittleFS (web UI assets)
     if (LittleFS.begin(false)) {
         littleFsReady = true;
-        Serial.println("[LittleFS] Zamontowano pomyslnie");
+        DBG_PRINTLN("[LittleFS] Zamontowano pomyslnie");
         // Sprawdz czy index.html istnieje
         if (LittleFS.exists("/index.html")) {
-            Serial.printf("[LittleFS] index.html: %u bajtow\n",
+            DBG_PRINTF("[LittleFS] index.html: %u bajtow\n",
                           (unsigned)LittleFS.open("/index.html").size());
         } else {
-            Serial.println("[LittleFS] UWAGA: brak /index.html — fallback PROGMEM");
+            DBG_PRINTLN("[LittleFS] UWAGA: brak /index.html — fallback PROGMEM");
             littleFsReady = false;
         }
     } else {
-        Serial.println("[LittleFS] Blad montowania — fallback PROGMEM");
+        DBG_PRINTLN("[LittleFS] Blad montowania — fallback PROGMEM");
         littleFsReady = false;
     }
 
+    generatePassword();
+
     WiFi.mode(WIFI_AP);
-    WiFi.softAP(WIFI_AP_SSID, WIFI_AP_PASS, WIFI_AP_CHANNEL, 0, WIFI_AP_MAX_CON);
+    WiFi.softAP(WIFI_AP_SSID, wifiPassword, WIFI_AP_CHANNEL, 0, WIFI_AP_MAX_CON);
 
     delay(100);
-    Serial.print("[WiFi] AP uruchomiony. IP: ");
-    Serial.println(WiFi.softAPIP());
+    DBG_PRINT("[WiFi] AP uruchomiony. IP: ");
+    DBG_PRINTLN(WiFi.softAPIP());
 
     setupRoutes();
     server.begin();
-    Serial.println("[WWW] Serwer HTTP uruchomiony na porcie 80");
+    DBG_PRINTLN("[WWW] Serwer HTTP uruchomiony na porcie 80");
 
     // WebSocket server na porcie 81 (push status updates)
     wsServer.begin();
     wsServer.onEvent([](uint8_t num, WStype_t type, uint8_t* payload, size_t length) {
         if (type == WStype_CONNECTED) {
-            Serial.printf("[WS] Klient #%u polaczony\n", num);
+            DBG_PRINTF("[WS] Klient #%u polaczony\n", num);
         } else if (type == WStype_DISCONNECTED) {
-            Serial.printf("[WS] Klient #%u rozlaczony\n", num);
+            DBG_PRINTF("[WS] Klient #%u rozlaczony\n", num);
         }
     });
-    Serial.printf("[WWW] WebSocket na porcie %d\n", WS_PORT);
+    DBG_PRINTF("[WWW] WebSocket na porcie %d\n", WS_PORT);
 
     // Uruchom task WWW na Core 0 (Arduino loop() dziala na Core 1)
     xTaskCreatePinnedToCore(
@@ -78,7 +81,7 @@ void TrassarWebServer::begin() {
         &webTaskHandle,     // Uchwyt tasku
         0                   // Core 0
     );
-    Serial.println("[WWW] Task WWW uruchomiony na Core 0");
+    DBG_PRINTLN("[WWW] Task WWW uruchomiony na Core 0");
 }
 
 // Task FreeRTOS na Core 0 - obsluga HTTP + WebSocket + watchdog
@@ -91,7 +94,7 @@ void TrassarWebServer::webTaskFunc(void* param) {
     // Poczekaj az setup() zainicjalizuje TWDT, potem dodaj ten task.
     vTaskDelay(pdMS_TO_TICKS(2000));
     esp_task_wdt_add(NULL);
-    Serial.println("[WDT] Core 0 WebServer task dodany do watchdoga (niezalezny monitoring)");
+    DBG_PRINTLN("[WDT] Core 0 WebServer task dodany do watchdoga (niezalezny monitoring)");
 
     // Fix #15: Software watchdog Core 0 — Core 1 moze monitorowac
     // timestamp ostatniej aktywnosci i restartowac task zamiast calego ESP
@@ -133,7 +136,7 @@ void TrassarWebServer::webTaskFunc(void* param) {
                     // Loguj tylko raz — nie zalewaj seriala
                     static bool keepaliveLogged = false;
                     if (!keepaliveLogged) {
-                        Serial.printf("[WDT-CORE0] KEEPALIVE: awaryjne guns.allOff() (brak update %lu ms)\n",
+                        DBG_PRINTF("[WDT-CORE0] KEEPALIVE: awaryjne guns.allOff() (brak update %lu ms)\n",
                                       now - lastUpdate);
                         keepaliveLogged = true;
                     }
@@ -156,7 +159,7 @@ void TrassarWebServer::restartWebTask() {
         esp_task_wdt_delete(webTaskHandle);
         vTaskDelete(webTaskHandle);
         webTaskHandle = nullptr;
-        Serial.println("[WWW] Task Core 0 usuniety — restart...");
+        DBG_PRINTLN("[WWW] Task Core 0 usuniety — restart...");
     }
     // Ponowne uruchomienie tasku
     xTaskCreatePinnedToCore(
@@ -168,7 +171,7 @@ void TrassarWebServer::restartWebTask() {
         &webTaskHandle,
         0
     );
-    Serial.println("[WWW] Task Core 0 zrestartowany");
+    DBG_PRINTLN("[WWW] Task Core 0 zrestartowany");
 }
 
 uint32_t TrassarWebServer::getTaskStackHWM() const {
@@ -184,6 +187,17 @@ String TrassarWebServer::getIPAddress() {
 
 int TrassarWebServer::getConnectedClients() {
     return WiFi.softAPgetStationNum();
+}
+
+// ============================================================
+// Generowanie unikalnego hasla WiFi z MAC adresu ESP32
+// Format: 8 znakow hex (ostatnie 4 bajty MAC) — unikalne per urzadzenie
+// ============================================================
+void TrassarWebServer::generatePassword() {
+    uint8_t mac[6];
+    WiFi.macAddress(mac);
+    snprintf(wifiPassword, sizeof(wifiPassword), "%02X%02X%02X%02X",
+             mac[2], mac[3], mac[4], mac[5]);
 }
 
 // ============================================================
@@ -315,7 +329,7 @@ void TrassarWebServer::handleControl() {
                     g_state.machineMode = newMode;
                     STATE_UNLOCK();
                     storage.saveMode(newMode);
-                    Serial.printf("[WWW] Tryb pracy: %d\n", val);
+                    DBG_PRINTF("[WWW] Tryb pracy: %d\n", val);
                 } else {
                     STATE_UNLOCK();
                     result = "nie mozna zmienic trybu podczas malowania";
@@ -367,7 +381,7 @@ void TrassarWebServer::handleControl() {
         }
         patternMgr.saveSlot(slot, cfg);
         patternMgr.activateSlot(slot);
-        Serial.printf("[WWW] Wzorzec wlasny slot %d zapisany\n", slot);
+        DBG_PRINTF("[WWW] Wzorzec wlasny slot %d zapisany\n", slot);
     } else if (action == "activate_slot") {
         if (server.hasArg("value")) {
             int slot = server.arg("value").toInt();
@@ -389,7 +403,7 @@ void TrassarWebServer::handleControl() {
                 STATE_LOCK();
                 g_state.pendingWebEvent = (ButtonEvent)val;
                 STATE_UNLOCK();
-                Serial.printf("[WWW] Event kolejkowany: %d\n", val);
+                DBG_PRINTF("[WWW] Event kolejkowany: %d\n", val);
             } else {
                 result = "nieprawidlowy event";
             }
@@ -401,7 +415,7 @@ void TrassarWebServer::handleControl() {
             int val = server.arg("value").toInt();
             if (val >= 0 && val <= (int)SCREEN_STATS_EXPORT) {
                 menu.goToScreen((ScreenID)val);
-                Serial.printf("[WWW] Ekran: %d\n", val);
+                DBG_PRINTF("[WWW] Ekran: %d\n", val);
             } else {
                 result = "nieprawidlowy ekran";
             }
@@ -414,7 +428,7 @@ void TrassarWebServer::handleControl() {
             bool smart = (val == 0);  // 0=smart, 1=instant
             paintEngine.setSmartSwitch(smart);
             storage.saveSwitchMode(smart);
-            Serial.printf("[WWW] Tryb przelaczania: %s\n", smart ? "SMART" : "INSTANT");
+            DBG_PRINTF("[WWW] Tryb przelaczania: %s\n", smart ? "SMART" : "INSTANT");
         }
     } else if (action == "set_tank_capacity") {
         if (server.hasArg("value")) {
@@ -530,7 +544,7 @@ void TrassarWebServer::handleHtmlReportDownload() {
     }
     f.close();
     SD_UNLOCK();
-    Serial.printf("[WWW] Pobranie raportu HTML: %s\n", fname.c_str());
+    DBG_PRINTF("[WWW] Pobranie raportu HTML: %s\n", fname.c_str());
 }
 
 // ============================================================
@@ -923,7 +937,7 @@ void TrassarWebServer::handleReportDownload() {
     }
     f.close();
     SD_UNLOCK();
-    Serial.printf("[WWW] Pobranie raportu: %s\n", fname.c_str());
+    DBG_PRINTF("[WWW] Pobranie raportu: %s\n", fname.c_str());
 }
 
 // ============================================================
@@ -1011,7 +1025,7 @@ void TrassarWebServer::handleGeoJson() {
     SD_UNLOCK();
     server.sendContent("]}");
     server.sendContent("");  // End chunked
-    Serial.printf("[WWW] GeoJSON: %s\n", fname.c_str());
+    DBG_PRINTF("[WWW] GeoJSON: %s\n", fname.c_str());
 }
 
 // ============================================================
@@ -1121,7 +1135,7 @@ void TrassarWebServer::handleTrackDownload() {
     }
     f.close();
     SD_UNLOCK();
-    Serial.printf("[WWW] Track download: %s\n", fname.c_str());
+    DBG_PRINTF("[WWW] Track download: %s\n", fname.c_str());
 }
 
 // buildHtmlPage() - nie uzywane, HTML wysylany chunkami z handleRoot()

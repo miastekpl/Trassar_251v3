@@ -12,6 +12,7 @@
 // ============================================================
 
 #include "config.h"
+#include "sys_log.h"
 #include "display_manager.h"
 #include "button_handler.h"
 #include "rtc_handler.h"
@@ -98,19 +99,19 @@ static void IRAM_ATTR shutdownGunsHandler() {
 }
 
 void setup() {
-    Serial.begin(115200);
+    DBG_BEGIN(115200);
     delay(1000);
 
-    Serial.println();
-    Serial.println("==============================================");
-    Serial.println("  TrassarV3 - Malowarka pasow drogowych");
-    Serial.printf("  Firmware v%s  [%s]\n", FW_VERSION, FW_DATE);
-    Serial.println("  6 pistoletow, 16 wzorcow, 15 przyciskow, 3 tryby");
-    Serial.println("==============================================");
-    Serial.println();
+    DBG_PRINTLN();
+    DBG_PRINTLN("==============================================");
+    DBG_PRINTLN("  TrassarV3 - Malowarka pasow drogowych");
+    DBG_PRINTF("  Firmware v%s  [%s]\n", FW_VERSION, FW_DATE);
+    DBG_PRINTLN("  6 pistoletow, 16 wzorcow, 15 przyciskow, 3 tryby");
+    DBG_PRINTLN("==============================================");
+    DBG_PRINTLN();
 
     // 1. Pamięć trwała (NVS)
-    Serial.println("[INIT] Pamiec NVS...");
+    DBG_PRINTLN("[INIT] Pamiec NVS...");
     storage.begin();
 
     // 2. Wyświetlacz
@@ -120,105 +121,105 @@ void setup() {
     pinMode(PIN_SD_CS, OUTPUT);
     digitalWrite(PIN_SD_CS, HIGH);
 
-    Serial.println("[INIT] Wyswietlacz ILI9341...");
+    DBG_PRINTLN("[INIT] Wyswietlacz ILI9341...");
     display.begin();
 
     // 2b. Buzzer
-    Serial.println("[INIT] Buzzer...");
+    DBG_PRINTLN("[INIT] Buzzer...");
     buzzer.begin();
 
     // 3. Zegar RTC
-    Serial.println("[INIT] Zegar RTC DS1307...");
+    DBG_PRINTLN("[INIT] Zegar RTC DS1307...");
     if (rtcModule.begin()) {
-        Serial.printf("[INIT] Czas: %s%s\n", rtcModule.getDateTimeStr(),
+        DBG_PRINTF("[INIT] Czas: %s%s\n", rtcModule.getDateTimeStr(),
                       rtcModule.isTimeReliable() ? "" : " [FALLBACK: czas kompilacji]");
     } else {
-        Serial.println("[INIT] UWAGA: RTC niedostepny — timestampy z czasu kompilacji");
+        DBG_PRINTLN("[INIT] UWAGA: RTC niedostepny — timestampy z czasu kompilacji");
         buzzer.play(BUZ_ERROR);
     }
 
     // 4. Enkoder (pomiar dystansu/predkosci)
-    Serial.println("[INIT] Enkoder dystansu...");
+    DBG_PRINTLN("[INIT] Enkoder dystansu...");
     encoderDist.begin();
 
     // 5. Przyciski
-    Serial.println("[INIT] Przyciski...");
+    DBG_PRINTLN("[INIT] Przyciski...");
     buttons.begin();
 
     // 5b. Joystick KY-023
-    Serial.println("[INIT] Joystick KY-023...");
+    DBG_PRINTLN("[INIT] Joystick KY-023...");
     joystick.begin();
 
     // 6. Pistolety (przekaźniki)
-    Serial.println("[INIT] Pistolety P1-P6...");
+    DBG_PRINTLN("[INIT] Pistolety P1-P6...");
     guns.begin();
     guns.beginEmergencyStop();  // Sprzetowy STOP awaryjny (ISR na PIN_BTN_STOP)
 
     // Fix #11 (KRYTYCZNE): Rejestracja handlera shutdown — pistolety OFF przed resetem
     esp_register_shutdown_handler(shutdownGunsHandler);
-    Serial.println("[INIT] Shutdown handler (guns OFF) zarejestrowany");
+    DBG_PRINTLN("[INIT] Shutdown handler (guns OFF) zarejestrowany");
 
     // 7. Wzorce malowania
-    Serial.println("[INIT] Wzorce malowania...");
+    DBG_PRINTLN("[INIT] Wzorce malowania...");
     patternMgr.begin();
     PatternID lastPat = storage.loadLastPattern();
     patternMgr.setPattern(lastPat);
 
     // 7b. Fizyczne przyciski wzorców (MCP23017 I2C expander)
-    Serial.println("[INIT] Przyciski wzorcow MCP23017...");
+    DBG_PRINTLN("[INIT] Przyciski wzorcow MCP23017...");
     patternButtons.begin();
 
     // 8. Silnik malowania
-    Serial.println("[INIT] Silnik malowania...");
+    DBG_PRINTLN("[INIT] Silnik malowania...");
     paintEngine.begin();
 
     // 9. Statystyki
-    Serial.println("[INIT] Statystyki...");
+    DBG_PRINTLN("[INIT] Statystyki...");
     stats.begin();
 
     // 10. Karta SD (raporty)
-    Serial.println("[INIT] SD mutex + karta SD...");
+    DBG_PRINTLN("[INIT] SD mutex + karta SD...");
     g_sdMutex = xSemaphoreCreateMutex();
     if (!g_sdMutex) {
-        Serial.println("[INIT] BLAD KRYTYCZNY: Nie mozna utworzyc mutexu SD!");
+        DBG_PRINTLN("[INIT] BLAD KRYTYCZNY: Nie mozna utworzyc mutexu SD!");
         buzzer.play(BUZ_ERROR);
         // Kontynuuj bez SD — SD_LOCK() zwroci false dzieki sprawdzeniu nullptr
     }
     if (!reportLogger.begin()) {
-        Serial.println("[INIT] UWAGA: Karta SD niedostepna!");
+        DBG_PRINTLN("[INIT] UWAGA: Karta SD niedostepna!");
         buzzer.play(BUZ_ERROR);
     }
 
     // 10b. Event log na SD (musi byc po reportLogger)
-    Serial.println("[INIT] Event log...");
+    DBG_PRINTLN("[INIT] Event log...");
     eventLog.begin();
 
     // 10c. NVS backup/restore (musi byc po SD + event_log)
-    Serial.println("[INIT] NVS backup...");
+    DBG_PRINTLN("[INIT] NVS backup...");
     nvsBackup.begin();
 
     // 11. GPS (UART2)
-    Serial.println("[INIT] GPS modul...");
+    DBG_PRINTLN("[INIT] GPS modul...");
     gpsHandler.begin();
 
     // 11b. GPS Track recorder (bufor PSRAM + zapis GPX)
-    Serial.println("[INIT] GPS Track (GPX)...");
+    DBG_PRINTLN("[INIT] GPS Track (GPX)...");
     gpsTrack.begin();
 
     // 11c. Predykcja zuzycia farby
-    Serial.println("[INIT] Paint consumption...");
+    DBG_PRINTLN("[INIT] Paint consumption...");
     paintConsumption.begin();
 
     // 11d. Czujnik temperatury DS18B20 (opcjonalny)
-    Serial.println("[INIT] Czujnik temperatury...");
+    DBG_PRINTLN("[INIT] Czujnik temperatury...");
     tempSensor.begin();
 
     // 12. System menu
-    Serial.println("[INIT] System menu...");
+    DBG_PRINTLN("[INIT] System menu...");
     menu.begin();
 
     // 13. WiFi AP + serwer WWW
-    Serial.println("[INIT] WiFi AP + serwer WWW...");
+    DBG_PRINTLN("[INIT] WiFi AP + serwer WWW...");
     webServer.begin();
 
     // ======== POST (Power-On Self-Test) ========
@@ -252,6 +253,26 @@ void setup() {
         buzzer.beep(2000, 100);
     }
 
+    // ======== QR code WiFi — skanuj smartfonem ========
+    {
+        display.drawWifiQRScreen(WIFI_AP_SSID,
+                                 webServer.getPassword(),
+                                 webServer.getIPAddress().c_str());
+
+        // Czekaj na START (bez timeout — operator musi potwierdzic)
+        bool qrWait = true;
+        while (qrWait) {
+            esp_task_wdt_reset();
+            buttons.update();
+            ButtonEvent qe = buttons.getEvent();
+            if (qe == EVT_START_SHORT || qe == EVT_START_LONG) {
+                qrWait = false;
+            }
+            delay(10);
+        }
+        buzzer.beep(1500, 80);
+    }
+
     // Wyrzuc szum enkodera nazbierany podczas inicjalizacji
     encoderDist.resetDistance();
 
@@ -276,19 +297,19 @@ void setup() {
     // Fix #11: shutdown handler gwarantuje guns OFF przed resetem WDT.
     // Fix #15: Core 0 web task ma wlasny software watchdog (soft recovery
     //          restartuje task zamiast calego ESP — patrz web_server.cpp).
-    Serial.println("[INIT] Watchdog timer (TWDT per-task)...");
+    DBG_PRINTLN("[INIT] Watchdog timer (TWDT per-task)...");
     esp_task_wdt_init(WDT_TIMEOUT_SEC, true);
     esp_task_wdt_add(NULL);  // Dodaj biezacy task (Core 1 loop)
 
     const char* modeNames[] = {"AUTO", "SEMI-AUTO", "RECZNY"};
-    Serial.println();
-    Serial.println("[INIT] System gotowy!");
-    Serial.printf("[INIT] Wzorzec: %s\n", patternMgr.getCurrent().code);
-    Serial.printf("[INIT] Tryb: %s\n", modeNames[(int)g_state.machineMode]);
-    Serial.printf("[INIT] Predkosc: min=%.1f max=%.1f km/h\n", minSpd, maxSpd);
-    Serial.printf("[INIT] WiFi: %s  http://%s\n",
+    DBG_PRINTLN();
+    DBG_PRINTLN("[INIT] System gotowy!");
+    DBG_PRINTF("[INIT] Wzorzec: %s\n", patternMgr.getCurrent().code);
+    DBG_PRINTF("[INIT] Tryb: %s\n", modeNames[(int)g_state.machineMode]);
+    DBG_PRINTF("[INIT] Predkosc: min=%.1f max=%.1f km/h\n", minSpd, maxSpd);
+    DBG_PRINTF("[INIT] WiFi: %s  http://%s\n",
                   WIFI_AP_SSID, webServer.getIPAddress().c_str());
-    Serial.println();
+    DBG_PRINTLN();
 
     // Log startu systemu
     eventLog.logf("SYSTEM", "Start v%s | %s | wzorzec=%s tryb=%s min=%.1f max=%.1f",
@@ -444,7 +465,7 @@ void loop() {
         lastDiagPrint = now;
         uint32_t freeHeap = ESP.getFreeHeap();
         uint32_t minFreeHeap = ESP.getMinFreeHeap();
-        Serial.printf("[DIAG] Heap: %u/%u B (min: %u)  Frag: %.0f%%  WWW-stack: %u  Core: %d\n",
+        DBG_PRINTF("[DIAG] Heap: %u/%u B (min: %u)  Frag: %.0f%%  WWW-stack: %u  Core: %d\n",
                       freeHeap,
                       ESP.getHeapSize(),
                       minFreeHeap,
@@ -456,7 +477,7 @@ void loop() {
         // Fix #10: Automatyczne dzialanie przy niskim heapie
         if (freeHeap < LOW_HEAP_CRITICAL_BYTES) {
             // Krytyczny poziom — wylacz broadcast WebSocket, zatrzymaj malowanie
-            Serial.printf("[HEAP] KRYTYCZNY: %u B < %u B — redukcja funkcji!\n",
+            DBG_PRINTF("[HEAP] KRYTYCZNY: %u B < %u B — redukcja funkcji!\n",
                           freeHeap, LOW_HEAP_CRITICAL_BYTES);
             eventLog.logf("HEAP", "KRYTYCZNY: %u B wolnego heapa — awaryjne dzialania", freeHeap);
 
@@ -470,7 +491,7 @@ void loop() {
                 eventLog.log("HEAP", "Malowanie zatrzymane — krytycznie niski heap");
             }
         } else if (freeHeap < LOW_HEAP_WARNING_BYTES) {
-            Serial.printf("[HEAP] OSTRZEZENIE: %u B < %u B\n",
+            DBG_PRINTF("[HEAP] OSTRZEZENIE: %u B < %u B\n",
                           freeHeap, LOW_HEAP_WARNING_BYTES);
         }
     }
@@ -618,7 +639,7 @@ void loop() {
         if (now - lastCore0Check >= 5000) {  // Sprawdzaj co 5s
             lastCore0Check = now;
             if (!webServer.isCore0Alive(now, 10000)) {  // 10s timeout
-                Serial.println("[WDT-CORE1] Core 0 web task nie odpowiada — restart tasku!");
+                DBG_PRINTLN("[WDT-CORE1] Core 0 web task nie odpowiada — restart tasku!");
                 eventLog.log("SAFETY", "Core 0 web task nie odpowiada — restart tasku (bez resetu ESP)");
                 webServer.restartWebTask();
             }
