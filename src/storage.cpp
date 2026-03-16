@@ -172,6 +172,10 @@ CustomPatternCfg StorageManager::loadCustomPattern(int slot) {
     char key[12];
     snprintf(key, sizeof(key), "cust_p%d", slot);
     NvsSession s(true);
+    if (!prefs.isKey(key)) {
+        cfg.valid = false;
+        return cfg;
+    }
     size_t len = prefs.getBytes(key, &cfg, sizeof(cfg));
     if (len != sizeof(cfg) || cfg.structVersion != CUSTOM_PAT_STRUCT_VER) {
         // Rozmiar lub wersja nie pasuje — blob pochodzi ze starszego firmware
@@ -192,6 +196,10 @@ void StorageManager::saveGunShotCounts(const uint32_t counts[NUM_GUNS]) {
 
 void StorageManager::loadGunShotCounts(uint32_t counts[NUM_GUNS]) {
     NvsSession s(true);
+    if (!prefs.isKey("gun_shots")) {
+        for (int i = 0; i < NUM_GUNS; i++) counts[i] = 0;
+        return;
+    }
     size_t len = prefs.getBytes("gun_shots", counts, sizeof(uint32_t) * NUM_GUNS);
     if (len != sizeof(uint32_t) * NUM_GUNS) {
         for (int i = 0; i < NUM_GUNS; i++) counts[i] = 0;
@@ -237,6 +245,7 @@ void StorageManager::saveTankCapacity(float liters) {
 
 float StorageManager::loadTankCapacity() {
     NvsSession s(true);
+    if (!prefs.isKey("tank_cap")) return 200.0f;
     return prefs.getFloat("tank_cap", 200.0f);
 }
 
@@ -248,6 +257,7 @@ void StorageManager::saveConsumptionRate(float lPerM2) {
 
 float StorageManager::loadConsumptionRate() {
     NvsSession s(true);
+    if (!prefs.isKey("cons_rate")) return 0.60f;
     return prefs.getFloat("cons_rate", 0.60f);
 }
 
