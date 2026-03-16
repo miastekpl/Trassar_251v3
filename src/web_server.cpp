@@ -392,6 +392,26 @@ void TrassarWebServer::handleControl() {
                 result = "slot pusty lub nieprawidlowy";
             }
         }
+    } else if (action == "get_slot_config") {
+        int slot = 0;
+        if (server.hasArg("slot")) {
+            slot = server.arg("slot").toInt();
+            if (slot < 0 || slot >= NUM_CUSTOM_SLOTS) slot = 0;
+        }
+        CustomPatternCfg cfg = patternMgr.loadSlot(slot);
+        JsonDocument slotDoc;
+        JsonArray guns = slotDoc["guns"].to<JsonArray>();
+        for (int i = 0; i < NUM_GUNS; i++) {
+            JsonObject g = guns.add<JsonObject>();
+            g["mode"] = cfg.gunModes[i];
+            g["ln"]   = serialized(String(cfg.lineLen[i], 1));
+            g["gp"]   = serialized(String(cfg.gapLen[i], 1));
+        }
+        slotDoc["valid"] = cfg.valid;
+        String resp;
+        serializeJson(slotDoc, resp);
+        server.send(200, "application/json", resp);
+        return;
     } else if (action == "semi_next_line") {
         paintEngine.semiNextLine();
     } else if (action == "send_event") {

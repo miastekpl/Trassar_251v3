@@ -492,6 +492,7 @@ let calibrating=false;
 let spdSliderLoaded=false;
 let cpInited=false;
 let curSlot=0;
+let slotsValidArr=[false,false,false];
 /* Pattern definitions: array of [gunName, widthCm, lineLen, gapLen] per gun */
 /* lineLen=0 => continuous */
 const PAT_DEFS=[
@@ -614,8 +615,37 @@ function selSlot(s){
         let t=document.getElementById('slotTab'+i);
         if(i===s)t.classList.add('act');else t.classList.remove('act');
     }
+    if(slotsValidArr[s]){
+        fetch('/api/control',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},
+            body:'action=activate_slot&value='+s}).then(r=>r.json()).then(()=>loadSlotToEditor(s));
+    }else{
+        resetSlotEditor();
+    }
+}
+function loadSlotToEditor(s){
     fetch('/api/control',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},
-        body:'action=activate_slot&value='+s}).then(r=>r.json()).then(()=>fetchStatus());
+        body:'action=get_slot_config&slot='+s})
+    .then(r=>r.json()).then(d=>{
+        if(!d.guns)return;
+        for(let i=0;i<6;i++){
+            let sel=document.getElementById('cpG'+i);
+            if(sel){sel.value=d.guns[i].mode;cpGunChanged(i);}
+            let lnEl=document.getElementById('cpLn'+i);
+            let gpEl=document.getElementById('cpGp'+i);
+            if(lnEl)lnEl.value=d.guns[i].ln;
+            if(gpEl)gpEl.value=d.guns[i].gp;
+        }
+    });
+}
+function resetSlotEditor(){
+    for(let i=0;i<6;i++){
+        let sel=document.getElementById('cpG'+i);
+        if(sel){sel.value='0';cpGunChanged(i);}
+        let lnEl=document.getElementById('cpLn'+i);
+        let gpEl=document.getElementById('cpGp'+i);
+        if(lnEl)lnEl.value='4.0';
+        if(gpEl)gpEl.value='8.0';
+    }
 }
 /* ------- Pattern preview canvas (multi-gun) ------- */
 function drawPatPreview(patIdx){
@@ -855,12 +885,12 @@ function applyStatus(d){
         /* Pattern preview canvas */
         drawPatPreview(d.patternIdx);
 
-        /* Slot tabs sync */
-        curSlot=d.activeSlot||0;
+        /* Slot tabs sync — nie nadpisuj curSlot, tylko aktualizuj validity */
+        if(d.slotsValid)slotsValidArr=d.slotsValid;
         for(let i=0;i<3;i++){
             let st=document.getElementById('slotTab'+i);
             if(i===curSlot)st.classList.add('act');else st.classList.remove('act');
-            if(d.slotsValid&&d.slotsValid[i])st.style.opacity='1';else st.style.opacity='.5';
+            if(slotsValidArr[i])st.style.opacity='1';else st.style.opacity='.5';
         }
 
         /* Switch mode sync */
