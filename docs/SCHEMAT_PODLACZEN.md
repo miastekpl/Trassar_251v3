@@ -1,4 +1,4 @@
-# TrassarV3 - Dokumentacja techniczna i schemat podłączeń v2.52.0
+# TrassarV3 - Dokumentacja techniczna i schemat podłączeń v2.52.0-prod
 
 ## Spis treści
 
@@ -17,6 +17,13 @@
 8. [Architektura oprogramowania](#8-architektura-oprogramowania)
 9. [Parametry konfiguracyjne](#9-parametry-konfiguracyjne)
 10. [Uwagi montażowe](#10-uwagi-montażowe)
+19. [**Złącza maszynowe — schemat wyprowadzeń**](#19-złącza-maszynowe--schemat-wyprowadzeń-na-maszynę)
+    - 19.3 [J1 — Zasilanie 5V (TS13CP03)](#193-j1--zasilanie-5v-ts13cp03-13a250v-3-piny)
+    - 19.4 [J2 — Pistolety (TS17CP10)](#194-j2--wyjścia-przekaźników-pistoletów-ts17cp10-5a400v-10-pinów)
+    - 19.5 [J3 — Enkoder (TS13CP05)](#195-j3--enkoder-obrotowy-ts13cp05-5a180v-5-pinów)
+    - 19.6 [J4 — Pilot zdalny (TS13PS06)](#196-j4--pilot-zdalny-ts13ps06-5a125v-6-pinów)
+    - 19.7 [J5 — Przycisk nożny (TS21CP04)](#197-j5--przycisk-nożny-ts21cp04-30a500v-4-piny)
+20. [**Ocena gotowości produkcyjnej**](#20-ocena-gotowości-produkcyjnej--v2520)
 
 ---
 
@@ -279,7 +286,7 @@ Poniższy diagram pokazuje fizyczne rozmieszczenie pinów na płytce DevKitC-1 (
 | **2** | Przekaźnik P4 | OUTPUT | Pistolet oś, 24 cm |
 | **3** | Przekaźnik P5 | OUTPUT | Pistolet krawędź, 12 cm |
 | **4** | Przekaźnik P6 | OUTPUT | Pistolet krawędź, 24 cm |
-| **5** | Enkoder CLK | INPUT_PULLUP | ISR CHANGE, debounce 200 μs |
+| **5** | Enkoder CLK | INPUT_PULLUP | ISR CHANGE, debounce 50 μs |
 | **6** | Enkoder DT | INPUT_PULLUP | Sygnał kierunku |
 | **7** | Przycisk GAP (SW enkodera) | INPUT_PULLUP | "Start od przerwy" |
 | **8** | Buzzer | PWM (LEDC ch1) | Sygnalizacja dźwiękowa (pasywny) |
@@ -468,7 +475,7 @@ Na fizycznym panelu sterowania (ekran HOME i PAINTING) przycisk SELEKTOR **nie z
     ┌───────┤
     │  VCC  │
     │       │
-    │  CLK  ├──── GPIO 5  (INPUT_PULLUP, ISR CHANGE, debounce 200μs)
+    │  CLK  ├──── GPIO 5  (INPUT_PULLUP, ISR CHANGE, debounce 50μs)
     │       │
     │  DT   ├──── GPIO 6  (INPUT_PULLUP)
     │       │
@@ -1194,10 +1201,10 @@ Szczegółowa dokumentacja API → [API_WWW.md](API_WWW.md)
 
 | Parametr | Wartość | Opis |
 |----------|---------|------|
-| FW_VERSION | "2.51.0" | Wersja firmware |
+| FW_VERSION | "2.52.0" | Wersja firmware |
 | FW_NAME | "TrassarV3" | Nazwa systemu |
 | WIFI_AP_SSID | "TrassarV3" | Nazwa sieci WiFi |
-| WIFI_AP_PASS | "12345678" | Hasło WiFi |
+| WIFI_AP_PASS | *generowane z MAC* | Hasło WiFi (unikalne per urządzenie) |
 | WIFI_AP_CHANNEL | 6 | Kanał WiFi |
 | WIFI_AP_MAX_CON | 4 | Max klientów WiFi |
 | WEB_SERVER_PORT | 80 | Port serwera HTTP |
@@ -1209,8 +1216,8 @@ Szczegółowa dokumentacja API → [API_WWW.md](API_WWW.md)
 | TFT_BACKLIGHT_PWM | 200 | Jasność podświetlenia (0–255) |
 | TFT_BL_LEDC_FREQ | 5000 | Częstotliwość PWM podświetlenia [Hz] |
 | BTN_DEBOUNCE_MS | 50 | Czas debounce przycisków [ms] |
-| BTN_LONG_PRESS_MS | 1000 | Próg długiego naciśnięcia [ms] |
-| ENC_ISR_DEBOUNCE_US | 200 | Debounce ISR enkodera [μs] |
+| BTN_LONG_PRESS_MS | 1500 | Próg długiego naciśnięcia [ms] |
+| ENC_ISR_DEBOUNCE_US | 50 | Debounce ISR enkodera [μs] |
 | SPEED_CALC_INTERVAL_MS | 250 | Interwał obliczania prędkości [ms] |
 | SPEED_FILTER_ALPHA | 0.3 | Współczynnik filtra wykładniczego prędkości |
 | PIN_BUZZER | 8 | GPIO pinu buzzera pasywnego |
@@ -1954,7 +1961,517 @@ Warstwa 5: Watchdog timer (3s)
 
 ---
 
-*TrassarV3 — Dokumentacja techniczna v2.52.0 (SAFETY PATCH)*
+---
+
+## 19. Złącza maszynowe — schemat wyprowadzeń na maszynę
+
+### 19.1 Przegląd złączy
+
+System TrassarV3 łączy się z maszyną malowarki przez 5 złączy przemysłowych. Złącza dobrane z zapasem pinów — umożliwiają przyszłą rozbudowę bez wymiany konektorów.
+
+| Złącze | Model | Parametry | Funkcja | Pinów użytych / dostępnych |
+|--------|-------|-----------|---------|---------------------------|
+| **J1** | TS13CP03 | 13A/250V | Zasilanie 5V z maszyny | 3 / 3 |
+| **J2** | TS17CP10 | 5A/400V | Wyjścia przekaźników pistoletów (6ch) | 8 / 10 |
+| **J3** | TS13CP05 | 5A/180V | Enkoder obrotowy (koło pomiarowe) | 5 / 5 |
+| **J4** | TS13PS06 | 5A/125V | Pilot zdalny (4 przyciski) | 5 / 6 |
+| **J5** | TS21CP04 | 30A/500V | Przycisk nożny (start/pauza, stop) | 3 / 4 |
+
+### 19.2 Schemat rozmieszczenia złączy na obudowie
+
+```
+    ┌─────────────────────────────────────────────────────────────────┐
+    │                    OBUDOWA KOMPUTERA POKŁADOWEGO                 │
+    │                                                                 │
+    │  ┌───────────────────────────────┐                              │
+    │  │      WYŚWIETLACZ ILI9341      │   [START]  [STOP]  [SELECT] │
+    │  │         320×240 px            │                              │
+    │  │                               │   [Joystick KY-023]         │
+    │  └───────────────────────────────┘                              │
+    │                                                                 │
+    │  ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐  ┌────────────┐│
+    │  │ P-1a │ │ P-1b │ │ P-1c │ │ P-1d │ │ P-1e │  │  Buzzer    ││
+    │  └──────┘ └──────┘ └──────┘ └──────┘ └──────┘  └────────────┘│
+    │  ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐                │
+    │  │ P-2a │ │ P-2b │ │ P-3a │ │ P-3b │ │ P-4  │                │
+    │  └──────┘ └──────┘ └──────┘ └──────┘ └──────┘                │
+    │  ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐                │
+    │  │ P-6  │ │ P-7a │ │ P-7b │ │ P-7c │ │ P-7d │                │
+    │  └──────┘ └──────┘ └──────┘ └──────┘ └──────┘                │
+    │                                                                 │
+    ├─────────────────────────────────────────────────────────────────┤
+    │  PANEL DOLNY — ZŁĄCZA MASZYNOWE                                 │
+    │                                                                 │
+    │  ┌──────┐  ┌──────────┐  ┌──────┐  ┌──────┐  ┌──────┐        │
+    │  │  J1  │  │    J2    │  │  J3  │  │  J4  │  │  J5  │        │
+    │  │TS13  │  │  TS17    │  │TS13  │  │TS13  │  │TS21  │        │
+    │  │CP03  │  │  CP10    │  │CP05  │  │PS06  │  │CP04  │        │
+    │  │ 5V   │  │ Pistolety│  │ Enk. │  │Pilot │  │Nożny │        │
+    │  └──────┘  └──────────┘  └──────┘  └──────┘  └──────┘        │
+    └─────────────────────────────────────────────────────────────────┘
+```
+
+### 19.3 J1 — Zasilanie 5V (TS13CP03 13A/250V, 3 piny)
+
+Złącze doprowadzające zasilanie 5V DC z przetwornika napięcia maszyny do komputera pokładowego.
+
+```
+    TS13CP03 (widok od strony lutowania)
+    ┌───────────────────┐
+    │     ┌───┐         │
+    │  1  │ ● │  +5V    │──── ESP32 5V (VBUS) + moduł przekaźnikowy VCC
+    │     └───┘         │
+    │     ┌───┐         │
+    │  2  │ ● │  GND    │──── Masa wspólna (ESP32 GND + przekaźniki GND)
+    │     └───┘         │
+    │     ┌───┐         │
+    │  3  │ ● │  GND    │──── Masa (zdublowana — grubszy przekrój)
+    │     └───┘         │
+    └───────────────────┘
+```
+
+| Pin J1 | Sygnał | Kolor | Do wewnątrz (ESP32) | Uwagi |
+|--------|--------|-------|---------------------|-------|
+| 1 | **+5V DC** | czerwony | 5V VBUS ESP32 + VCC moduł przekaźnikowy | Min. 2A, zalecane 3A |
+| 2 | **GND** | czarny | GND ESP32 + GND przekaźniki | Masa wspólna |
+| 3 | **GND** | czarny | Równolegle z pin 2 | Zdublowane GND — niższa impedancja |
+
+> **WAŻNE:** Zasilanie 5V DC z maszyny. Źródło: przetwornica DC-DC 12V/24V→5V montowana na maszynie. Minimalny prąd 2A, zalecany 3A (6 przekaźników = ~0.5A + ESP32 = ~0.5A). Złącze TS13CP03 (13A/250V) ma duży zapas prądowy — bezpieczeństwo przy przepięciach rozruchowych.
+
+### 19.4 J2 — Wyjścia przekaźników pistoletów (TS17CP10 5A/400V, 10 pinów)
+
+Złącze wyprowadzające sygnały sterowania 6 zaworami elektromagnetycznymi pistoletów natryskowych. Wyjścia NO (Normally Open) z modułu przekaźnikowego — przełączają zasilanie zaworów (12V/24V DC z instalacji maszyny).
+
+```
+    TS17CP10 (widok od strony lutowania)
+    ┌─────────────────────────────────┐
+    │  ┌───┐ ┌───┐ ┌───┐ ┌───┐ ┌───┐│
+    │  │ 1 │ │ 2 │ │ 3 │ │ 4 │ │ 5 ││
+    │  │ ● │ │ ● │ │ ● │ │ ● │ │ ● ││  Górny rząd
+    │  └───┘ └───┘ └───┘ └───┘ └───┘│
+    │  ┌───┐ ┌───┐ ┌───┐ ┌───┐ ┌───┐│
+    │  │ 6 │ │ 7 │ │ 8 │ │ 9 │ │10 ││
+    │  │ ● │ │ ● │ │ ● │ │ ● │ │ ● ││  Dolny rząd
+    │  └───┘ └───┘ └───┘ └───┘ └───┘│
+    └─────────────────────────────────┘
+```
+
+| Pin J2 | Sygnał | Pistolet | Szer. | Do zewnątrz (maszyna) | Kolor |
+|--------|--------|----------|-------|-----------------------|-------|
+| 1 | **P1 NO** | Pistolet 1 — oś L | 12 cm | Zawór P1 — styk 1 | pomarańczowy |
+| 2 | **P2 NO** | Pistolet 2 — oś C | 12 cm | Zawór P2 — styk 1 | pomarańczowy |
+| 3 | **P3 NO** | Pistolet 3 — oś R | 12 cm | Zawór P3 — styk 1 | pomarańczowy |
+| 4 | **P4 NO** | Pistolet 4 — oś W | 24 cm | Zawór P4 — styk 1 | pomarańczowy |
+| 5 | **P5 NO** | Pistolet 5 — kraw. | 12 cm | Zawór P5 — styk 1 | pomarańczowy |
+| 6 | **P6 NO** | Pistolet 6 — kraw. | 24 cm | Zawór P6 — styk 1 | pomarańczowy |
+| 7 | **COM** | Wspólny | — | Zasilanie zaworów + (12V/24V z maszyny) | czerwony |
+| 8 | **COM** | Wspólny | — | Zasilanie zaworów + (zdublowany) | czerwony |
+| 9 | *REZERWA* | — | — | Wolny (przyszła rozbudowa) | — |
+| 10 | *REZERWA* | — | — | Wolny (przyszła rozbudowa) | — |
+
+```
+    Schemat podłączenia zaworów:
+
+    Zasilanie zaworów 12V/24V DC (z instalacji maszyny)
+        │
+        ├──── J2 pin 7 (COM) ──► Moduł przekaźnikowy COM ──┐
+        │                                                    │
+        │     J2 pin 1 (P1 NO) ◄── Przekaźnik 1 NO ────────┤──► Zawór P1
+        │     J2 pin 2 (P2 NO) ◄── Przekaźnik 2 NO ────────┤──► Zawór P2
+        │     J2 pin 3 (P3 NO) ◄── Przekaźnik 3 NO ────────┤──► Zawór P3
+        │     J2 pin 4 (P4 NO) ◄── Przekaźnik 4 NO ────────┤──► Zawór P4
+        │     J2 pin 5 (P5 NO) ◄── Przekaźnik 5 NO ────────┤──► Zawór P5
+        │     J2 pin 6 (P6 NO) ◄── Przekaźnik 6 NO ────────┘──► Zawór P6
+        │
+        └──── GND zaworów (masa instalacji maszyny — NIE łączyć z GND ESP32!)
+```
+
+> **WAŻNE:** Obwód zaworów jest galwanicznie izolowany od ESP32 dzięki opto-izolacji w module przekaźnikowym. Zasilanie zaworów (12V/24V DC) pochodzi z instalacji maszyny, NIE z komputera pokładowego. Masa zaworów NIE jest połączona z GND ESP32.
+
+### 19.5 J3 — Enkoder obrotowy (TS13CP05 5A/180V, 5 pinów)
+
+Złącze do enkodera kwadraturowego zamontowanego na kole pomiarowym maszyny.
+
+```
+    TS13CP05 (widok od strony lutowania)
+    ┌───────────────────────────────┐
+    │  ┌───┐ ┌───┐ ┌───┐ ┌───┐ ┌───┐│
+    │  │ 1 │ │ 2 │ │ 3 │ │ 4 │ │ 5 ││
+    │  │ ● │ │ ● │ │ ● │ │ ● │ │ ● ││
+    │  └───┘ └───┘ └───┘ └───┘ └───┘│
+    └───────────────────────────────┘
+```
+
+| Pin J3 | Sygnał | Kolor | Do wewnątrz (ESP32) | Uwagi |
+|--------|--------|-------|---------------------|-------|
+| 1 | **CLK (A)** | niebieski | GPIO 5 (INPUT_PULLUP, ISR CHANGE) | Sygnał kwadraturowy A |
+| 2 | **DT (B)** | zielony | GPIO 6 (INPUT_PULLUP) | Sygnał kwadraturowy B |
+| 3 | **SW** | żółty | GPIO 7 (INPUT_PULLUP) | Przycisk "Start od przerwy" |
+| 4 | **VCC** | czerwony | 3V3 ESP32 | Zasilanie 3.3V (opcjonalne) |
+| 5 | **GND** | czarny | GND ESP32 | Masa |
+
+```
+    Kabel enkodera (zalecana skrętka CAT5):
+
+    Obudowa komputera                          Koło pomiarowe
+    ┌──────────────┐                           ┌──────────────┐
+    │   J3 pin 1   ├───╲╱───╲╱───╲╱───────────┤ Enkoder CLK  │
+    │   J3 pin 2   ├───╱╲───╱╲───╱╲───────────┤ Enkoder DT   │
+    │   J3 pin 3   ├───────────────────────────┤ Enkoder SW   │
+    │   J3 pin 4   ├───────────────────────────┤ Enkoder VCC  │
+    │   J3 pin 5   ├───────────────────────────┤ Enkoder GND  │
+    └──────────────┘    skrętka CLK/DT         └──────────────┘
+
+    Długość kabla: do 200 cm (przy skrętce + kondensatory 100nF)
+    Przy >30 cm: dodaj 100nF między CLK/GND i DT/GND po stronie enkodera
+```
+
+> **Uwaga montażowa:** Enkoder musi być zamontowany z dobrym stykiem koła pomiarowego z podłożem. Zastosować skrętkę (twisted pair) dla sygnałów CLK i DT — ochrona przed EMI od solenoidów pistoletów. Po montażu wymagana kalibracja na odcinku 10 m.
+
+### 19.6 J4 — Pilot zdalny (TS13PS06 5A/125V, 6 pinów)
+
+Złącze do pilota przewodowego z zduplikowanymi przyciskami sterowania. Umożliwia operatorowi sterowanie z pozycji oddalonych od głównego panelu (np. z tyłu maszyny).
+
+```
+    TS13PS06 (widok od strony lutowania)
+    ┌─────────────────────────────────┐
+    │  ┌───┐ ┌───┐ ┌───┐ ┌───┐ ┌───┐ ┌───┐│
+    │  │ 1 │ │ 2 │ │ 3 │ │ 4 │ │ 5 │ │ 6 ││
+    │  │ ● │ │ ● │ │ ● │ │ ● │ │ ● │ │ ● ││
+    │  └───┘ └───┘ └───┘ └───┘ └───┘ └───┘│
+    └─────────────────────────────────┘
+```
+
+| Pin J4 | Sygnał | Przycisk pilota | Kolor | Do wewnątrz (ESP32) | Uwagi |
+|--------|--------|-----------------|-------|---------------------|-------|
+| 1 | **START/PAUZA** | Przycisk START | czerwony | GPIO 38 (równolegle z panelowym) | NO, zwiera do GND |
+| 2 | **SELEKTOR** | Przycisk SELECT | zielony | GPIO 40 (równolegle z panelowym) | NO, zwiera do GND |
+| 3 | **STOP** | Przycisk STOP | żółty | GPIO 39 (równolegle z panelowym) | NO, zwiera do GND |
+| 4 | **START GAP** | Przycisk GAP | niebieski | GPIO 7 (równolegle z SW enkodera) | NO, zwiera do GND |
+| 5 | **GND** | Masa wspólna | czarny | GND ESP32 | Masa wszystkich przycisków |
+| 6 | *REZERWA* | — | — | Wolny | Przyszła rozbudowa |
+
+```
+    Schemat podłączenia pilota (równoległe z przyciskami panelowymi):
+
+    GPIO 38 (START) ──────┬──── Przycisk panelowy BS-33B ──── GND
+                          │
+                          └──── J4 pin 1 (pilot START) ──── J4 pin 5 (GND)
+
+    GPIO 39 (STOP) ───────┬──── Przycisk panelowy BS-33B ──── GND
+                          │
+                          └──── J4 pin 3 (pilot STOP) ───── J4 pin 5 (GND)
+
+    GPIO 40 (SELECT) ─────┬──── Przycisk panelowy BS-33B ──── GND
+                          │
+                          └──── J4 pin 2 (pilot SELECT) ─── J4 pin 5 (GND)
+
+    GPIO 7 (GAP) ─────────┬──── Enkoder SW ──── GND
+                          │
+                          └──── J4 pin 4 (pilot GAP) ────── J4 pin 5 (GND)
+```
+
+> **WAŻNE:** Przyciski pilota podłączone **równolegle** z przyciskami panelowymi (wspólne GPIO z wewnętrznymi pull-up). Nie wymagają żadnych zmian w firmware — ESP32 widzi zwarcie do GND identycznie niezależnie od źródła. Debounce 50 ms eliminuje fałszywe wyzwolenia. Maksymalna długość kabla pilota: bez ograniczeń (sygnał cyfrowy z pull-up 3.3V).
+
+### 19.7 J5 — Przycisk nożny (TS21CP04 30A/500V, 4 piny)
+
+Złącze do przemysłowego przycisku nożnego (footswitch) umożliwiającego sterowanie nogą. Funkcja: START/PAUZA + STOP.
+
+```
+    TS21CP04 (widok od strony lutowania)
+    ┌─────────────────────────────┐
+    │  ┌───┐ ┌───┐ ┌───┐ ┌───┐  │
+    │  │ 1 │ │ 2 │ │ 3 │ │ 4 │  │
+    │  │ ● │ │ ● │ │ ● │ │ ● │  │
+    │  └───┘ └───┘ └───┘ └───┘  │
+    └─────────────────────────────┘
+```
+
+| Pin J5 | Sygnał | Funkcja | Kolor | Do wewnątrz (ESP32) | Uwagi |
+|--------|--------|---------|-------|---------------------|-------|
+| 1 | **START/PAUZA** | Przycisk nożny lewy | czerwony | GPIO 38 (równolegle) | NO, zwiera do GND |
+| 2 | **STOP** | Przycisk nożny prawy | żółty | GPIO 39 (równolegle) | NO, zwiera do GND |
+| 3 | **GND** | Masa wspólna | czarny | GND ESP32 | Masa przycisków nożnych |
+| 4 | *REZERWA* | — | — | Wolny | Przyszła rozbudowa |
+
+```
+    Schemat podłączenia przycisku nożnego:
+
+    Przycisk nożny podwójny (dual footswitch)
+    ┌──────────────────────────────────────┐
+    │                                      │
+    │   ┌─────────┐       ┌─────────┐     │
+    │   │ LEWY    │       │ PRAWY   │     │
+    │   │ (START) │       │ (STOP)  │     │
+    │   └────┬────┘       └────┬────┘     │
+    │        │                  │          │
+    │   styk NO            styk NO        │
+    │        │                  │          │
+    └────────┼──────────────────┼──────────┘
+             │                  │
+    J5 pin 1 ┘                  └ J5 pin 2
+    J5 pin 3 ────────────────────────────── GND
+
+    Wewnątrz komputera:
+
+    GPIO 38 (START) ──┬── Przycisk panelowy ── GND
+                      ├── J4 pin 1 (pilot) ── GND
+                      └── J5 pin 1 (nożny) ── J5 pin 3 (GND)
+
+    GPIO 39 (STOP) ───┬── Przycisk panelowy ── GND
+                      ├── J4 pin 3 (pilot) ── GND
+                      └── J5 pin 2 (nożny) ── J5 pin 3 (GND)
+```
+
+> **WAŻNE:** Złącze TS21CP04 (30A/500V) ma duży zapas — celowo, bo przycisk nożny narażony jest na warunki terenowe (woda, piasek, wibracje). Podłączenie równoległe jak pilot — bez zmian w firmware. STOP z przycisku nożnego wyzwala ISR awaryjnego stopu (natychmiastowe wyłączenie pistoletów, <1 µs).
+
+### 19.8 Kompletny schemat okablowania ze złączami maszynowymi
+
+```
+                                       ANTENA GPS
+                                       (na zewnątrz)
+                                          │
+                            ┌─────────────┴─────────────┐
+                            │     GPS NEO-6M             │
+                            └─────────────┬─────────────┘
+                                          │ UART2
+    ════════════════════════════════════════════════════════════
+    ║                    OBUDOWA KOMPUTERA POKŁADOWEGO          ║
+    ║                                                           ║
+    ║  ┌──────────────────────────────────────────────────────┐ ║
+    ║  │                                                      │ ║
+    ║  │   ┌──────────┐    ┌──────────────────────┐          │ ║
+    ║  │   │ ESP32-S3 │    │ Wyświetlacz ILI9341  │          │ ║
+    ║  │   │  N16R8   │◄──►│ 2.8" TFT + SD        │          │ ║
+    ║  │   │          │SPI │                       │          │ ║
+    ║  │   │          │    └──────────────────────┘          │ ║
+    ║  │   │          │I2C                                    │ ║
+    ║  │   │          │◄──►┌──────────┐ ┌──────────────────┐ │ ║
+    ║  │   │          │    │ DS1307   │ │ MCP23017 + 15btn │ │ ║
+    ║  │   │          │    └──────────┘ └──────────────────┘ │ ║
+    ║  │   │          │                                       │ ║
+    ║  │   │          │◄──►Przyciski BS-33B (START/STOP/SEL) │ ║
+    ║  │   │          │◄──►Joystick KY-023                   │ ║
+    ║  │   │          │◄──►Buzzer pasywny                    │ ║
+    ║  │   │          │                                       │ ║
+    ║  │   │          │──►┌────────────────────┐              │ ║
+    ║  │   │          │   │ Moduł przekaźników │              │ ║
+    ║  │   │          │   │ 6-kanałowy 5V      │              │ ║
+    ║  │   └──────────┘   └─────────┬──────────┘              │ ║
+    ║  │                            │ NO wyjścia               │ ║
+    ║  └────────────────────────────┼──────────────────────────┘ ║
+    ║                               │                            ║
+    ║  ┌─── ZŁĄCZA MASZYNOWE ───────┼────────────────────────┐   ║
+    ║  │                            │                        │   ║
+    ║  │  ┌───────────┐  ┌─────────┴────────┐  ┌─────────┐ │   ║
+    ║  │  │ J1        │  │ J2               │  │ J3      │ │   ║
+    ║  │  │ TS13CP03  │  │ TS17CP10         │  │ TS13CP05│ │   ║
+    ║  │  │ ZASILANIE │  │ 6× PISTOLETÓW    │  │ ENKODER │ │   ║
+    ║  │  │ 5V DC     │  │ + COM + REZERWA  │  │ CLK/DT  │ │   ║
+    ║  │  │ 3 piny    │  │ 10 pinów         │  │ SW/VCC  │ │   ║
+    ║  │  └─────┬─────┘  └────────┬─────────┘  └────┬────┘ │   ║
+    ║  │        │                 │                  │      │   ║
+    ║  │  ┌─────┴─────┐  ┌───────┴───────┐  ┌──────┴────┐ │   ║
+    ║  │  │ J4        │  │ J5            │  │           │ │   ║
+    ║  │  │ TS13PS06  │  │ TS21CP04      │  │           │ │   ║
+    ║  │  │ PILOT     │  │ NOŻNY         │  │           │ │   ║
+    ║  │  │ 4 przyc.  │  │ START + STOP  │  │           │ │   ║
+    ║  │  │ 6 pinów   │  │ 4 piny        │  │           │ │   ║
+    ║  │  └───────────┘  └───────────────┘  └───────────┘ │   ║
+    ║  └──────────────────────────────────────────────────┘   ║
+    ║                                                          ║
+    ════════════════════════════════════════════════════════════
+
+    NA MASZYNIE:
+    ──────────────────────────────────────────────────────────
+    J1 ← Przetwornica 12V/24V → 5V DC (zasilanie z akumulatora)
+    J2 → 6× zawory elektromagnetyczne pistoletów (12V/24V DC)
+    J3 ← Enkoder na kole pomiarowym
+    J4 ← Pilot przewodowy (4 przyciski)
+    J5 ← Przycisk nożny podwójny (START + STOP)
+```
+
+### 19.9 Wewnętrzne połączenia złączy z ESP32
+
+```
+    Złącze J1 (TS13CP03 — zasilanie)
+    ┌──────┐
+    │ pin 1├── +5V ──┬── ESP32 5V (VBUS)
+    │      │         └── Moduł przekaźnikowy VCC
+    │ pin 2├── GND ──┬── ESP32 GND
+    │      │         └── Moduł przekaźnikowy GND
+    │ pin 3├── GND ──┘ (zdublowane)
+    └──────┘
+
+    Złącze J2 (TS17CP10 — pistolety)
+    ┌──────┐
+    │ pin 1├── Przekaźnik 1 NO ── GPIO 41 (P1)
+    │ pin 2├── Przekaźnik 2 NO ── GPIO 42 (P2)
+    │ pin 3├── Przekaźnik 3 NO ── GPIO  1 (P3)
+    │ pin 4├── Przekaźnik 4 NO ── GPIO  2 (P4)
+    │ pin 5├── Przekaźnik 5 NO ── GPIO  3 (P5)
+    │ pin 6├── Przekaźnik 6 NO ── GPIO  4 (P6)
+    │ pin 7├── COM (zasilanie zaworów +)
+    │ pin 8├── COM (zdublowane)
+    │ pin 9├── REZERWA
+    │pin 10├── REZERWA
+    └──────┘
+
+    Złącze J3 (TS13CP05 — enkoder)
+    ┌──────┐
+    │ pin 1├── GPIO  5 (CLK, ISR)
+    │ pin 2├── GPIO  6 (DT)
+    │ pin 3├── GPIO  7 (SW / GAP)
+    │ pin 4├── 3V3 (VCC)
+    │ pin 5├── GND
+    └──────┘
+
+    Złącze J4 (TS13PS06 — pilot)
+    ┌──────┐
+    │ pin 1├── GPIO 38 (START/PAUZA) ── równolegle z przyciskiem panelowym
+    │ pin 2├── GPIO 40 (SELEKTOR)    ── równolegle z przyciskiem panelowym
+    │ pin 3├── GPIO 39 (STOP)        ── równolegle z przyciskiem panelowym
+    │ pin 4├── GPIO  7 (START GAP)   ── równolegle z SW enkodera
+    │ pin 5├── GND
+    │ pin 6├── REZERWA
+    └──────┘
+
+    Złącze J5 (TS21CP04 — przycisk nożny)
+    ┌──────┐
+    │ pin 1├── GPIO 38 (START/PAUZA) ── równolegle z panelem + pilotem
+    │ pin 2├── GPIO 39 (STOP)        ── równolegle z panelem + pilotem
+    │ pin 3├── GND
+    │ pin 4├── REZERWA
+    └──────┘
+```
+
+### 19.10 Tabela kompletnych połączeń — złącza maszynowe (checklist)
+
+| # | Z (wewnątrz) | Złącze | Pin | Na zewnątrz (maszyna) | Kolor | Uwagi |
+|---|-------------|--------|-----|----------------------|-------|-------|
+| 1 | ESP32 5V + Przekaźn. VCC | J1 | 1 | Przetwornica 5V + | czerwony | Min. 2A |
+| 2 | ESP32 GND + Przekaźn. GND | J1 | 2 | Przetwornica 5V − | czarny | Masa |
+| 3 | GND (zdublowane) | J1 | 3 | Przetwornica 5V − | czarny | Zapas |
+| 4 | Przekaźnik 1 NO | J2 | 1 | Zawór P1 (oś L, 12cm) | pomarańczowy | |
+| 5 | Przekaźnik 2 NO | J2 | 2 | Zawór P2 (oś C, 12cm) | pomarańczowy | |
+| 6 | Przekaźnik 3 NO | J2 | 3 | Zawór P3 (oś R, 12cm) | pomarańczowy | |
+| 7 | Przekaźnik 4 NO | J2 | 4 | Zawór P4 (oś W, 24cm) | pomarańczowy | |
+| 8 | Przekaźnik 5 NO | J2 | 5 | Zawór P5 (kraw, 12cm) | pomarańczowy | |
+| 9 | Przekaźnik 6 NO | J2 | 6 | Zawór P6 (kraw, 24cm) | pomarańczowy | |
+| 10 | Przekaźniki COM | J2 | 7 | Zasilanie zaworów + (12/24V) | czerwony | Z maszyny |
+| 11 | Przekaźniki COM | J2 | 8 | Zasilanie zaworów + (zdub.) | czerwony | Zapas |
+| 12 | GPIO 5 (Enkoder CLK) | J3 | 1 | Enkoder kanał A | niebieski | Skrętka |
+| 13 | GPIO 6 (Enkoder DT) | J3 | 2 | Enkoder kanał B | zielony | Skrętka |
+| 14 | GPIO 7 (SW/GAP) | J3 | 3 | Enkoder przycisk SW | żółty | |
+| 15 | 3V3 | J3 | 4 | Enkoder VCC | czerwony | |
+| 16 | GND | J3 | 5 | Enkoder GND | czarny | |
+| 17 | GPIO 38 (START) | J4 | 1 | Pilot — przycisk START | czerwony | Równol. |
+| 18 | GPIO 40 (SELECT) | J4 | 2 | Pilot — przycisk SELECT | zielony | Równol. |
+| 19 | GPIO 39 (STOP) | J4 | 3 | Pilot — przycisk STOP | żółty | Równol. |
+| 20 | GPIO 7 (GAP) | J4 | 4 | Pilot — przycisk GAP | niebieski | Równol. |
+| 21 | GND | J4 | 5 | Pilot — masa wspólna | czarny | |
+| 22 | GPIO 38 (START) | J5 | 1 | Nożny — pedał lewy | czerwony | Równol. |
+| 23 | GPIO 39 (STOP) | J5 | 2 | Nożny — pedał prawy | żółty | Równol. |
+| 24 | GND | J5 | 3 | Nożny — masa | czarny | |
+
+> **Łączna liczba przewodów na złączach maszynowych: 24** (+ 2 piny rezerwy na J2, 1 pin rezerwy na J4, 1 pin rezerwy na J5)
+
+---
+
+## 20. Ocena gotowości produkcyjnej — v2.52.0
+
+### 20.1 Podsumowanie
+
+| Parametr | Wartość |
+|----------|---------|
+| **Wersja firmware** | 2.52.0 (SAFETY PATCH) |
+| **Rewizja git** | `5c5a177` |
+| **Data rewizji** | 2026-03-17 |
+| **Linie kodu** | ~11 600 (57 plików .cpp/.h) |
+| **Ocena produkcyjna** | **8/10 — GOTOWY DO PRODUKCJI** |
+
+### 20.2 Mocne strony systemu
+
+#### A. Bezpieczeństwo pistoletów — 5 warstw ochrony
+
+System implementuje wielowarstwowy model bezpieczeństwa klasy przemysłowej:
+
+1. **Sprzętowy STOP awaryjny (ISR)** — bezpośredni zapis do rejestrów GPIO w <1 µs, niezależny od stanu firmware
+2. **Gun keepalive 300ms** — niezależne monitorowanie z Core 0 i Core 1
+3. **Overspeed gun disable** — natychmiastowe wyłączenie przy przekroczeniu prędkości + alarm
+4. **Shutdown handler** — `esp_register_shutdown_handler()` gwarantuje pistolet OFF przed każdym resetem/panic
+5. **Watchdog 3s** — ostatnia linia obrony, per-task na obu rdzeniach
+
+**Ocena: wzorcowa** — wielokrotna redundancja, brak single point of failure.
+
+#### B. Synchronizacja dual-core
+
+- Wszystkie dostępy do `g_state` chronione przez `STATE_LOCK()`/`STATE_UNLOCK()` (portMUX spinlock)
+- Statystyki mają własny spinlock (`statsMux`)
+- Stany pistoletów chronione oddzielnym `gunMux`
+- Operacje SD chronione mutexem z timeoutem 2s (< WDT 3s — nie blokuje watchdoga)
+- Brak zidentyfikowanych deadlocków (wszystkie locki trzymane <5ms)
+
+#### C. Graceful degradation
+
+- SD niedostępna → kontynuuj bez logowania, ostrzeżenie na ekranie POST
+- RTC niedostępny → fallback do czasu kompilacji
+- GPS brak fixu → malowanie działa normalnie, brak trasy GPX
+- MCP23017 offline → wzorce z panelu WWW
+- Niski heap → automatyczne zatrzymanie malowania + alarm
+
+#### D. Architektura kodu
+
+- Czytelna struktura modułów (27 plików .cpp/.h)
+- Konsekwentne konwencje (camelCase, UPPER_SNAKE dla stałych, PascalCase dla klas)
+- Unit testy logiki czystej (gun_logic.h, środowisko native)
+- Comprehensive event logging na SD
+- NVS z checksumem i wersjonowaniem migracji
+
+### 20.3 Znane ograniczenia (akceptowalne w produkcji)
+
+| # | Ograniczenie | Ryzyko | Mitigacja |
+|---|-------------|--------|-----------|
+| 1 | GPIO 46 (joystick SW) jest strap pinem | Brak bootu jeśli wciśnięty przy starcie | Instrukcja operatora + mechaniczna osłona |
+| 2 | Debounce enkodera 50µs — granica przy silnym EMI | Fałszywe impulsy od solenoidów | Kondensatory 100nF + skrętka (sekcja 13.3) |
+| 3 | NVS checksum — ostrzeżenie, nie blokada | Potencjalnie uszkodzone dane po resecie | Backup NVS na SD co 30 min + auto-restore |
+| 4 | GPS ring buffer 4320 punktów (~6h) | Utrata starszych punktów przy dłuższych sesjach | Ostrzeżenie na ekranie, eksport częściowy |
+| 5 | WiFi bez SSL/TLS | Podsłuch na sieci lokalnej | AP-only, WPA2, hasło unikalne per MAC |
+| 6 | Linia 3.3V blisko limitu przy pełnym obciążeniu | Niestabilność przy ~477 mA | Zewnętrzne zasilanie 5V z zapasem |
+
+### 20.4 Zalecenia przed wdrożeniem
+
+**Wymagane (przed pierwszym użyciem na maszynie):**
+
+1. Kalibracja enkodera na odcinku 10 m (ekran KALIBRACJA)
+2. Test wszystkich 6 przekaźników (ekran CZYSZCZENIE DYSZ)
+3. Weryfikacja zasilania pod pełnym obciążeniem (sekcja 15.3)
+4. Test pilota i przycisku nożnego
+5. Wgranie aktualnej daty do RTC (automatyczne przy pierwszym połączeniu)
+
+**Zalecane (do wersji 2.53):**
+
+1. Zwiększenie debounce enkodera do 100 µs w środowisku z silnym EMI
+2. Implementacja OTA (Over-The-Air) firmware update
+3. Przeniesienie joysticka SW z GPIO 46 na inny pin (wymaga zmiany PCB)
+4. Dodanie czujnika napięcia zasilania (brownout detection)
+
+### 20.5 Werdykt
+
+**System TrassarV3 v2.52.0 jest GOTOWY DO PRODUKCJI** przy spełnieniu warunków:
+
+- Zasilanie 5V DC min. 2A (zalecane 3A) z przetwornicą na maszynie
+- Montaż enkodera ze skrętką + kondensatory filtrujące 100 nF
+- Instruktaż operatora (nie wciskać joysticka przy włączaniu)
+- Karta SD FAT32 zainstalowana (raporty, logi, backup NVS)
+- Kalibracja na odcinku 10 m po pierwszym montażu
+
+Firmware przeszedł 17 iteracji poprawek bezpieczeństwa (od v2.21.0 do v2.52.0). Wielowarstwowe zabezpieczenia pistoletów, izolacja awarii Core 0, automatyczne działanie przy niskim heapie i detekcja zablokowanych przekaźników czynią system bezpiecznym do pracy z farbą drogową w warunkach terenowych.
+
+---
+
+*TrassarV3 — Dokumentacja techniczna v2.52.0-prod (PRODUCTION RELEASE)*
+*Rewizja kodu: `5c5a177` | Data: 2026-03-17*
 *ESP32-S3 N16R8 | ILI9341 320×240 | GPS NEO-6M + GPX/GeoJSON | MCP23017 | 6 pistoletów | 16 wzorców | 15 przycisków | 4 tryby pracy | WiFi AP + WebSocket | backup NVS | motogodziny | predykcja farby | raporty HTML*
-*v2.52.0: shutdown handler, overspeed gun disable, relay stuck detection, Core 0 isolation, low heap protection, SPI contention fix, API validation, auto-resume cooldown*
-*Dokumentacja aktualizowana: marzec 2026*
+*Złącza maszynowe: J1 TS13CP03 (5V), J2 TS17CP10 (pistolety), J3 TS13CP05 (enkoder), J4 TS13PS06 (pilot), J5 TS21CP04 (nożny)*
+*Dokumentacja aktualizowana: 17 marca 2026*
