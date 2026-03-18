@@ -261,6 +261,37 @@ float StorageManager::loadConsumptionRate() {
     return prefs.getFloat("cons_rate", 0.60f);
 }
 
+void StorageManager::savePaintLevel(float liters) {
+    NvsSession s(false);
+    prefs.putFloat("paint_lvl", liters);
+}
+
+float StorageManager::loadPaintLevel() {
+    NvsSession s(true);
+    if (!prefs.isKey("paint_lvl")) return -1.0f;  // -1 = brak zapisu (pierwszy start)
+    return prefs.getFloat("paint_lvl", -1.0f);
+}
+
+void StorageManager::saveRefuelCount(uint32_t count) {
+    NvsSession s(false);
+    prefs.putUInt("refuel_cnt", count);
+}
+
+uint32_t StorageManager::loadRefuelCount() {
+    NvsSession s(true);
+    return prefs.getUInt("refuel_cnt", 0);
+}
+
+void StorageManager::saveTotalRefueled(float liters) {
+    NvsSession s(false);
+    prefs.putFloat("refuel_tot", liters);
+}
+
+float StorageManager::loadTotalRefueled() {
+    NvsSession s(true);
+    return prefs.getFloat("refuel_tot", 0);
+}
+
 void StorageManager::saveAutoResume(bool enabled) {
     NvsSession s(false);
     prefs.putBool("auto_res", enabled);

@@ -25,9 +25,10 @@ private:
     void handleCustomPattern(ButtonEvent e);
     void handleStatsExport(ButtonEvent e);
     void handleFactoryReset(ButtonEvent e);
+    void handleTankowanie(ButtonEvent e);
     void handlePost(ButtonEvent e);
 
-    static const int SERVICE_MENU_ITEMS = 10;  // 6 + lifetime + custom_pat + export + factory_reset
+    static const int SERVICE_MENU_ITEMS = 11;  // 6 + lifetime + custom_pat + export + factory_reset + tankowanie
 
     // Pomiar dystansu
     bool distMeasuring = false;
@@ -61,6 +62,10 @@ private:
     // Eksport statystyk
     bool exportDone = false;
     bool exportSuccess = false;
+
+    // Tankowanie farby
+    float tankRefuelAmount = 50.0f;   // Ilosc farby do zatankowania [L]
+    bool tankRefuelDone = false;      // Czy tankowanie zostalo potwierdzone
 
 public:
     // Timestamp ostatniej zmiany ekranu (cooldown dla joysticka)

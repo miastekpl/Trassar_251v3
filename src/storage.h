@@ -63,6 +63,18 @@ public:
     void saveConsumptionRate(float lPerM2);
     float loadConsumptionRate();
 
+    // Aktualny poziom farby w zbiorniku
+    void savePaintLevel(float liters);
+    float loadPaintLevel();
+
+    // Licznik tankowan
+    void saveRefuelCount(uint32_t count);
+    uint32_t loadRefuelCount();
+
+    // Lacznie zatankowano
+    void saveTotalRefueled(float liters);
+    float loadTotalRefueled();
+
     // Auto-resume po auto-pauzie
     void saveAutoResume(bool enabled);
     bool loadAutoResume();

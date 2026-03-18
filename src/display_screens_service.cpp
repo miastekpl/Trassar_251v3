@@ -5,6 +5,7 @@
 // ============================================================
 
 #include "display_internal.h"
+#include "paint_consumption.h"
 #include <qrcode.h>
 
 // ============================================================
@@ -24,6 +25,7 @@ void DisplayManager::drawServiceMenu(int selectedIndex) {
         "Eksport statystyk",
         "Reset etapu",
         "Reset licznikow",
+        "Tankowanie farby",
         "Factory reset"
     };
 
@@ -417,6 +419,104 @@ void DisplayManager::drawNozzleClean(const char* patCode, const char* patName,
 
     // ---- DOL: 6 prostokatow pistoletow ----
     drawGunRects(GUN_RECTS_Y, gunsCfg, gunStates, false);
+}
+
+// ============================================================
+//  TANKOWANIE FARBY - uzupelnianie zbiornika
+//  Wyswietla aktualny poziom, umozliwia wprowadzenie ilosci
+// ============================================================
+void DisplayManager::drawTankowanieScreen(float refuelAmount, bool done) {
+    drawHeader("TANKOWANIE FARBY");
+
+    float currentLevel = paintConsumption.getCurrentLevel();
+    float tankCap = paintConsumption.getTankCapacity();
+    int levelPct = (tankCap > 0) ? (int)(currentLevel * 100.0f / tankCap) : 0;
+    if (levelPct > 100) levelPct = 100;
+    if (levelPct < 0) levelPct = 0;
+
+    char buf[48];
+    int y = 36;
+
+    // ---- Aktualny poziom zbiornika ----
+    tft.setFreeFont(FS9);
+    tft.setTextColor(cMenuTxt, cBg);
+    tft.drawString("Poziom zbiornika:", 12, y);
+    y += 18;
+
+    // Pasek postępu
+    int barX = 12, barW = TFT_SCREEN_W - 24, barH = 22;
+    drawProgressBar(barX, y, barW, barH, levelPct, cAccent);
+
+    // Wartosc na pasku
+    snprintf(buf, sizeof(buf), "%.0f / %.0f L  (%d%%)", currentLevel, tankCap, levelPct);
+    tft.setFreeFont(FSB9);
+    tft.setTextDatum(MC_DATUM);
+    tft.setTextColor(cText, levelPct > 50 ? cAccent : cBg);
+    tft.setTextPadding(barW - 4);
+    tft.drawString(buf, barX + barW / 2, y + barH / 2);
+    tft.setTextPadding(0);
+    tft.setTextDatum(TL_DATUM);
+
+    y += barH + 10;
+    tft.drawFastHLine(12, y, TFT_SCREEN_W - 24, cDivider);
+    y += 10;
+
+    if (!done) {
+        // ---- Ilosc do zatankowania ----
+        tft.setFreeFont(FS9);
+        tft.setTextColor(cMenuTxt, cBg);
+        tft.drawString("Dodaj farbe:", 12, y);
+        y += 6;
+
+        // Duza wartosc edytowalna
+        tft.setFreeFont(FSB24);
+        tft.setTextColor(cAccent, cBg);
+        tft.setTextDatum(MC_DATUM);
+        tft.setTextPadding(200);
+        snprintf(buf, sizeof(buf), "%.0f L", refuelAmount);
+        tft.drawString(buf, TFT_SCREEN_W / 2, y + 28);
+        tft.setTextPadding(0);
+        tft.setTextDatum(TL_DATUM);
+
+        y += 56;
+
+        // Strzalki nawigacji
+        tft.setFreeFont(FS9);
+        tft.setTextColor(cMenuTxt, cBg);
+        tft.setTextDatum(MC_DATUM);
+        tft.setTextPadding(TFT_SCREEN_W - 24);
+        tft.drawString("SEL/STOP = +/- 10L   SEL(1s) = +5L", TFT_SCREEN_W / 2, y);
+        tft.setTextPadding(0);
+        tft.setTextDatum(TL_DATUM);
+    } else {
+        // ---- Potwierdzenie tankowania ----
+        y += 10;
+        tft.setFreeFont(FSB18);
+        tft.setTextColor(cAccent, cBg);
+        tft.setTextDatum(MC_DATUM);
+        tft.setTextPadding(260);
+        tft.drawString("ZATANKOWANO!", TFT_SCREEN_W / 2, y + 10);
+        tft.setTextPadding(0);
+
+        y += 36;
+        tft.setFreeFont(FS9);
+        tft.setTextColor(cText, cBg);
+        snprintf(buf, sizeof(buf), "+%.0f L -> Poziom: %.0f L", refuelAmount, currentLevel);
+        tft.drawString(buf, TFT_SCREEN_W / 2, y);
+        tft.setTextPadding(0);
+        tft.setTextDatum(TL_DATUM);
+    }
+
+    // --- Podpowiedzi ---
+    tft.setFreeFont(FM9);
+    tft.setTextColor(cMenuTxt, cBg);
+    tft.setTextPadding(TFT_SCREEN_W - 12);
+    if (!done) {
+        tft.drawString("START=potwierdz  STOP(1s)=powrot", HINT_X, HINT_Y);
+    } else {
+        tft.drawString("STOP(1s)=powrot", HINT_X, HINT_Y);
+    }
+    tft.setTextPadding(0);
 }
 
 // ============================================================

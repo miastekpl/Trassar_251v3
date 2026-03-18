@@ -16,6 +16,7 @@
 #include "report_logger.h"
 #include "buzzer.h"
 #include "gps_track.h"
+#include "paint_consumption.h"
 
 MenuSystem menu;
 
@@ -81,6 +82,7 @@ void MenuSystem::handleEvent(ButtonEvent event) {
         case SCREEN_CUSTOM_PATTERN: handleCustomPattern(event);   break;
         case SCREEN_STATS_EXPORT:   handleStatsExport(event);     break;
         case SCREEN_FACTORY_RESET:  handleFactoryReset(event);    break;
+        case SCREEN_TANKOWANIE:     handleTankowanie(event);      break;
         case SCREEN_POST:           handlePost(event);            break;
     }
 }
@@ -319,6 +321,11 @@ void MenuSystem::update() {
         // ---- Factory reset NVS ----
         case SCREEN_FACTORY_RESET:
             display.drawFactoryResetScreen();
+            break;
+
+        // ---- Tankowanie farby ----
+        case SCREEN_TANKOWANIE:
+            display.drawTankowanieScreen(tankRefuelAmount, tankRefuelDone);
             break;
 
         // ---- POST (diagnostyka) ----

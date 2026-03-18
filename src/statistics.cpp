@@ -5,6 +5,7 @@
 
 #include "statistics.h"
 #include "storage.h"
+#include "paint_consumption.h"
 
 StatisticsManager stats;
 
@@ -52,6 +53,11 @@ void StatisticsManager::updatePainting(float distanceDelta, const bool gunStates
     patCurrentArea += deltaArea;
 
     taskEXIT_CRITICAL(&statsMux);
+
+    // Aktualizuj poziom farby w zbiorniku
+    if (deltaArea > 0) {
+        paintConsumption.subtractUsage(deltaArea);
+    }
 }
 
 void StatisticsManager::resetSession() {

@@ -54,9 +54,32 @@ public:
         return getRemainingAreaM2(paintedAreaM2) / patternWidthM;
     }
 
+    // ---- Sledzenie aktualnego poziomu farby w zbiorniku ----
+
+    // Aktualny poziom farby [litry]
+    float getCurrentLevel() const { return currentLevelL; }
+
+    // Tankowanie: dodaj farbe do zbiornika
+    void refuel(float liters);
+
+    // Odejmij zuzycie farby na podstawie przyrostu powierzchni [m2]
+    void subtractUsage(float areaDeltaM2);
+
+    // Reset poziomu do pelnego zbiornika
+    void resetLevel();
+
+    // Historia tankowan
+    float getLastRefuelAmount() const { return lastRefuelAmountL; }
+    uint32_t getTotalRefuelCount() const { return refuelCount; }
+    float getTotalRefueledL() const { return totalRefueledL; }
+
 private:
     float tankCapacityL = 200.0f;   // Domyslna pojemnosc zbiornika [L]
     float consumptionRateL = DEFAULT_CONSUMPTION_L_PER_M2;
+    float currentLevelL = 200.0f;   // Aktualny poziom farby w zbiorniku [L]
+    float lastRefuelAmountL = 0;    // Ostatnie tankowanie [L]
+    uint32_t refuelCount = 0;       // Licznik tankowan
+    float totalRefueledL = 0;       // Lacznie zatankowano [L]
 };
 
 extern PaintConsumption paintConsumption;

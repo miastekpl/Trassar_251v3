@@ -509,6 +509,17 @@ void TrassarWebServer::handleControl() {
             paintEngine.setAutoResumeEnabled(en);
             storage.saveAutoResume(en);
         }
+    } else if (action == "refuel") {
+        if (server.hasArg("value")) {
+            float val = server.arg("value").toFloat();
+            if (val >= 1.0f && val <= 1000.0f) {
+                paintConsumption.refuel(val);
+                DBG_PRINTF("[WWW] Tankowanie: +%.0f L, poziom: %.1f L\n",
+                              val, paintConsumption.getCurrentLevel());
+            } else {
+                result = "zakres 1-1000 litrow";
+            }
+        }
     } else {
         result = "nieznana akcja";
     }
@@ -917,6 +928,9 @@ String TrassarWebServer::getStatsJson() {
     doc["paintRemainingL"] = serialized(String(paintConsumption.getRemainingLiters(totalArea), 1));
     doc["paintTankL"] = serialized(String(paintConsumption.getTankCapacity(), 0));
     doc["paintUsedPct"] = paintConsumption.getUsedPercent(totalArea);
+    doc["paintCurrentLevelL"] = serialized(String(paintConsumption.getCurrentLevel(), 1));
+    doc["refuelCount"] = paintConsumption.getTotalRefuelCount();
+    doc["totalRefueledL"] = serialized(String(paintConsumption.getTotalRefueledL(), 1));
 
     String output;
     serializeJson(doc, output);

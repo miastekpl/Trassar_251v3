@@ -217,6 +217,7 @@ enum ScreenID : uint8_t {
     SCREEN_CUSTOM_PATTERN,  // Edycja wzorca wlasnego
     SCREEN_STATS_EXPORT,    // Eksport statystyk na SD
     SCREEN_FACTORY_RESET,   // Factory reset NVS z ekranu serwisowego
+    SCREEN_TANKOWANIE,      // Tankowanie farby (uzupelnianie zbiornika)
     SCREEN_POST             // Power-On Self-Test (diagnostyka startowa)
 };
 

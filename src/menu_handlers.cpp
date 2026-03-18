@@ -18,6 +18,7 @@
 #include "buzzer.h"
 #include "gps_handler.h"
 #include "event_log.h"
+#include "paint_consumption.h"
 #include <SD.h>
 
 // ============ SCREEN_HOME ============
@@ -344,7 +345,13 @@ void MenuSystem::handleServiceMenu(ButtonEvent e) {
                 case 8:
                     goToScreen(SCREEN_COUNTER_RESET);
                     break;
-                case 9:
+                case 9: {
+                    tankRefuelAmount = 50.0f;
+                    tankRefuelDone = false;
+                    goToScreen(SCREEN_TANKOWANIE);
+                    break;
+                }
+                case 10:
                     goToScreen(SCREEN_FACTORY_RESET);
                     break;
             }
@@ -656,6 +663,68 @@ void MenuSystem::handleCustomPattern(ButtonEvent e) {
             g_state.displayNeedsUpdate = true;
             STATE_UNLOCK();
             break;
+
+        case EVT_STOP_LONG:
+            goToScreen(SCREEN_SERVICE_MENU);
+            break;
+
+        default:
+            break;
+    }
+}
+
+// ============ SCREEN_TANKOWANIE ============
+
+void MenuSystem::handleTankowanie(ButtonEvent e) {
+    switch (e) {
+        case EVT_SELECT_SHORT:
+            // Zwieksz ilosc farby (+10 L)
+            tankRefuelAmount += 10.0f;
+            if (tankRefuelAmount > paintConsumption.getTankCapacity())
+                tankRefuelAmount = 10.0f;
+            STATE_LOCK();
+            g_state.displayNeedsUpdate = true;
+            STATE_UNLOCK();
+            break;
+
+        case EVT_STOP_SHORT:
+            // Zmniejsz ilosc farby (-10 L)
+            tankRefuelAmount -= 10.0f;
+            if (tankRefuelAmount < 10.0f)
+                tankRefuelAmount = paintConsumption.getTankCapacity();
+            STATE_LOCK();
+            g_state.displayNeedsUpdate = true;
+            STATE_UNLOCK();
+            break;
+
+        case EVT_SELECT_LONG:
+            // Krok dokladny (+5 L)
+            tankRefuelAmount += 5.0f;
+            if (tankRefuelAmount > paintConsumption.getTankCapacity())
+                tankRefuelAmount = 5.0f;
+            buzzer.beep(1500, 40);
+            STATE_LOCK();
+            g_state.displayNeedsUpdate = true;
+            STATE_UNLOCK();
+            break;
+
+        case EVT_START_SHORT:
+        case EVT_START_LONG: {
+            if (tankRefuelDone) break;
+            // Potwierdz tankowanie
+            paintConsumption.refuel(tankRefuelAmount);
+            tankRefuelDone = true;
+            buzzer.beep(2000, 150);
+            DBG_PRINTF("[MENU] Tankowanie: +%.0f L, poziom: %.1f L\n",
+                          tankRefuelAmount, paintConsumption.getCurrentLevel());
+            eventLog.logf("MENU", "Tankowanie: +%.0f L, poziom: %.1f L",
+                          tankRefuelAmount, paintConsumption.getCurrentLevel());
+            STATE_LOCK();
+            g_state.forceFullRedraw = true;
+            g_state.displayNeedsUpdate = true;
+            STATE_UNLOCK();
+            break;
+        }
 
         case EVT_STOP_LONG:
             goToScreen(SCREEN_SERVICE_MENU);

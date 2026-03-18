@@ -455,6 +455,7 @@ void loop() {
         if (now - lastLifetimeSave >= LIFETIME_SAVE_MS) {
             lastLifetimeSave = now;
             stats.saveLifetime();
+            storage.savePaintLevel(paintConsumption.getCurrentLevel());
         }
     } else {
         lastLifetimeSave = now;  // Reset timera gdy nie malujemy

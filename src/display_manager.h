@@ -64,6 +64,9 @@ public:
     // Factory reset NVS (potwierdzenie)
     void drawFactoryResetScreen();
 
+    // Tankowanie farby (uzupelnianie zbiornika)
+    void drawTankowanieScreen(float refuelAmount, bool done);
+
     // Ostrzezenie GPS buffer overflow na ekranie malowania
     void drawGpsOverflowIcon();
 
