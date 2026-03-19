@@ -775,6 +775,16 @@ String TrassarWebServer::getStateJson() {
     doc["gpxRec"] = gpsTrack.isRecording();
     doc["gpxPts"] = gpsTrack.getPointCount();
 
+    // Poziom farby w zbiorniku (widoczny na zywo w panelu WWW)
+    doc["paintLevelL"] = serialized(String(paintConsumption.getCurrentLevel(), 1));
+    {
+        float tankCap = paintConsumption.getTankCapacity();
+        int paintPct = (tankCap > 0) ? (int)(paintConsumption.getCurrentLevel() * 100.0f / tankCap) : 0;
+        if (paintPct > 100) paintPct = 100;
+        if (paintPct < 0) paintPct = 0;
+        doc["paintLevelPct"] = paintPct;
+    }
+
     // Anomalia pistoletow (odczyt pod lockiem — modyfikowane z Core 1)
     STATE_LOCK();
     bool snapAnomalyDetected = gunAnomaly.detected;

@@ -39,6 +39,13 @@ void PaintConsumption::subtractUsage(float areaDeltaM2) {
     float used = areaDeltaM2 * consumptionRateL;
     currentLevelL -= used;
     if (currentLevelL < 0) currentLevelL = 0;
+
+    // Okresowy zapis poziomu do NVS (co PAINT_LEVEL_SAVE_MS)
+    unsigned long now = millis();
+    if (now - lastNvsSaveMs >= PAINT_LEVEL_SAVE_MS) {
+        lastNvsSaveMs = now;
+        storage.savePaintLevel(currentLevelL);
+    }
 }
 
 void PaintConsumption::resetLevel() {

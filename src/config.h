@@ -106,6 +106,11 @@
 #define GUN_RELAY_STUCK_CHECK_MS   5000   // Interwał sprawdzania zablokowanych przekaznikow [ms]
 #define GUN_RELAY_MAX_CONT_ON_MS  60000   // Max ciagly czas ON bez cyklowania = podejrzenie zablokowania [ms]
 
+// ============ Farba — ostrzezenie o niskim poziomie ============
+#define LOW_PAINT_WARNING_PCT     15     // Ostrzezenie (zolty) ponizej 15% zbiornika
+#define LOW_PAINT_CRITICAL_PCT     5     // Alarm (czerwony) ponizej 5% zbiornika
+#define PAINT_LEVEL_SAVE_MS    30000UL   // Zapis poziomu farby do NVS co 30s malowania
+
 // ============ Alarmy predkosci — interwaly buzzera ============
 #define LOW_SPEED_BUZZ_REPEAT_MS  3000   // Powtarzaj alarm niskiej predkosci co 3s
 #define OVERSPEED_BUZZ_REPEAT_MS  2000   // Powtarzaj alarm przekroczenia co 2s

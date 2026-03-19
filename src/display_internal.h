@@ -51,6 +51,7 @@
 #define ROW_SPEED_Y         2       // Predkosc (FSB24)
 #define ROW_UNIT_Y          38      // Etykieta "km/h"
 #define ROW_AREA_Y          56      // Powierzchnia (FSB12)
+#define ROW_PAINT_Y         80      // Poziom farby (FS9)
 
 // Dol ekranu
 #define GUN_RECTS_Y         (TFT_SCREEN_H - 49)    // Y prostokatow pistoletow

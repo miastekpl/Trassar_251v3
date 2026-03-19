@@ -80,6 +80,7 @@ private:
     float lastRefuelAmountL = 0;    // Ostatnie tankowanie [L]
     uint32_t refuelCount = 0;       // Licznik tankowan
     float totalRefueledL = 0;       // Lacznie zatankowano [L]
+    unsigned long lastNvsSaveMs = 0; // Timestamp ostatniego zapisu poziomu do NVS
 };
 
 extern PaintConsumption paintConsumption;

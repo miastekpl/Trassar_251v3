@@ -4,6 +4,7 @@
 // ============================================================
 
 #include "display_internal.h"
+#include "paint_consumption.h"
 
 // ============================================================
 //  EKRAN GLOWNY (HOME) - landscape 320x240
@@ -102,6 +103,27 @@ void DisplayManager::drawHomeScreen(const char* patCode, const char* patName,
     tft.setTextPadding(COL_R_PAD);
     tft.drawString(buf, TFT_SCREEN_W - MARGIN_X, ROW_AREA_Y);
     tft.setTextPadding(0);
+
+    // Poziom farby w zbiorniku
+    {
+        float paintLevel = paintConsumption.getCurrentLevel();
+        float tankCap = paintConsumption.getTankCapacity();
+        int paintPct = (tankCap > 0) ? (int)(paintLevel * 100.0f / tankCap) : 0;
+        if (paintPct > 100) paintPct = 100;
+        if (paintPct < 0) paintPct = 0;
+
+        uint16_t paintColor = cText;
+        if (paintPct <= LOW_PAINT_CRITICAL_PCT) paintColor = cError;
+        else if (paintPct <= LOW_PAINT_WARNING_PCT) paintColor = cWarning;
+
+        tft.setFreeFont(FS9);
+        tft.setTextColor(paintColor, cBg);
+        snprintf(buf, sizeof(buf), "%.0f L (%d%%)", paintLevel, paintPct);
+        tft.setTextPadding(COL_R_PAD);
+        tft.drawString(buf, TFT_SCREEN_W - MARGIN_X, ROW_PAINT_Y);
+        tft.setTextPadding(0);
+    }
+
     tft.setTextDatum(TL_DATUM);
 
     // ---- DOL: 6 prostokatow pistoletow ----
@@ -366,6 +388,27 @@ void DisplayManager::drawPaintingScreen(MachineState state, const char* patCode,
     tft.setTextPadding(COL_R_PAD);
     tft.drawString(buf, TFT_SCREEN_W - MARGIN_X, ROW_AREA_Y);
     tft.setTextPadding(0);
+
+    // Poziom farby w zbiorniku
+    {
+        float paintLevel = paintConsumption.getCurrentLevel();
+        float tankCap = paintConsumption.getTankCapacity();
+        int paintPct = (tankCap > 0) ? (int)(paintLevel * 100.0f / tankCap) : 0;
+        if (paintPct > 100) paintPct = 100;
+        if (paintPct < 0) paintPct = 0;
+
+        uint16_t paintColor = cText;
+        if (paintPct <= LOW_PAINT_CRITICAL_PCT) paintColor = cError;
+        else if (paintPct <= LOW_PAINT_WARNING_PCT) paintColor = cWarning;
+
+        tft.setFreeFont(FS9);
+        tft.setTextColor(paintColor, cBg);
+        snprintf(buf, sizeof(buf), "%.0f L (%d%%)", paintLevel, paintPct);
+        tft.setTextPadding(COL_R_PAD);
+        tft.drawString(buf, TFT_SCREEN_W - MARGIN_X, ROW_PAINT_Y);
+        tft.setTextPadding(0);
+    }
+
     tft.setTextDatum(TL_DATUM);
 
     // ---- DOL: 6 prostokatow pistoletow ----

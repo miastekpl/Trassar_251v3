@@ -414,6 +414,7 @@ void PaintingEngine::stop() {
         stats.finalizeCurrentPattern();
         stats.pauseSessionTimer();
         stats.saveLifetime();
+        storage.savePaintLevel(paintConsumption.getCurrentLevel());
         buzzer.play(BUZ_PAINT_STOP);
 
         // Zapis trasy GPS jako plik .gpx na karte SD
