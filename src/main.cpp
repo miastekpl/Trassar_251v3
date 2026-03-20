@@ -466,12 +466,16 @@ void loop() {
         lastDiagPrint = now;
         uint32_t freeHeap = ESP.getFreeHeap();
         uint32_t minFreeHeap = ESP.getMinFreeHeap();
+        // Fix #17: Fragmentacja — uzyj MALLOC_CAP_INTERNAL dla obu wartosci.
+        // Poprzednio MALLOC_CAP_8BIT zawieralo PSRAM (duzy blok) a freeHeap
+        // tylko RAM wewnetrzny, co dawalo -3000% (nonsens).
+        uint32_t largestBlock = heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL);
+        float fragPct = (freeHeap > 0) ? 100.0f * (1.0f - (float)largestBlock / (float)freeHeap) : 0;
         DBG_PRINTF("[DIAG] Heap: %u/%u B (min: %u)  Frag: %.0f%%  WWW-stack: %u  Core: %d\n",
                       freeHeap,
                       ESP.getHeapSize(),
                       minFreeHeap,
-                      100.0f * (1.0f - (float)heap_caps_get_largest_free_block(MALLOC_CAP_8BIT) /
-                                        (float)freeHeap),
+                      fragPct,
                       webServer.getTaskStackHWM(),
                       xPortGetCoreID());
 
@@ -634,15 +638,62 @@ void loop() {
         reportLogger.refreshReportCache();
     }
 
-    // 11b. Fix #15: Monitoring zdrowia Core 0 — restart tasku zamiast calego ESP
+    // 11b. Fix #15+#17: Monitoring zdrowia Core 0 — restart tasku zamiast calego ESP
+    // Fix #17: Backoff przy wielokrotnych restartach — zapobiega nieskonczonej
+    // petli restart->blokada->restart ktora wyczerpuje zasoby i prowadzi
+    // do hardware WDT resetu calego ESP (ekran QR).
     {
         static unsigned long lastCore0Check = 0;
-        if (now - lastCore0Check >= 5000) {  // Sprawdzaj co 5s
+        static unsigned long lastSuccessfulHeartbeat = 0;
+        static bool wasAliveLastCheck = true;
+
+        // Dynamiczny timeout: normalnie 10s, po wielu restartach wydluzamy
+        unsigned long checkInterval = 5000;
+        unsigned long aliveTimeout = 10000;
+        if (webServer.restartCount >= TrassarWebServer::MAX_TASK_RESTARTS) {
+            // Po MAX restartach — zwolnij sprawdzanie, wydluz timeout
+            checkInterval = 30000;
+            aliveTimeout = 25000;
+        } else if (webServer.restartCount >= 2) {
+            // Po 2+ restartach — lekki backoff
+            checkInterval = 10000;
+            aliveTimeout = 15000;
+        }
+
+        if (now - lastCore0Check >= checkInterval) {
             lastCore0Check = now;
-            if (!webServer.isCore0Alive(now, 10000)) {  // 10s timeout
-                DBG_PRINTLN("[WDT-CORE1] Core 0 web task nie odpowiada — restart tasku!");
-                eventLog.log("SAFETY", "Core 0 web task nie odpowiada — restart tasku (bez resetu ESP)");
-                webServer.restartWebTask();
+            bool alive = webServer.isCore0Alive(now, aliveTimeout);
+
+            if (alive) {
+                if (!wasAliveLastCheck && webServer.restartCount > 0) {
+                    // Task odzyskal sprawnosc po restartach
+                    DBG_PRINTF("[WDT-CORE1] Core 0 task odzyskal sprawnosc (po %u restartach)\n",
+                                  webServer.restartCount);
+                    webServer.restartCount = 0;
+                }
+                wasAliveLastCheck = true;
+                lastSuccessfulHeartbeat = now;
+            } else {
+                wasAliveLastCheck = false;
+                if (webServer.restartCount < TrassarWebServer::MAX_TASK_RESTARTS) {
+                    DBG_PRINTF("[WDT-CORE1] Core 0 web task nie odpowiada — restart #%u!\n",
+                                  webServer.restartCount + 1);
+                    eventLog.logf("SAFETY", "Core 0 web task restart #%u (bez resetu ESP)",
+                                  webServer.restartCount + 1);
+                    webServer.restartWebTask();
+                } else {
+                    // Przekroczono limit restartow — nie restartuj wiecej,
+                    // web server jest niedostepny ale ESP dziala stabilnie.
+                    // Loguj rzadko (co 5 min) zeby nie zalewac seriala.
+                    static unsigned long lastMaxRestartLog = 0;
+                    if (now - lastMaxRestartLog >= 300000) {
+                        lastMaxRestartLog = now;
+                        DBG_PRINTF("[WDT-CORE1] Core 0 task niestabilny (%u restartow) — web server wylaczony\n",
+                                      webServer.restartCount);
+                        eventLog.logf("SAFETY", "Core 0 task niestabilny (%u restartow) — web wylaczony",
+                                      webServer.restartCount);
+                    }
+                }
             }
         }
     }

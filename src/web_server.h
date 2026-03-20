@@ -26,6 +26,8 @@ public:
 
     // Fix #15: Software watchdog Core 0 — monitorowane z Core 1
     volatile unsigned long core0AliveMs = 0;  // Timestamp ostatniej aktywnosci tasku
+    volatile uint8_t restartCount = 0;        // Licznik restartow (reset przy udanym heartbeat)
+    static const uint8_t MAX_TASK_RESTARTS = 5;  // Max restartow przed zwiekszeniem timeoutu
     bool isCore0Alive(unsigned long now, unsigned long timeoutMs = 5000) const {
         return (now - core0AliveMs) < timeoutMs;
     }

@@ -108,13 +108,14 @@ void TrassarWebServer::webTaskFunc(void* param) {
     TrassarWebServer* self = static_cast<TrassarWebServer*>(param);
 
     // Poczekaj az setup() zainicjalizuje TWDT, potem dodaj ten task.
+    // Fix #17: Aktualizuj heartbeat PRZED opoznieniem — zapobiega falszywemu
+    // alarmowi z Core 1 jesli task jest restartowany (core0AliveMs moze byc stale).
+    self->core0AliveMs = millis();
     vTaskDelay(pdMS_TO_TICKS(2000));
+    self->core0AliveMs = millis();  // Odswierz po opoznieniu
+
     esp_task_wdt_add(NULL);
     DBG_PRINTLN("[WDT] Core 0 WebServer task dodany do watchdoga (niezalezny monitoring)");
-
-    // Fix #15: Software watchdog Core 0 — Core 1 moze monitorowac
-    // timestamp ostatniej aktywnosci i restartowac task zamiast calego ESP
-    self->core0AliveMs = millis();
 
     for (;;) {
         esp_task_wdt_reset();  // Hardware watchdog reset
@@ -183,7 +184,9 @@ void TrassarWebServer::disconnectAllWsClients() {
     DBG_PRINTLN("[WS] Wszystkie klienty WS rozlaczone (cleanup)");
 }
 
-// Fix #15: Restart tasku Core 0 bez resetu calego ESP
+// Fix #15+#17: Restart tasku Core 0 bez resetu calego ESP
+// Fix #17: Reset stanu WebServer/WebSocket przy restart — zapobiega
+// blokowaniu handleClient() na uszkodzonych polaczeniach TCP po vTaskDelete().
 void TrassarWebServer::restartWebTask() {
     // Fix #16: Rozlacz WS klienty przed usunieciem tasku
     disconnectAllWsClients();
@@ -194,6 +197,29 @@ void TrassarWebServer::restartWebTask() {
         webTaskHandle = nullptr;
         DBG_PRINTLN("[WWW] Task Core 0 usuniety — restart...");
     }
+
+    // Fix #17: Reset serwerow HTTP i WS — vTaskDelete() moglo przerwac
+    // handleClient()/wsServer.loop() w polowie, zostawiajac uszkodzony stan
+    // (martwe TCP sockety, polowicznie przetworzone requesty).
+    // Bez tego nowy task blokuje sie na pierwszym handleClient().
+    server.stop();
+    wsServer.close();
+    delay(50);  // Daj czas na zamkniecie socketow TCP
+    server.begin();
+    wsServer.begin();
+    wsServer.onEvent([](uint8_t num, WStype_t type, uint8_t* payload, size_t length) {
+        if (type == WStype_CONNECTED) {
+            DBG_PRINTF("[WS] Klient #%u polaczony\n", num);
+        } else if (type == WStype_DISCONNECTED) {
+            DBG_PRINTF("[WS] Klient #%u rozlaczony\n", num);
+        }
+    });
+
+    // Fix #17: Reset heartbeat PRZED utworzeniem tasku — zapobiega falszywemu
+    // alarmowi z Core 1 podczas 2s opoznienia startowego nowego tasku
+    core0AliveMs = millis();
+    restartCount++;
+
     // Ponowne uruchomienie tasku
     xTaskCreatePinnedToCore(
         webTaskFunc,
@@ -204,7 +230,7 @@ void TrassarWebServer::restartWebTask() {
         &webTaskHandle,
         0
     );
-    DBG_PRINTLN("[WWW] Task Core 0 zrestartowany");
+    DBG_PRINTF("[WWW] Task Core 0 zrestartowany (restart #%u)\n", restartCount);
 }
 
 uint32_t TrassarWebServer::getTaskStackHWM() const {
