@@ -193,7 +193,8 @@ void MenuSystem::update() {
                 paintEngine.isLowSpeed(),
                 stats.getSessionTimeSec(),
                 stats.getSessionDistance(),
-                paintEngine.getPatternDistance()
+                paintEngine.getPatternDistance(),
+                paintEngine.isWaitingForMovement()
             );
             // Ikona SD warning na ekranie malowania
             if (!reportLogger.isReady()) {

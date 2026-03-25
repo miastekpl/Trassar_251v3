@@ -80,7 +80,7 @@
 // ============ Auto-pauza przy zatrzymaniu (tryb AUTO) ============
 #define AUTO_PAUSE_SPEED_KMH   0.5f   // Prog predkosci do auto-pauzy [km/h]
 #define AUTO_PAUSE_DELAY_MS   1500     // Opoznienie przed auto-pauza [ms]
-#define AUTO_PAUSE_ZERO_PULSE_MS  500  // Szybsza auto-pauza gdy 0 impulsow (awaria/zatrzymanie) [ms]
+#define AUTO_PAUSE_ZERO_PULSE_MS  5000 // Auto-pauza gdy 0 impulsow z enkodera (5s) [ms]
 #define ENCODER_ZERO_SPEED_THRESHOLD  2  // Ile cykli zerowych predkosci = pewne zatrzymanie
 
 // ============ Motogodziny (MTH) ============

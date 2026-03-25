@@ -286,7 +286,8 @@ void DisplayManager::drawPaintingScreen(MachineState state, const char* patCode,
                                         bool overspeed, bool lowSpeed,
                                         unsigned long sessionTimeSec,
                                         float sessionDistM,
-                                        float patternPosM) {
+                                        float patternPosM,
+                                        bool waitingForMovement) {
     char buf[48];
     bool paused = (state == STATE_PAUSED);
 
@@ -325,12 +326,18 @@ void DisplayManager::drawPaintingScreen(MachineState state, const char* patCode,
     }
     tft.setTextPadding(0);
 
-    // Status pracy (Malowanie / Pauza / Zatrzymany)
-    uint16_t sc = stateColor(state);
+    // Status pracy (Malowanie / Pauza / Zatrzymany / Czekam na ruch)
     tft.setFreeFont(FSB9);
-    tft.setTextColor(sc, cBg);
     tft.setTextPadding(COL_L_PAD);
-    tft.drawString(stateStr(state), MARGIN_X, ROW_STATUS_Y);
+    if (waitingForMovement) {
+        bool blinkOn = ((millis() / BLINK_PERIOD_MS) % 2) == 0;
+        tft.setTextColor(blinkOn ? cWarning : cBg, cBg);
+        tft.drawString("Czekam na ruch", MARGIN_X, ROW_STATUS_Y);
+    } else {
+        uint16_t sc = stateColor(state);
+        tft.setTextColor(sc, cBg);
+        tft.drawString(stateStr(state), MARGIN_X, ROW_STATUS_Y);
+    }
     tft.setTextPadding(0);
 
     // Czas sesji

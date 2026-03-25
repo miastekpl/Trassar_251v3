@@ -26,7 +26,8 @@ public:
                             bool overspeed = false, bool lowSpeed = false,
                             unsigned long sessionTimeSec = 0,
                             float sessionDistM = 0,
-                            float patternPosM = -1.0f);
+                            float patternPosM = -1.0f,
+                            bool waitingForMovement = false);
 
     // Menu serwisowe
     void drawServiceMenu(int selectedIndex);

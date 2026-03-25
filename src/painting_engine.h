@@ -57,6 +57,7 @@ public:
 
     // Auto-pauza / auto-resume
     bool isAutoPaused() const { return autoPaused; }
+    bool isWaitingForMovement() const { return autoPauseTracking; }
     void setAutoResumeEnabled(bool en) { autoResumeEnabled = en; }
     bool isAutoResumeEnabled() const { return autoResumeEnabled; }
 
