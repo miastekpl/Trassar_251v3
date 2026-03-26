@@ -447,6 +447,11 @@ void loop() {
         menu.update();
     }
 
+    // Fix #20: WDT reset po renderowaniu TFT — menu.update() moze trwac dlugo
+    // (mutex SD do 150ms + SPI rendering do 200ms). W polaczeniu z innymi operacjami
+    // w petli (I2C, SD, UART) sumaryczny czas moze przekroczyc 3s WDT timeout.
+    esp_task_wdt_reset();
+
     // 7. Serwer WWW - obsluga HTTP na Core 0 (osobny task FreeRTOS)
     // webServer.update() jest teraz puste - klienci obslugiwani autonomicznie
 
@@ -636,6 +641,7 @@ void loop() {
     if (now - lastReportCacheRefresh >= REPORT_CACHE_MS) {
         lastReportCacheRefresh = now;
         reportLogger.refreshReportCache();
+        esp_task_wdt_reset();  // Fix #20: WDT reset po operacjach SD
     }
 
     // 11b. Fix #15+#17: Monitoring zdrowia Core 0 — restart tasku zamiast calego ESP
@@ -680,7 +686,9 @@ void loop() {
                                   webServer.restartCount + 1);
                     eventLog.logf("SAFETY", "Core 0 web task restart #%u (bez resetu ESP)",
                                   webServer.restartCount + 1);
+                    esp_task_wdt_reset();  // Fix #20: WDT reset przed restartWebTask (moze blokowac na server.stop)
                     webServer.restartWebTask();
+                    esp_task_wdt_reset();  // Fix #20: WDT reset po restartWebTask
                 } else {
                     // Przekroczono limit restartow — nie restartuj wiecej,
                     // web server jest niedostepny ale ESP dziala stabilnie.
@@ -701,10 +709,13 @@ void loop() {
     // 12. Okresowy backup NVS na SD (co 30 min) + czyszczenie starych logow
     if (now - lastNvsBackup >= NVS_BACKUP_INTERVAL_MS) {
         lastNvsBackup = now;
+        esp_task_wdt_reset();  // Fix #20: WDT reset przed dlugimi operacjami SD
         if (nvsBackup.backupToSD()) {
             eventLog.log("NVS", "Okresowy backup NVS na SD");
         }
+        esp_task_wdt_reset();  // Fix #20: WDT reset po backup NVS
         eventLog.cleanupOldLogs();
+        esp_task_wdt_reset();  // Fix #20: WDT reset po czyszczeniu logow
     }
 
     delay(1);

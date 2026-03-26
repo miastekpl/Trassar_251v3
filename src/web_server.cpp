@@ -224,9 +224,15 @@ void TrassarWebServer::restartWebTask() {
     // handleClient()/wsServer.loop() w polowie, zostawiajac uszkodzony stan
     // (martwe TCP sockety, polowicznie przetworzone requesty).
     // Bez tego nowy task blokuje sie na pierwszym handleClient().
+    // Fix #20: WDT reset przed/po server.stop() — zamykanie martwych TCP
+    // socketow moze blokowac na sekundy, co w polaczeniu z innymi operacjami
+    // w tej samej iteracji loop() przekracza 3s WDT timeout.
+    esp_task_wdt_reset();
     server.stop();
+    esp_task_wdt_reset();
     wsServer.close();
     delay(50);  // Daj czas na zamkniecie socketow TCP
+    esp_task_wdt_reset();
     server.begin();
     wsServer.begin();
     wsServer.onEvent([](uint8_t num, WStype_t type, uint8_t* payload, size_t length) {

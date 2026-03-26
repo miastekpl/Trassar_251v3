@@ -116,6 +116,9 @@ void ReportLogger::refreshReportCache() {
             count++;
         }
         entry.close();
+        // Fix #20: yield co 10 plikow — wolna karta SD moze
+        // blokowac openNextFile() na dziesiatki ms, co kumuluje sie przy wielu plikach
+        if (count % 10 == 0) yield();
     }
     dir.close();
     SD_UNLOCK();

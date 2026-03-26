@@ -143,6 +143,8 @@ void EventLog::cleanupOldLogs() {
             }
         }
         entry.close();
+        // Fix #20: yield co 10 plikow — zapobiega kumulacji czasu SD przy wolnej karcie
+        if (count % 10 == 0) yield();
         entry = dir.openNextFile();
     }
     dir.close();
