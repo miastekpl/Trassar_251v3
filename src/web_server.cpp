@@ -60,8 +60,10 @@ void TrassarWebServer::begin() {
         if (event == ARDUINO_EVENT_WIFI_AP_STADISCONNECTED) {
             wifiStationConnected = (WiFi.softAPgetStationNum() > 0);
             DBG_PRINTF("[WiFi] Stacja rozlaczona (pozostalo: %d)\n", WiFi.softAPgetStationNum());
-            // Rozlacz WS klienty — ich TCP sockety sa juz martwe
-            disconnectAllWsClients();
+            // Fix #18: Nie wolac disconnect() z kontekstu WiFi tasku —
+            // wsServer nie jest thread-safe. Ustawiamy flage, task Core 0
+            // obsluzy rozlaczenie w swojej petli (wsServer.loop()).
+            wsDisconnectRequested = true;
         } else if (event == ARDUINO_EVENT_WIFI_AP_STACONNECTED) {
             wifiStationConnected = true;
             DBG_PRINTF("[WiFi] Nowa stacja polaczona (lacznie: %d)\n", WiFi.softAPgetStationNum());
@@ -125,6 +127,13 @@ void TrassarWebServer::webTaskFunc(void* param) {
 
         self->server.handleClient();
         self->wsServer.loop();
+
+        // Fix #18: Obsluz rozlaczenie WS w kontekscie tasku Core 0
+        // (wsServer.disconnect() nie jest thread-safe — nie wolac z WiFi callbacka)
+        if (self->wsDisconnectRequested) {
+            self->wsDisconnectRequested = false;
+            self->disconnectAllWsClients();
+        }
 
         // Broadcast statusu do klientow WebSocket co WS_BROADCAST_MS
         // Fix #10: Pomijaj broadcast przy krytycznie niskim heapie

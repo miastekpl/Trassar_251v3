@@ -38,6 +38,7 @@ public:
 
 private:
     volatile bool wifiStationConnected = false;  // Flaga: jest podlaczony klient WiFi
+    volatile bool wsDisconnectRequested = false;  // Fix #18: Flaga rozlaczenia WS (thread-safe)
     WebServer server{WEB_SERVER_PORT};
     WebSocketsServer wsServer{WS_PORT};
     TaskHandle_t webTaskHandle = nullptr;
