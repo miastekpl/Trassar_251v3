@@ -93,7 +93,7 @@ void TrassarWebServer::begin() {
     xTaskCreatePinnedToCore(
         webTaskFunc,        // Funkcja tasku
         "WebServer",        // Nazwa (debug)
-        16384,              // Stack size [bytes] (zwiekszone: WS + GeoJSON)
+        20480,              // Stack size [bytes] (Fix #19: zwiekszone 16K->20K dla JSON+WS)
         this,               // Parametr -> wskaznik na obiekt
         1,                  // Priorytet (1 = niski, nie blokuje krytycznych taskow)
         &webTaskHandle,     // Uchwyt tasku
@@ -125,15 +125,20 @@ void TrassarWebServer::webTaskFunc(void* param) {
         // Fix #15: Aktualizuj timestamp aktywnosci (monitorowane z Core 1)
         self->core0AliveMs = millis();
 
-        self->server.handleClient();
-        self->wsServer.loop();
-
-        // Fix #18: Obsluz rozlaczenie WS w kontekscie tasku Core 0
-        // (wsServer.disconnect() nie jest thread-safe — nie wolac z WiFi callbacka)
+        // Fix #19: Obsluz rozlaczenie WS PRZED handleClient/broadcast —
+        // zapobiega blokowaniu na martwych TCP socketach
         if (self->wsDisconnectRequested) {
             self->wsDisconnectRequested = false;
             self->disconnectAllWsClients();
         }
+
+        self->server.handleClient();
+        self->wsServer.loop();
+
+        // Fix #19: Odswierz heartbeat po handleClient (moze trwac dlugo
+        // przy streamowaniu duzych plikow HTML/CSV)
+        self->core0AliveMs = millis();
+        esp_task_wdt_reset();
 
         // Broadcast statusu do klientow WebSocket co WS_BROADCAST_MS
         // Fix #10: Pomijaj broadcast przy krytycznie niskim heapie
@@ -145,7 +150,15 @@ void TrassarWebServer::webTaskFunc(void* param) {
                 uint32_t freeHeap = ESP.getFreeHeap();
                 if (freeHeap >= LOW_HEAP_CRITICAL_BYTES) {
                     String json = self->getStateJson();
-                    self->wsServer.broadcastTXT(json);
+                    // Fix #19: Wysylaj do kazdego klienta osobno z resetem WDT
+                    // broadcastTXT() blokuje sekwencyjnie na martwych socketach
+                    for (uint8_t i = 0; i < WEBSOCKETS_SERVER_CLIENT_MAX; i++) {
+                        if (self->wsServer.clientIsConnected(i)) {
+                            self->wsServer.sendTXT(i, json);
+                            esp_task_wdt_reset();
+                            self->core0AliveMs = millis();
+                        }
+                    }
                 }
             }
         }
@@ -233,7 +246,7 @@ void TrassarWebServer::restartWebTask() {
     xTaskCreatePinnedToCore(
         webTaskFunc,
         "WebServer",
-        16384,
+        20480,              // Fix #19: zwiekszone 16K->20K
         this,
         1,
         &webTaskHandle,
@@ -638,6 +651,8 @@ void TrassarWebServer::handleHtmlReportDownload() {
 
     uint8_t buf[512];
     while (f.available()) {
+        esp_task_wdt_reset();   // Fix #19: WDT reset w petli streamowania
+        core0AliveMs = millis();
         int r = f.read(buf, sizeof(buf));
         if (r > 0) server.sendContent((const char*)buf, r);
     }
@@ -672,6 +687,8 @@ bool TrassarWebServer::handleStaticFile(const String& path) {
     server.send(200, ct, "");
     uint8_t buf[512];
     while (f.available()) {
+        esp_task_wdt_reset();   // Fix #19: WDT reset w petli streamowania
+        core0AliveMs = millis();
         int r = f.read(buf, sizeof(buf));
         if (r > 0) server.sendContent((const char*)buf, r);
     }
@@ -866,6 +883,11 @@ void TrassarWebServer::handleRoot() {
             int leftoverLen = 0;
 
             while (f.available()) {
+                // Fix #19: Reset WDT w petli streamowania — duzy plik moze
+                // trwac kilka sekund (100+ chunkow x TCP latency)
+                esp_task_wdt_reset();
+                core0AliveMs = millis();
+
                 int r = f.readBytes(buf, BUF_SZ - MARKER_LEN - 1);
                 buf[r] = '\0';
 
@@ -1044,6 +1066,8 @@ void TrassarWebServer::handleReportDownload() {
     // Wyslij plik chunkami po 512 bajtow
     uint8_t buf[512];
     while (f.available()) {
+        esp_task_wdt_reset();   // Fix #19: WDT reset w petli streamowania SD
+        core0AliveMs = millis();
         int r = f.read(buf, sizeof(buf));
         if (r > 0) server.sendContent((const char*)buf, r);
     }
@@ -1108,6 +1132,8 @@ void TrassarWebServer::handleGeoJson() {
 
     bool first = true;
     while (f.available()) {
+        esp_task_wdt_reset();   // Fix #19: WDT reset w petli parsowania GeoJSON
+        core0AliveMs = millis();
         int r = f.readBytesUntil('\n', line, sizeof(line) - 1);
         line[r] = 0;
 
@@ -1242,6 +1268,8 @@ void TrassarWebServer::handleTrackDownload() {
 
     uint8_t buf[512];
     while (f.available()) {
+        esp_task_wdt_reset();   // Fix #19: WDT reset w petli streamowania
+        core0AliveMs = millis();
         int r = f.read(buf, sizeof(buf));
         if (r > 0) server.sendContent((const char*)buf, r);
     }
