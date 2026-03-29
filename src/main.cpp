@@ -38,6 +38,7 @@
 #include <esp_heap_caps.h>
 #include <esp_system.h>
 #include <soc/gpio_struct.h>
+#include <rom/rtc.h>           // rtc_get_reset_reason() — szczegolowy powod restartu per core
 
 // Globalny stan systemu
 SystemState g_state;
@@ -76,9 +77,80 @@ unsigned long lastReportCacheRefresh = 0;
 unsigned long lastNvsBackup = 0;
 const unsigned long DISPLAY_REFRESH_MS = 100;
 const unsigned long DYNAMIC_UPDATE_MS  = 500;
-const unsigned long DIAG_PRINT_MS      = 30000;  // Diagnostyka co 30s
+const unsigned long DIAG_PRINT_MS      = 10000;  // Diagnostyka co 10s (debug — normalnie 30s)
 const unsigned long LIFETIME_SAVE_MS   = 60000;  // Zapis statystyk co 60s
 const unsigned long REPORT_CACHE_MS    = 15000;  // Odswiezanie cache raportow SD co 15s
+
+// ============================================================
+// Diagnostyka restartu — logowanie przyczyny po kazdym starcie
+// ============================================================
+static const char* getResetReasonStr(int reason) {
+    switch (reason) {
+        case 1:  return "POWERON";
+        case 3:  return "SW_RESET (esp_restart)";
+        case 4:  return "OWDT_RESET (legacy WDT)";
+        case 5:  return "DEEPSLEEP";
+        case 6:  return "SDIO_RESET";
+        case 7:  return "TG0WDT_SYS (Timer Group 0 WDT)";
+        case 8:  return "TG1WDT_SYS (Timer Group 1 WDT)";
+        case 9:  return "RTCWDT_SYS (RTC WDT)";
+        case 10: return "INTRUSION_RESET";
+        case 11: return "TGWDT_CPU (Task WDT)";
+        case 12: return "SW_CPU_RESET (software CPU reset)";
+        case 13: return "RTCWDT_CPU (RTC WDT CPU)";
+        case 14: return "EXT_CPU_RESET (external)";
+        case 15: return "RTCWDT_BROWN_OUT (brownout!)";
+        case 16: return "RTCWDT_RTC (RTC WDT reset digital)";
+        default: return "UNKNOWN";
+    }
+}
+
+static void logResetDiagnostics() {
+    esp_reset_reason_t reason = esp_reset_reason();
+    int rtcCore0 = rtc_get_reset_reason(0);
+    int rtcCore1 = rtc_get_reset_reason(1);
+
+    DBG_PRINTLN("---------- DIAGNOSTYKA RESTARTU ----------");
+
+    const char* espReasonStr;
+    switch (reason) {
+        case ESP_RST_POWERON:  espReasonStr = "POWER ON"; break;
+        case ESP_RST_SW:       espReasonStr = "SOFTWARE (esp_restart)"; break;
+        case ESP_RST_PANIC:    espReasonStr = "PANIC (Guru Meditation!)"; break;
+        case ESP_RST_INT_WDT:  espReasonStr = "INTERRUPT WDT"; break;
+        case ESP_RST_TASK_WDT: espReasonStr = "TASK WDT (loop/web zawisl!)"; break;
+        case ESP_RST_WDT:      espReasonStr = "OTHER WDT"; break;
+        case ESP_RST_DEEPSLEEP:espReasonStr = "DEEP SLEEP"; break;
+        case ESP_RST_BROWNOUT: espReasonStr = "BROWNOUT (niskie napiecie!)"; break;
+        case ESP_RST_SDIO:     espReasonStr = "SDIO"; break;
+        default:               espReasonStr = "UNKNOWN"; break;
+    }
+
+    DBG_PRINTF("[RESET] Powod: %s (kod: %d)\n", espReasonStr, (int)reason);
+    DBG_PRINTF("[RESET] Core 0: %s (kod: %d)\n", getResetReasonStr(rtcCore0), rtcCore0);
+    DBG_PRINTF("[RESET] Core 1: %s (kod: %d)\n", getResetReasonStr(rtcCore1), rtcCore1);
+
+    // Krytyczne restarty — dodatkowe ostrzezenie
+    if (reason == ESP_RST_PANIC) {
+        DBG_PRINTLN("[RESET] !!! PANIC — sprawdz backtrace powyzej (addr2line) !!!");
+    } else if (reason == ESP_RST_TASK_WDT) {
+        DBG_PRINTLN("[RESET] !!! TASK WDT — ktoras petla (loop/web) zawisla >3s !!!");
+    } else if (reason == ESP_RST_INT_WDT) {
+        DBG_PRINTLN("[RESET] !!! INTERRUPT WDT — ISR trwal zbyt dlugo !!!");
+    } else if (reason == ESP_RST_BROWNOUT) {
+        DBG_PRINTLN("[RESET] !!! BROWNOUT — sprawdz zasilanie 5V/3.3V !!!");
+    }
+    DBG_PRINTLN("-------------------------------------------");
+
+    // Loguj tez do event_log na SD (jesli dostepna pozniej)
+    // Zapisujemy do zmiennej globalnej, event_log loguje po inicjalizacji SD
+    // (patrz nizej — eventLog.logf po begin())
+}
+
+// Zapamietaj powod restartu do zalogowania na SD po inicjalizacji
+static esp_reset_reason_t g_lastResetReason;
+static int g_lastResetCore0;
+static int g_lastResetCore1;
 
 // ============================================================
 // Fix #11 (KRYTYCZNE): Wylaczenie pistoletow PRZED resetem WDT
@@ -109,6 +181,12 @@ void setup() {
     DBG_PRINTLN("  6 pistoletow, 16 wzorcow, 15 przyciskow, 3 tryby");
     DBG_PRINTLN("==============================================");
     DBG_PRINTLN();
+
+    // DIAGNOSTYKA RESTARTU — pierwsza rzecz po Serial!
+    g_lastResetReason = esp_reset_reason();
+    g_lastResetCore0 = rtc_get_reset_reason(0);
+    g_lastResetCore1 = rtc_get_reset_reason(1);
+    logResetDiagnostics();
 
     // 1. Pamięć trwała (NVS)
     DBG_PRINTLN("[INIT] Pamiec NVS...");
@@ -311,11 +389,21 @@ void setup() {
                   WIFI_AP_SSID, webServer.getIPAddress().c_str());
     DBG_PRINTLN();
 
-    // Log startu systemu
+    // Log startu systemu + powod restartu
     eventLog.logf("SYSTEM", "Start v%s | %s | wzorzec=%s tryb=%s min=%.1f max=%.1f",
                   FW_VERSION, rtcModule.getDateTimeStr(),
                   patternMgr.getCurrent().code,
                   modeNames[(int)g_state.machineMode], minSpd, maxSpd);
+
+    // Loguj powod restartu na SD — kluczowe do diagnostyki niestabilnosci
+    if (g_lastResetReason != ESP_RST_POWERON) {
+        eventLog.logf("RESET", "Powod: %d Core0: %d Core1: %d%s",
+                      (int)g_lastResetReason, g_lastResetCore0, g_lastResetCore1,
+                      g_lastResetReason == ESP_RST_BROWNOUT ? " BROWNOUT!" :
+                      g_lastResetReason == ESP_RST_TASK_WDT ? " TASK_WDT!" :
+                      g_lastResetReason == ESP_RST_PANIC    ? " PANIC!" :
+                      g_lastResetReason == ESP_RST_INT_WDT  ? " INT_WDT!" : "");
+    }
 
     // Czyszczenie starych logow (>7 dni)
     eventLog.cleanupOldLogs();
@@ -327,8 +415,29 @@ void setup() {
     lastNvsBackup = millis();
 }
 
+// Diagnostyka czasu trwania loop() — detekcja dlugich iteracji
+static unsigned long loopStartMs = 0;
+static unsigned long loopMaxMs = 0;
+static unsigned long loopSlowCount = 0;
+
 void loop() {
     unsigned long now = millis();
+
+    // Diagnostyka: czas trwania poprzedniej iteracji loop()
+    if (loopStartMs > 0) {
+        unsigned long loopDuration = now - loopStartMs;
+        if (loopDuration > loopMaxMs) loopMaxMs = loopDuration;
+        if (loopDuration > 500) {
+            loopSlowCount++;
+            LOG_WARN("LOOP", "Dluga iteracja: %lu ms (max: %lu, slow count: %lu)",
+                     loopDuration, loopMaxMs, loopSlowCount);
+        }
+        if (loopDuration > 2000) {
+            LOG_ERROR("LOOP", "KRYTYCZNIE dluga iteracja: %lu ms — ryzyko WDT reset!",
+                      loopDuration);
+        }
+    }
+    loopStartMs = now;
 
     // Watchdog reset - jesli loop() sie zawiesi, ESP zresetuje sie po 3s
     esp_task_wdt_reset();
@@ -476,13 +585,20 @@ void loop() {
         // tylko RAM wewnetrzny, co dawalo -3000% (nonsens).
         uint32_t largestBlock = heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL);
         float fragPct = (freeHeap > 0) ? 100.0f * (1.0f - (float)largestBlock / (float)freeHeap) : 0;
-        DBG_PRINTF("[DIAG] Heap: %u/%u B (min: %u)  Frag: %.0f%%  WWW-stack: %u  Core: %d\n",
+        uint32_t psramFree = ESP.getFreePsram();
+        uint32_t upSec = now / 1000;
+        DBG_PRINTF("[DIAG] Up:%lum%lus  Heap:%u/%uB (min:%u) Frag:%.0f%%  PSRAM:%uB  WWW-stk:%u  C1-stk:%u  LoopMax:%lums Slow:%lu\n",
+                      upSec / 60, upSec % 60,
                       freeHeap,
                       ESP.getHeapSize(),
                       minFreeHeap,
                       fragPct,
+                      psramFree,
                       webServer.getTaskStackHWM(),
-                      xPortGetCoreID());
+                      uxTaskGetStackHighWaterMark(NULL),
+                      loopMaxMs,
+                      loopSlowCount);
+        loopMaxMs = 0;  // Reset max dla nastepnego okresu
 
         // Fix #10: Automatyczne dzialanie przy niskim heapie
         if (freeHeap < LOW_HEAP_CRITICAL_BYTES) {
