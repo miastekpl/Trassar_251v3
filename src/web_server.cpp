@@ -31,19 +31,30 @@ TrassarWebServer webServer;
 // ============================================================
 void TrassarWebServer::begin() {
     // Mount LittleFS (web UI assets)
+    // Fix #21: Przy uszkodzonym FS formatuj i remontuj — zapobiega blokowaniu
+    // na skorumpowanych operacjach plikowych w handleRoot/handleStaticFile
     if (LittleFS.begin(false)) {
         littleFsReady = true;
         DBG_PRINTLN("[LittleFS] Zamontowano pomyslnie");
         // Sprawdz czy index.html istnieje
         if (LittleFS.exists("/index.html")) {
-            DBG_PRINTF("[LittleFS] index.html: %u bajtow\n",
-                          (unsigned)LittleFS.open("/index.html").size());
+            File f = LittleFS.open("/index.html", "r");
+            if (f) {
+                DBG_PRINTF("[LittleFS] index.html: %u bajtow\n", (unsigned)f.size());
+                f.close();
+            }
         } else {
             DBG_PRINTLN("[LittleFS] UWAGA: brak /index.html — fallback PROGMEM");
             littleFsReady = false;
         }
     } else {
-        DBG_PRINTLN("[LittleFS] Blad montowania — fallback PROGMEM");
+        DBG_PRINTLN("[LittleFS] Blad montowania — proba formatowania...");
+        if (LittleFS.begin(true)) {  // true = formatuj przy bledzie
+            DBG_PRINTLN("[LittleFS] Sformatowano i zamontowano (pusty FS)");
+            // Pusty FS — nie ma index.html, uzywamy PROGMEM
+        } else {
+            DBG_PRINTLN("[LittleFS] Formatowanie nieudane — FS wylaczony");
+        }
         littleFsReady = false;
     }
 
@@ -125,6 +136,12 @@ void TrassarWebServer::webTaskFunc(void* param) {
         // Fix #15: Aktualizuj timestamp aktywnosci (monitorowane z Core 1)
         self->core0AliveMs = millis();
 
+        // Fix #21: Diagnostyka — mierzymy czas kazdej sekcji petli.
+        // Jesli jakas sekcja trwa >1s, logujemy ostrzezenie zeby zidentyfikowac
+        // zrodlo zawieszenia (ktore prowadzi do WDT restart tasku).
+        unsigned long _secStart = millis();
+        unsigned long _secEnd;
+
         // Fix #19: Obsluz rozlaczenie WS PRZED handleClient/broadcast —
         // zapobiega blokowaniu na martwych TCP socketach
         if (self->wsDisconnectRequested) {
@@ -133,7 +150,17 @@ void TrassarWebServer::webTaskFunc(void* param) {
         }
 
         self->server.handleClient();
+        _secEnd = millis();
+        if (_secEnd - _secStart > 1000) {
+            DBG_PRINTF("[WDT-DIAG] handleClient() zablokowany %lu ms!\n", _secEnd - _secStart);
+        }
+
+        _secStart = millis();
         self->wsServer.loop();
+        _secEnd = millis();
+        if (_secEnd - _secStart > 1000) {
+            DBG_PRINTF("[WDT-DIAG] wsServer.loop() zablokowany %lu ms!\n", _secEnd - _secStart);
+        }
 
         // Fix #19: Odswierz heartbeat po handleClient (moze trwac dlugo
         // przy streamowaniu duzych plikow HTML/CSV)
@@ -149,12 +176,22 @@ void TrassarWebServer::webTaskFunc(void* param) {
             if (self->wifiStationConnected && self->wsServer.connectedClients() > 0) {
                 uint32_t freeHeap = ESP.getFreeHeap();
                 if (freeHeap >= LOW_HEAP_CRITICAL_BYTES) {
+                    _secStart = millis();
                     String json = self->getStateJson();
+                    _secEnd = millis();
+                    if (_secEnd - _secStart > 500) {
+                        DBG_PRINTF("[WDT-DIAG] getStateJson() trwalo %lu ms!\n", _secEnd - _secStart);
+                    }
                     // Fix #19: Wysylaj do kazdego klienta osobno z resetem WDT
                     // broadcastTXT() blokuje sekwencyjnie na martwych socketach
                     for (uint8_t i = 0; i < WEBSOCKETS_SERVER_CLIENT_MAX; i++) {
                         if (self->wsServer.clientIsConnected(i)) {
+                            _secStart = millis();
                             self->wsServer.sendTXT(i, json);
+                            _secEnd = millis();
+                            if (_secEnd - _secStart > 500) {
+                                DBG_PRINTF("[WDT-DIAG] sendTXT(#%u) zablokowany %lu ms!\n", i, _secEnd - _secStart);
+                            }
                             esp_task_wdt_reset();
                             self->core0AliveMs = millis();
                         }
@@ -201,6 +238,9 @@ void TrassarWebServer::update() {
 #endif
 void TrassarWebServer::disconnectAllWsClients() {
     for (uint8_t i = 0; i < WEBSOCKETS_SERVER_CLIENT_MAX; i++) {
+        // Fix #21: Reset WDT miedzy disconnect() — kazdy moze blokowac na TCP close
+        esp_task_wdt_reset();
+        core0AliveMs = millis();
         wsServer.disconnect(i);
     }
     DBG_PRINTLN("[WS] Wszystkie klienty WS rozlaczone (cleanup)");
@@ -224,17 +264,20 @@ void TrassarWebServer::restartWebTask() {
     // handleClient()/wsServer.loop() w polowie, zostawiajac uszkodzony stan
     // (martwe TCP sockety, polowicznie przetworzone requesty).
     // Bez tego nowy task blokuje sie na pierwszym handleClient().
-    // Fix #20: WDT reset przed/po server.stop() — zamykanie martwych TCP
-    // socketow moze blokowac na sekundy, co w polaczeniu z innymi operacjami
-    // w tej samej iteracji loop() przekracza 3s WDT timeout.
+    // Fix #20+#21: WDT reset przed/po kazdej operacji — kazda moze blokowac
+    unsigned long _rstStart = millis();
     esp_task_wdt_reset();
     server.stop();
+    unsigned long _rstAfterStop = millis();
     esp_task_wdt_reset();
     wsServer.close();
+    unsigned long _rstAfterClose = millis();
     delay(50);  // Daj czas na zamkniecie socketow TCP
     esp_task_wdt_reset();
     server.begin();
     wsServer.begin();
+    DBG_PRINTF("[WWW] Restart: stop=%lums close=%lums\n",
+               _rstAfterStop - _rstStart, _rstAfterClose - _rstAfterStop);
     wsServer.onEvent([](uint8_t num, WStype_t type, uint8_t* payload, size_t length) {
         if (type == WStype_CONNECTED) {
             DBG_PRINTF("[WS] Klient #%u polaczony\n", num);
@@ -765,16 +808,27 @@ String TrassarWebServer::getStateJson() {
     for (int s = 0; s < NUM_CUSTOM_SLOTS; s++) slotsArr.add(patternMgr.isSlotValid(s));
 
     // Wzorzec wlasny — konfiguracja pistoletow do podgladu w web UI
+    // Fix #21: Cache loadSlot — NVS read co 500ms (broadcast WS) jest zbyt kosztowny.
+    // Odczytujemy z NVS max co 5s, miedzy tym uzywamy zbuforowanej wartosci.
     if (patternMgr.isCustomValid()) {
-        CustomPatternCfg cpCfg = patternMgr.loadSlot(patternMgr.getActiveSlot());
+        static CustomPatternCfg cachedCpCfg;
+        static unsigned long lastSlotLoadMs = 0;
+        static int8_t lastSlot = -1;
+        int8_t curSlot = patternMgr.getActiveSlot();
+        unsigned long nowSlot = millis();
+        if (curSlot != lastSlot || (nowSlot - lastSlotLoadMs) >= 5000) {
+            cachedCpCfg = patternMgr.loadSlot(curSlot);
+            lastSlotLoadMs = nowSlot;
+            lastSlot = curSlot;
+        }
         JsonArray cpArr = doc["customGuns"].to<JsonArray>();
         for (int i = 0; i < NUM_GUNS; i++) {
-            if (cpCfg.gunModes[i] == GUN_OFF) continue;
+            if (cachedCpCfg.gunModes[i] == GUN_OFF) continue;
             JsonArray g = cpArr.add<JsonArray>();
             g.add(String("P") + String(i + 1));
             g.add((int)(GUN_WIDTHS_M[i] * 100.0f));
-            g.add(cpCfg.gunModes[i] == GUN_CONTINUOUS ? 0 : cpCfg.lineLen[i]);
-            g.add(cpCfg.gunModes[i] == GUN_CONTINUOUS ? 0 : cpCfg.gapLen[i]);
+            g.add(cachedCpCfg.gunModes[i] == GUN_CONTINUOUS ? 0 : cachedCpCfg.lineLen[i]);
+            g.add(cachedCpCfg.gunModes[i] == GUN_CONTINUOUS ? 0 : cachedCpCfg.gapLen[i]);
         }
     }
 
