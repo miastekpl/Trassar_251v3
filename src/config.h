@@ -297,6 +297,7 @@ struct SystemState {
     bool gpsBufferWarningShown = false; // Flaga ostrzezenia GPS overflow (raz na sesje)
 
     uint8_t pendingWebEvent = 0;     // Zdarzenie z panelu WWW (Core 0 -> Core 1)
+    bool qrDismissed = false;        // Flaga zamkniecia ekranu QR z panelu WWW
 };
 
 // ============ Pre-alokowany bufor SD (wspoldzielony) ============

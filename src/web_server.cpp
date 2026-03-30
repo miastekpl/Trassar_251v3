@@ -376,11 +376,16 @@ void TrassarWebServer::handleControl() {
     // Atomowy snapshot stanu (wymagany do decyzji o akcji)
     STATE_LOCK();
     MachineState snapState = g_state.machineState;
+    ScreenID snapScreen = g_state.currentScreen;
     STATE_UNLOCK();
 
     if (action == "start") {
-        // start/resume/pause/stop maja wewnetrzne locki i sprawdzaja stan ponownie
-        if (snapState == STATE_PAUSED) {
+        // Jesli ekran QR startowy jest aktywny — zamknij go zamiast startowac malowanie
+        if (snapScreen == SCREEN_POST) {
+            STATE_LOCK();
+            g_state.qrDismissed = true;
+            STATE_UNLOCK();
+        } else if (snapState == STATE_PAUSED) {
             paintEngine.resume();
         } else if (snapState == STATE_IDLE || snapState == STATE_STOPPED) {
             paintEngine.start();

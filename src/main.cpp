@@ -333,11 +333,14 @@ void setup() {
 
     // ======== QR code WiFi — skanuj smartfonem ========
     {
+        // Ustaw ekran POST aby web handler wiedzial ze jestesmy na QR
+        g_state.currentScreen = SCREEN_POST;
+
         display.drawWifiQRScreen(WIFI_AP_SSID,
                                  webServer.getPassword(),
                                  webServer.getIPAddress().c_str());
 
-        // Czekaj na START (bez timeout — operator musi potwierdzic)
+        // Czekaj na START — fizyczny przycisk lub webbutton (operator musi potwierdzic)
         bool qrWait = true;
         while (qrWait) {
             esp_task_wdt_reset();
@@ -346,6 +349,13 @@ void setup() {
             if (qe == EVT_START_SHORT || qe == EVT_START_LONG) {
                 qrWait = false;
             }
+            // Sprawdz flage z panelu WWW (Core 0)
+            STATE_LOCK();
+            if (g_state.qrDismissed) {
+                g_state.qrDismissed = false;
+                qrWait = false;
+            }
+            STATE_UNLOCK();
             delay(10);
         }
         buzzer.beep(1500, 80);
