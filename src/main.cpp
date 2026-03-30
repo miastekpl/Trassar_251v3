@@ -770,24 +770,22 @@ void loop() {
         esp_task_wdt_reset();  // Fix #20: WDT reset po operacjach SD
     }
 
-    // 11b. Fix #15+#17: Monitoring zdrowia Core 0 — restart tasku zamiast calego ESP
-    // Fix #17: Backoff przy wielokrotnych restartach — zapobiega nieskonczonej
-    // petli restart->blokada->restart ktora wyczerpuje zasoby i prowadzi
-    // do hardware WDT resetu calego ESP (ekran QR).
+    // 11b. Fix #22: Monitoring zdrowia Core 0 — bezpieczna naprawa zamiast vTaskDelete
+    // Poprzedni mechanizm (vTaskDelete z Core 1 + reinit) powodowal Guru Meditation
+    // (LoadProhibited) bo WebServer nie jest thread-safe.
+    // Nowy mechanizm:
+    //   1. Pierwsze zawieszenie: ustaw flage selfRepair (task sam sie naprawi)
+    //   2. Kolejne zawieszenia: task nie reaguje na flage = jest naprawde zawieszony
+    //   3. Po MAX_HANGS: kontrolowany ESP.restart() (bezpieczniejszy niz crash)
     {
         static unsigned long lastCore0Check = 0;
         static unsigned long lastSuccessfulHeartbeat = 0;
         static bool wasAliveLastCheck = true;
 
-        // Dynamiczny timeout: normalnie 10s, po wielu restartach wydluzamy
+        // Dynamiczny timeout: normalnie 10s, po wielokrotnych zawieszeniach wydluzamy
         unsigned long checkInterval = 5000;
         unsigned long aliveTimeout = 10000;
-        if (webServer.restartCount >= TrassarWebServer::MAX_TASK_RESTARTS) {
-            // Po MAX restartach — zwolnij sprawdzanie, wydluz timeout
-            checkInterval = 30000;
-            aliveTimeout = 25000;
-        } else if (webServer.restartCount >= 2) {
-            // Po 2+ restartach — lekki backoff
+        if (webServer.hangCount >= 2) {
             checkInterval = 10000;
             aliveTimeout = 15000;
         }
@@ -797,35 +795,45 @@ void loop() {
             bool alive = webServer.isCore0Alive(now, aliveTimeout);
 
             if (alive) {
-                if (!wasAliveLastCheck && webServer.restartCount > 0) {
-                    // Task odzyskal sprawnosc po restartach
-                    DBG_PRINTF("[WDT-CORE1] Core 0 task odzyskal sprawnosc (po %u restartach)\n",
-                                  webServer.restartCount);
-                    webServer.restartCount = 0;
+                if (!wasAliveLastCheck && webServer.hangCount > 0) {
+                    DBG_PRINTF("[WDT-CORE1] Core 0 task odzyskal sprawnosc (po %u zawieszeniach)\n",
+                                  webServer.hangCount);
+                    webServer.hangCount = 0;
                 }
                 wasAliveLastCheck = true;
                 lastSuccessfulHeartbeat = now;
             } else {
                 wasAliveLastCheck = false;
-                if (webServer.restartCount < TrassarWebServer::MAX_TASK_RESTARTS) {
-                    DBG_PRINTF("[WDT-CORE1] Core 0 web task nie odpowiada — restart #%u!\n",
-                                  webServer.restartCount + 1);
-                    eventLog.logf("SAFETY", "Core 0 web task restart #%u (bez resetu ESP)",
-                                  webServer.restartCount + 1);
-                    esp_task_wdt_reset();  // Fix #20: WDT reset przed restartWebTask (moze blokowac na server.stop)
-                    webServer.restartWebTask();
-                    esp_task_wdt_reset();  // Fix #20: WDT reset po restartWebTask
-                } else {
-                    // Przekroczono limit restartow — nie restartuj wiecej,
-                    // web server jest niedostepny ale ESP dziala stabilnie.
-                    // Loguj rzadko (co 5 min) zeby nie zalewac seriala.
-                    static unsigned long lastMaxRestartLog = 0;
-                    if (now - lastMaxRestartLog >= 300000) {
-                        lastMaxRestartLog = now;
-                        DBG_PRINTF("[WDT-CORE1] Core 0 task niestabilny (%u restartow) — web server wylaczony\n",
-                                      webServer.restartCount);
-                        eventLog.logf("SAFETY", "Core 0 task niestabilny (%u restartow) — web wylaczony",
-                                      webServer.restartCount);
+                webServer.hangCount++;
+
+                if (webServer.hangCount <= 2) {
+                    // Faza 1-2: Popros task o samonaprawe (bezpieczne, z Core 0)
+                    DBG_PRINTF("[WDT-CORE1] Core 0 nie odpowiada — selfRepair #%u\n",
+                                  webServer.hangCount);
+                    eventLog.logf("SAFETY", "Core 0 hang #%u — selfRepair requested",
+                                  webServer.hangCount);
+                    webServer.selfRepairRequested = true;
+                } else if (webServer.hangCount >= TrassarWebServer::MAX_HANGS_BEFORE_REBOOT) {
+                    // Faza 3: Task naprawde zawieszony, selfRepair nie pomoglo.
+                    // Kontrolowany restart ESP — bezpieczniejszy niz niekontrolowany
+                    // Guru Meditation crash ktory wynikal z vTaskDelete().
+                    STATE_LOCK();
+                    MachineState snapState = g_state.machineState;
+                    STATE_UNLOCK();
+
+                    if (snapState == STATE_PAINTING) {
+                        // Podczas malowania: NIE restartuj ESP — wylacz pistolety i kontynuuj
+                        guns.allOff();
+                        DBG_PRINTLN("[WDT-CORE1] Core 0 zawieszony podczas malowania — guns OFF, web wylaczony");
+                        eventLog.logf("SAFETY", "Core 0 zawieszony (malowanie) — guns OFF, web wylaczony");
+                        // Ustaw wysoki hangCount zeby nie wchodzic tu ponownie
+                        webServer.hangCount = 255;
+                    } else {
+                        DBG_PRINTLN("[WDT-CORE1] Core 0 zawieszony — kontrolowany ESP.restart()");
+                        eventLog.logf("SAFETY", "Core 0 hang #%u — ESP.restart()",
+                                      webServer.hangCount);
+                        delay(100);  // Daj czas na zapis logu
+                        ESP.restart();
                     }
                 }
             }

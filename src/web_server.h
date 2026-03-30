@@ -26,15 +26,17 @@ public:
 
     // Fix #15: Software watchdog Core 0 — monitorowane z Core 1
     volatile unsigned long core0AliveMs = 0;  // Timestamp ostatniej aktywnosci tasku
-    volatile uint8_t restartCount = 0;        // Licznik restartow (reset przy udanym heartbeat)
-    static const uint8_t MAX_TASK_RESTARTS = 5;  // Max restartow przed zwiekszeniem timeoutu
+    volatile uint8_t hangCount = 0;           // Licznik wykrytych zawieszen
+    static const uint8_t MAX_HANGS_BEFORE_REBOOT = 3;  // Max zawieszen przed ESP.restart()
     bool isCore0Alive(unsigned long now, unsigned long timeoutMs = 5000) const {
         return (now - core0AliveMs) < timeoutMs;
     }
-    void restartWebTask();  // Restart tasku bez resetu calego ESP
 
     // Fix #16: Rozlaczenie WiFi nie moze powodowac restartu tasku
     void disconnectAllWsClients();  // Rozlacz wszystkie WS klienty (przy WiFi disconnect)
+
+    // Fix #22: Flaga samonaprawy — task sam reinicjalizuje serwery z Core 0
+    volatile bool selfRepairRequested = false;
 
 private:
     volatile bool wifiStationConnected = false;  // Flaga: jest podlaczony klient WiFi
@@ -47,6 +49,7 @@ private:
     char wifiPassword[16] = {};  // Haslo WiFi generowane z MAC
 
     void generatePassword();
+    void selfRepairServers();  // Fix #22: reinicjalizacja z Core 0
 
     void setupRoutes();
     void handleRoot();

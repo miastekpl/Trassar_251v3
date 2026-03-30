@@ -142,6 +142,13 @@ void TrassarWebServer::webTaskFunc(void* param) {
         unsigned long _secStart = millis();
         unsigned long _secEnd;
 
+        // Fix #22: Samonaprawa zażądana z Core 1 — reinicjalizacja serwerow
+        // z wewnatrz Core 0 (thread-safe, w przeciwienstwie do vTaskDelete)
+        if (self->selfRepairRequested) {
+            self->selfRepairRequested = false;
+            self->selfRepairServers();
+        }
+
         // Fix #19: Obsluz rozlaczenie WS PRZED handleClient/broadcast —
         // zapobiega blokowaniu na martwych TCP socketach
         if (self->wsDisconnectRequested) {
@@ -246,38 +253,29 @@ void TrassarWebServer::disconnectAllWsClients() {
     DBG_PRINTLN("[WS] Wszystkie klienty WS rozlaczone (cleanup)");
 }
 
-// Fix #15+#17: Restart tasku Core 0 bez resetu calego ESP
-// Fix #17: Reset stanu WebServer/WebSocket przy restart — zapobiega
-// blokowaniu handleClient() na uszkodzonych polaczeniach TCP po vTaskDelete().
-void TrassarWebServer::restartWebTask() {
-    // Fix #16: Rozlacz WS klienty przed usunieciem tasku
-    disconnectAllWsClients();
-
-    if (webTaskHandle) {
-        esp_task_wdt_delete(webTaskHandle);
-        vTaskDelete(webTaskHandle);
-        webTaskHandle = nullptr;
-        DBG_PRINTLN("[WWW] Task Core 0 usuniety — restart...");
-    }
-
-    // Fix #17: Reset serwerow HTTP i WS — vTaskDelete() moglo przerwac
-    // handleClient()/wsServer.loop() w polowie, zostawiajac uszkodzony stan
-    // (martwe TCP sockety, polowicznie przetworzone requesty).
-    // Bez tego nowy task blokuje sie na pierwszym handleClient().
-    // Fix #20+#21: WDT reset przed/po kazdej operacji — kazda moze blokowac
-    unsigned long _rstStart = millis();
+// Fix #22: Samonaprawa serwerow HTTP/WS — wykonywana Z WEWNATRZ tasku Core 0.
+// Poprzedni mechanizm (vTaskDelete z Core 1 + reinit) powodowal crash
+// LoadProhibited bo WebServer/WebSocketsServer nie sa thread-safe,
+// a ich wewnetrzny stan TCP byl korumpowany przez operacje z innego rdzenia.
+void TrassarWebServer::selfRepairServers() {
+    DBG_PRINTLN("[WWW] Self-repair: reinicjalizacja serwerow z Core 0...");
+    unsigned long _start = millis();
     esp_task_wdt_reset();
+
+    // Rozlacz WS klienty (martwe TCP sockety)
+    disconnectAllWsClients();
+    esp_task_wdt_reset();
+
+    // Stop + begin z tego samego Core co handleClient() — bezpieczne
     server.stop();
-    unsigned long _rstAfterStop = millis();
     esp_task_wdt_reset();
     wsServer.close();
-    unsigned long _rstAfterClose = millis();
-    delay(50);  // Daj czas na zamkniecie socketow TCP
     esp_task_wdt_reset();
+    vTaskDelay(pdMS_TO_TICKS(100));  // Daj czas na zamkniecie socketow TCP
+    esp_task_wdt_reset();
+
     server.begin();
     wsServer.begin();
-    DBG_PRINTF("[WWW] Restart: stop=%lums close=%lums\n",
-               _rstAfterStop - _rstStart, _rstAfterClose - _rstAfterStop);
     wsServer.onEvent([](uint8_t num, WStype_t type, uint8_t* payload, size_t length) {
         if (type == WStype_CONNECTED) {
             DBG_PRINTF("[WS] Klient #%u polaczony\n", num);
@@ -286,22 +284,8 @@ void TrassarWebServer::restartWebTask() {
         }
     });
 
-    // Fix #17: Reset heartbeat PRZED utworzeniem tasku — zapobiega falszywemu
-    // alarmowi z Core 1 podczas 2s opoznienia startowego nowego tasku
     core0AliveMs = millis();
-    restartCount++;
-
-    // Ponowne uruchomienie tasku
-    xTaskCreatePinnedToCore(
-        webTaskFunc,
-        "WebServer",
-        20480,              // Fix #19: zwiekszone 16K->20K
-        this,
-        1,
-        &webTaskHandle,
-        0
-    );
-    DBG_PRINTF("[WWW] Task Core 0 zrestartowany (restart #%u)\n", restartCount);
+    DBG_PRINTF("[WWW] Self-repair ukonczony w %lu ms\n", millis() - _start);
 }
 
 uint32_t TrassarWebServer::getTaskStackHWM() const {
