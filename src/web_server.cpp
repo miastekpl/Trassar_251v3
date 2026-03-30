@@ -85,20 +85,13 @@ void TrassarWebServer::begin() {
     DBG_PRINT("[WiFi] AP uruchomiony. IP: ");
     DBG_PRINTLN(WiFi.softAPIP());
 
+    // Fix #23: Routy rejestrujemy tu (tylko ustawia tablice callback'ow w pamieci,
+    // nie tworzy socketow TCP — bezpieczne z dowolnego rdzenia).
+    // server.begin() i wsServer.begin() przeniesione do webTaskFunc() —
+    // musza byc wywolane z Core 0 (ten sam rdzen co handleClient/loop).
+    // Poprzednio begin() z Core 1 powodowalo blokowanie handleClient()
+    // na Core 0, co wyzwalalo falszywy alarm WDT "Core 0 nie odpowiada".
     setupRoutes();
-    server.begin();
-    DBG_PRINTLN("[WWW] Serwer HTTP uruchomiony na porcie 80");
-
-    // WebSocket server na porcie 81 (push status updates)
-    wsServer.begin();
-    wsServer.onEvent([](uint8_t num, WStype_t type, uint8_t* payload, size_t length) {
-        if (type == WStype_CONNECTED) {
-            DBG_PRINTF("[WS] Klient #%u polaczony\n", num);
-        } else if (type == WStype_DISCONNECTED) {
-            DBG_PRINTF("[WS] Klient #%u rozlaczony\n", num);
-        }
-    });
-    DBG_PRINTF("[WWW] WebSocket na porcie %d\n", WS_PORT);
 
     // Uruchom task WWW na Core 0 (Arduino loop() dziala na Core 1)
     xTaskCreatePinnedToCore(
@@ -120,12 +113,31 @@ void TrassarWebServer::begin() {
 void TrassarWebServer::webTaskFunc(void* param) {
     TrassarWebServer* self = static_cast<TrassarWebServer*>(param);
 
-    // Poczekaj az setup() zainicjalizuje TWDT, potem dodaj ten task.
-    // Fix #17: Aktualizuj heartbeat PRZED opoznieniem — zapobiega falszywemu
-    // alarmowi z Core 1 jesli task jest restartowany (core0AliveMs moze byc stale).
+    // Fix #23: Inicjalizacja serwerow HTTP/WS Z WEWNATRZ Core 0.
+    // Poprzednio begin() bylo w begin() na Core 1, a handleClient()/loop()
+    // na Core 0 — to powodowalo blokowanie pierwszego handleClient()
+    // i falszywy alarm WDT "Core 0 nie odpowiada" ~10s po starcie.
+    // selfRepairServers() juz to robilO poprawnie (begin z Core 0) —
+    // teraz pierwsza inicjalizacja tez jest na wlasciwym rdzeniu.
     self->core0AliveMs = millis();
-    vTaskDelay(pdMS_TO_TICKS(2000));
-    self->core0AliveMs = millis();  // Odswierz po opoznieniu
+
+    self->server.begin();
+    DBG_PRINTLN("[WWW] Serwer HTTP uruchomiony na porcie 80 (Core 0)");
+
+    self->wsServer.begin();
+    self->wsServer.onEvent([](uint8_t num, WStype_t type, uint8_t* payload, size_t length) {
+        if (type == WStype_CONNECTED) {
+            DBG_PRINTF("[WS] Klient #%u polaczony\n", num);
+        } else if (type == WStype_DISCONNECTED) {
+            DBG_PRINTF("[WS] Klient #%u rozlaczony\n", num);
+        }
+    });
+    DBG_PRINTF("[WWW] WebSocket na porcie %d (Core 0)\n", WS_PORT);
+
+    self->core0AliveMs = millis();
+
+    // Poczekaj az setup() zainicjalizuje TWDT, potem dodaj ten task.
+    vTaskDelay(pdMS_TO_TICKS(500));  // Krotkie opoznienie — serwery juz dzialaja
 
     esp_task_wdt_add(NULL);
     DBG_PRINTLN("[WDT] Core 0 WebServer task dodany do watchdoga (niezalezny monitoring)");
