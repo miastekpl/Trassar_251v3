@@ -265,11 +265,16 @@ void PaintingEngine::update() {
 
 void PaintingEngine::start(float offsetDist) {
     // Atomowe check-and-set: sprawdzenie + zmiana stanu w jednym locku
+    // Fix #24: Ustaw lastGunUpdateMs PRZED zmiana stanu na PAINTING.
+    // Poprzednio Core 0 mogl odczytac STATE_PAINTING zanim lastGunUpdateMs
+    // zostal zaktualizowany — powodowalo to falszywy keepalive alarm
+    // z wartoscia ~4294967291 ms (unsigned underflow).
     STATE_LOCK();
     bool canStart = (g_state.machineState == STATE_IDLE ||
                      g_state.machineState == STATE_STOPPED);
     MachineMode snapMode = g_state.machineMode;
     if (canStart) {
+        lastGunUpdateMs = millis();
         g_state.machineState = STATE_PAINTING;
         g_state.currentScreen = SCREEN_PAINTING;
         g_state.displayNeedsUpdate = true;
@@ -294,7 +299,6 @@ void PaintingEngine::start(float offsetDist) {
         overspeedGunsOff = false;
 
         stats.startSessionTimer();
-        lastGunUpdateMs = millis();
         buzzer.play(BUZ_PAINT_START);
         gpsTrack.startRecording();
 
@@ -374,15 +378,18 @@ void PaintingEngine::pause() {
 }
 
 void PaintingEngine::resume() {
+    // Fix #24: lastGunUpdateMs PRZED STATE_PAINTING (jak w start())
     STATE_LOCK();
     bool canResume = (g_state.machineState == STATE_PAUSED);
-    if (canResume) g_state.machineState = STATE_PAINTING;
+    if (canResume) {
+        lastGunUpdateMs = millis();
+        g_state.machineState = STATE_PAINTING;
+    }
     STATE_UNLOCK();
 
     if (canResume) {
         autoPaused = false;
         autoPauseTracking = false;
-        lastGunUpdateMs = millis();
         stats.resumeSessionTimer();
         buzzer.play(BUZ_PAINT_START);
         STATE_LOCK();

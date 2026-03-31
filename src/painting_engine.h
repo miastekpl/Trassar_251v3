@@ -94,8 +94,8 @@ private:
     bool  resumeSpeedTracking = false;     // Czy liczymy czas do auto-resume
     static const unsigned long AUTO_RESUME_DEBOUNCE_MS = 500; // Min czas utrzymania predkosci
 
-    // Gun keepalive
-    unsigned long lastGunUpdateMs = 0;
+    // Gun keepalive (volatile — odczytywane z Core 0 przez getLastGunUpdateMs())
+    volatile unsigned long lastGunUpdateMs = 0;
 
     // Auto-resume cooldown (zapobiega oscylacji pauza/resume)
     unsigned long lastAutoResumeMs = 0;    // Timestamp ostatniego auto-resume

@@ -228,16 +228,20 @@ void TrassarWebServer::webTaskFunc(void* param) {
             MachineState snapState = g_state.machineState;
             STATE_UNLOCK();
             if (snapState == STATE_PAINTING) {
+                // Fix #24: Uzyj swiezego millis() — zmienna 'now' z linii 192
+                // moze byc przestarzala po broadcast/self-repair (~100ms+).
+                // Jesli lastUpdate jest nowsze niz stale 'now' (bo start()
+                // ustawil lastGunUpdateMs po przechwyceniu 'now'), roznica
+                // unsigned wraca do ~4294967291 (0xFFFFFFFB) = falszywy alarm.
+                unsigned long freshNow = millis();
                 unsigned long lastUpdate = paintEngine.getLastGunUpdateMs();
-                if (now - lastUpdate > GUN_KEEPALIVE_TIMEOUT_MS) {
+                unsigned long elapsed = freshNow - lastUpdate;
+                // Guard: jesli elapsed > polowa zakresu uint32 — to underflow, nie prawdziwy timeout
+                if (elapsed < 0x80000000UL && elapsed > GUN_KEEPALIVE_TIMEOUT_MS) {
                     guns.allOff();
-                    // Loguj tylko raz — nie zalewaj seriala
-                    static bool keepaliveLogged = false;
-                    if (!keepaliveLogged) {
-                        DBG_PRINTF("[WDT-CORE0] KEEPALIVE: awaryjne guns.allOff() (brak update %lu ms)\n",
-                                      now - lastUpdate);
-                        keepaliveLogged = true;
-                    }
+                    DBG_PRINTF("[WDT-CORE0] KEEPALIVE: awaryjne guns.allOff() (brak update %lu ms)\n",
+                                  elapsed);
+                    eventLog.logf("SAFETY", "Core 0 keepalive: guns OFF (brak update %lu ms)", elapsed);
                 }
             }
         }
@@ -1005,11 +1009,31 @@ void TrassarWebServer::handleRoot() {
 
     if (!served) {
         // --- Fallback PROGMEM (web_html.h) ---
+        // Fix #24: Wysylamy PROGMEM chunkami z resetem WDT + core0AliveMs.
+        // Poprzednio sendContent_P() blokowala Core 0 na 10-15s (45KB przez TCP)
+        // co wyzwalalo falszywy alarm WDT "Core 0 nie odpowiada".
         server.setContentLength(CONTENT_LENGTH_UNKNOWN);
         server.send(200, "text/html", "");
-        server.sendContent_P(HTML_PART1);
+
+        auto sendProgmemChunked = [this](const char* progmemData) {
+            size_t totalLen = strlen_P(progmemData);
+            const size_t CHUNK = 512;
+            char buf[CHUNK];
+            size_t offset = 0;
+            while (offset < totalLen) {
+                esp_task_wdt_reset();
+                core0AliveMs = millis();
+                size_t remaining = totalLen - offset;
+                size_t toSend = (remaining < CHUNK) ? remaining : CHUNK;
+                memcpy_P(buf, progmemData + offset, toSend);
+                server.sendContent(buf, toSend);
+                offset += toSend;
+            }
+        };
+
+        sendProgmemChunked(HTML_PART1);
         server.sendContent(FW_VERSION);
-        server.sendContent_P(HTML_PART2);
+        sendProgmemChunked(HTML_PART2);
         server.sendContent("");
     }
 }
