@@ -315,6 +315,18 @@ extern portMUX_TYPE g_stateMux;
 #define STATE_LOCK()   taskENTER_CRITICAL(&g_stateMux)
 #define STATE_UNLOCK() taskEXIT_CRITICAL(&g_stateMux)
 
+// Fix #25: Trylock z timeoutem dla Core 0 — zapobiega nieskonczonemu spinowaniu
+// gdy Core 1 trzyma mutex (np. display update, NVS write).
+// Zwraca true jesli lock uzyskany, false jesli timeout.
+// Uzycie: if (STATE_TRYLOCK(500)) { ... STATE_UNLOCK(); }
+// portTRY_ENTER_CRITICAL dostepne w ESP-IDF >= 5.0 (espressif32 v6+)
+#if __has_include("freertos/idf_additions.h") || (ESP_IDF_VERSION_MAJOR >= 5)
+  #define STATE_TRYLOCK(timeout_us)  (portTRY_ENTER_CRITICAL(&g_stateMux, timeout_us) == pdTRUE)
+#else
+  // Fallback dla starszych IDF: zwykly lock (bez timeout)
+  #define STATE_TRYLOCK(timeout_us)  (taskENTER_CRITICAL(&g_stateMux), true)
+#endif
+
 // ============ Mutex dostepu do karty SD (SPI wspoldzielone) ============
 extern SemaphoreHandle_t g_sdMutex;
 

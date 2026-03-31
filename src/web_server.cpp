@@ -123,7 +123,13 @@ void TrassarWebServer::webTaskFunc(void* param) {
     self->core0AliveMs = millis();
 
     self->server.begin();
-    DBG_PRINTLN("[WWW] Serwer HTTP uruchomiony na porcie 80 (Core 0)");
+    // Fix #25: Ogranicz czas oczekiwania na dane od klienta HTTP.
+    // Domyslnie ESP32 WebServer czeka do 2s na headers/body w handleClient(),
+    // co przy wolnym WiFi moze blokowac cala petle Core 0.
+    // 3s to kompromis: wystarczajaco krotki zeby nie wyzwalac WDT (10s timeout),
+    // wystarczajaco dlugi dla normalnych requestow przez WiFi AP.
+    self->server.setTimeout(3);  // [s] — max czas blokowania na TCP read
+    DBG_PRINTLN("[WWW] Serwer HTTP uruchomiony na porcie 80 (Core 0, timeout 3s)");
 
     self->wsServer.begin();
     self->wsServer.onEvent([](uint8_t num, WStype_t type, uint8_t* payload, size_t length) {
@@ -202,19 +208,36 @@ void TrassarWebServer::webTaskFunc(void* param) {
                     if (_secEnd - _secStart > 500) {
                         DBG_PRINTF("[WDT-DIAG] getStateJson() trwalo %lu ms!\n", _secEnd - _secStart);
                     }
-                    // Fix #19: Wysylaj do kazdego klienta osobno z resetem WDT
-                    // broadcastTXT() blokuje sekwencyjnie na martwych socketach
+                    // Fix #19/#25: Wysylaj do kazdego klienta osobno z resetem WDT.
+                    // Fix #25: Klienty ktore blokowaly >2s sa oznaczane jako "slow"
+                    // i rozlaczane — zapobiega kaskadowemu blokowaniu broadcastu
+                    // (jeden martwy socket blokowal cala petle na sekundy).
+                    static uint8_t slowClientStrikes[WEBSOCKETS_SERVER_CLIENT_MAX] = {};
                     for (uint8_t i = 0; i < WEBSOCKETS_SERVER_CLIENT_MAX; i++) {
                         if (self->wsServer.clientIsConnected(i)) {
+                            // Klient z 2+ strike'ami — rozlacz go zamiast blokowac
+                            if (slowClientStrikes[i] >= 2) {
+                                DBG_PRINTF("[WS] Klient #%u rozlaczony (slow — %u strike)\n",
+                                           i, slowClientStrikes[i]);
+                                self->wsServer.disconnect(i);
+                                slowClientStrikes[i] = 0;
+                                continue;
+                            }
                             _secStart = millis();
                             self->wsServer.sendTXT(i, json);
                             _secEnd = millis();
-                            if (_secEnd - _secStart > 500) {
-                                DBG_PRINTF("[WDT-DIAG] sendTXT(#%u) zablokowany %lu ms!\n", i, _secEnd - _secStart);
+                            unsigned long sendDuration = _secEnd - _secStart;
+                            if (sendDuration > 2000) {
+                                slowClientStrikes[i]++;
+                                DBG_PRINTF("[WDT-DIAG] sendTXT(#%u) zablokowany %lu ms (strike %u)\n",
+                                           i, sendDuration, slowClientStrikes[i]);
+                            } else {
+                                slowClientStrikes[i] = 0;  // Reset po udanym wysylaniu
                             }
                             esp_task_wdt_reset();
                             self->core0AliveMs = millis();
-                        }
+                        } else {
+                            slowClientStrikes[i] = 0;  // Reset dla rozlaczonych slotow
                     }
                 }
             }
@@ -225,9 +248,13 @@ void TrassarWebServer::webTaskFunc(void* param) {
         // czasie pistolety moglyby pozostac otwarte. Core 0 sprawdza
         // niezaleznie czy update() bylo wywolywane i awaryjnie wylacza.
         {
-            STATE_LOCK();
-            MachineState snapState = g_state.machineState;
-            STATE_UNLOCK();
+            // Fix #25: Trylock — jesli mutex zajety, pomin keepalive w tym cyklu
+            // (nastepny cykl za 2ms sprawdzi ponownie)
+            MachineState snapState = STATE_IDLE;
+            if (STATE_TRYLOCK(200)) {
+                snapState = g_state.machineState;
+                STATE_UNLOCK();
+            }
             if (snapState == STATE_PAINTING) {
                 // Fix #24: Uzyj swiezego millis() — zmienna 'now' z linii 192
                 // moze byc przestarzala po broadcast/self-repair (~100ms+).
@@ -292,6 +319,7 @@ void TrassarWebServer::selfRepairServers() {
     esp_task_wdt_reset();
 
     server.begin();
+    server.setTimeout(3);  // Fix #25: Przywroc timeout po reinicjalizacji
     wsServer.begin();
     wsServer.onEvent([](uint8_t num, WStype_t type, uint8_t* payload, size_t length) {
         if (type == WStype_CONNECTED) {
@@ -366,6 +394,11 @@ void TrassarWebServer::handleStatus() {
 // POST /api/control - Sterowanie maszyna
 // ============================================================
 void TrassarWebServer::handleControl() {
+    // Fix #25: Heartbeat na poczatku — handleControl moze trwac dlugo
+    // (NVS write, pattern save, itp.) i blokowac petle Core 0
+    esp_task_wdt_reset();
+    core0AliveMs = millis();
+
     if (!server.hasArg("action")) {
         server.send(400, "application/json", "{\"error\":\"brak parametru action\"}");
         return;
@@ -375,7 +408,11 @@ void TrassarWebServer::handleControl() {
     String result = "ok";
 
     // Atomowy snapshot stanu (wymagany do decyzji o akcji)
-    STATE_LOCK();
+    // Fix #25: Trylock — jesli Core 1 trzyma mutex, zwroc blad zamiast blokowac
+    if (!STATE_TRYLOCK(1000)) {
+        server.send(503, "application/json", "{\"error\":\"serwer zajety — sprobuj ponownie\"}");
+        return;
+    }
     MachineState snapState = g_state.machineState;
     ScreenID snapScreen = g_state.currentScreen;
     STATE_UNLOCK();
@@ -383,9 +420,7 @@ void TrassarWebServer::handleControl() {
     if (action == "start") {
         // Jesli ekran QR startowy jest aktywny — zamknij go zamiast startowac malowanie
         if (snapScreen == SCREEN_POST) {
-            STATE_LOCK();
-            g_state.qrDismissed = true;
-            STATE_UNLOCK();
+            if (STATE_TRYLOCK(500)) { g_state.qrDismissed = true; STATE_UNLOCK(); }
         } else if (snapState == STATE_PAUSED) {
             paintEngine.resume();
         } else if (snapState == STATE_IDLE || snapState == STATE_STOPPED) {
@@ -458,17 +493,20 @@ void TrassarWebServer::handleControl() {
             int val = server.arg("value").toInt();
             if (val >= 0 && val <= 3) {
                 // Nie zmieniaj trybu podczas malowania — niebezpieczne
-                STATE_LOCK();
-                MachineState modeState = g_state.machineState;
-                if (modeState == STATE_IDLE || modeState == STATE_STOPPED) {
-                    MachineMode newMode = (MachineMode)val;
-                    g_state.machineMode = newMode;
-                    STATE_UNLOCK();
-                    storage.saveMode(newMode);
-                    DBG_PRINTF("[WWW] Tryb pracy: %d\n", val);
+                if (STATE_TRYLOCK(1000)) {
+                    MachineState modeState = g_state.machineState;
+                    if (modeState == STATE_IDLE || modeState == STATE_STOPPED) {
+                        MachineMode newMode = (MachineMode)val;
+                        g_state.machineMode = newMode;
+                        STATE_UNLOCK();
+                        storage.saveMode(newMode);
+                        DBG_PRINTF("[WWW] Tryb pracy: %d\n", val);
+                    } else {
+                        STATE_UNLOCK();
+                        result = "nie mozna zmienic trybu podczas malowania";
+                    }
                 } else {
-                    STATE_UNLOCK();
-                    result = "nie mozna zmienic trybu podczas malowania";
+                    result = "serwer zajety — sprobuj ponownie";
                 }
             } else {
                 result = "nieprawidlowy tryb (0-3)";
@@ -556,9 +594,10 @@ void TrassarWebServer::handleControl() {
         if (server.hasArg("value")) {
             int val = server.arg("value").toInt();
             if (val > 0 && val <= (int)EVT_GAP_START) {
-                STATE_LOCK();
-                g_state.pendingWebEvent = (ButtonEvent)val;
-                STATE_UNLOCK();
+                if (STATE_TRYLOCK(500)) {
+                    g_state.pendingWebEvent = (ButtonEvent)val;
+                    STATE_UNLOCK();
+                }
                 DBG_PRINTF("[WWW] Event kolejkowany: %d\n", val);
             } else {
                 result = "nieprawidlowy event";
@@ -627,9 +666,7 @@ void TrassarWebServer::handleControl() {
         result = "nieznana akcja";
     }
 
-    STATE_LOCK();
-    g_state.displayNeedsUpdate = true;
-    STATE_UNLOCK();
+    if (STATE_TRYLOCK(500)) { g_state.displayNeedsUpdate = true; STATE_UNLOCK(); }
     server.send(200, "application/json", "{\"result\":\"" + result + "\"}");
 }
 
@@ -765,7 +802,12 @@ String TrassarWebServer::getStateJson() {
     JsonDocument doc;
 
     // --- Atomowy snapshot g_state (bezpieczny odczyt z Core 0) ---
-    STATE_LOCK();
+    // Fix #25: Trylock z timeoutem — jesli Core 1 trzyma mutex, nie blokuj
+    // broadcastu WS na nieskonczonosc. Zwroc pusty JSON zamiast zawieszac Core 0.
+    if (!STATE_TRYLOCK(500)) {
+        DBG_PRINTLN("[WDT-DIAG] getStateJson(): STATE_TRYLOCK timeout — pomijam broadcast");
+        return "{}";
+    }
     MachineState  snapState   = g_state.machineState;
     MachineMode   snapMode    = g_state.machineMode;
     PatternID     snapPattern = g_state.currentPattern;
@@ -904,11 +946,14 @@ String TrassarWebServer::getStateJson() {
     }
 
     // Anomalia pistoletow (odczyt pod lockiem — modyfikowane z Core 1)
-    STATE_LOCK();
-    bool snapAnomalyDetected = gunAnomaly.detected;
-    bool snapAnomalyAlert[NUM_GUNS];
-    for (int i = 0; i < NUM_GUNS; i++) snapAnomalyAlert[i] = gunAnomaly.alert[i];
-    STATE_UNLOCK();
+    // Fix #25: Trylock — jesli mutex zajety, pokaz brak anomalii (bezpieczne default)
+    bool snapAnomalyDetected = false;
+    bool snapAnomalyAlert[NUM_GUNS] = {};
+    if (STATE_TRYLOCK(200)) {
+        snapAnomalyDetected = gunAnomaly.detected;
+        for (int i = 0; i < NUM_GUNS; i++) snapAnomalyAlert[i] = gunAnomaly.alert[i];
+        STATE_UNLOCK();
+    }
 
     doc["gunAnomalyDetected"] = snapAnomalyDetected;
     JsonArray anomArr = doc["gunAnomaly"].to<JsonArray>();
