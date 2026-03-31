@@ -190,7 +190,7 @@ void DisplayManager::drawPatternVisualization(int vizX, int vizY, int vizW, int 
         int cw = colWidths[a];
 
         // Etykieta pistoletu (P1..P6) nad kolumna
-        char lbl[4];
+        char lbl[8];
         snprintf(lbl, sizeof(lbl), "P%d", gi + 1);
         tft.setTextColor(cMenuTxt, cBg);
         tft.setTextDatum(TC_DATUM);

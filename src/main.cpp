@@ -597,7 +597,7 @@ void loop() {
         float fragPct = (freeHeap > 0) ? 100.0f * (1.0f - (float)largestBlock / (float)freeHeap) : 0;
         uint32_t psramFree = ESP.getFreePsram();
         uint32_t upSec = now / 1000;
-        DBG_PRINTF("[DIAG] Up:%lum%lus  Heap:%u/%uB (min:%u) Frag:%.0f%%  PSRAM:%uB  WWW-stk:%u  C1-stk:%u  LoopMax:%lums Slow:%lu\n",
+        DBG_PRINTF("[DIAG] Up:%um%us  Heap:%u/%uB (min:%u) Frag:%.0f%%  PSRAM:%uB  WWW-stk:%u  C1-stk:%u  LoopMax:%lums Slow:%lu\n",
                       upSec / 60, upSec % 60,
                       freeHeap,
                       ESP.getHeapSize(),
@@ -779,7 +779,6 @@ void loop() {
     //   3. Po MAX_HANGS: kontrolowany ESP.restart() (bezpieczniejszy niz crash)
     {
         static unsigned long lastCore0Check = 0;
-        static unsigned long lastSuccessfulHeartbeat = 0;
         static bool wasAliveLastCheck = true;
 
         // Dynamiczny timeout: normalnie 10s, po wielokrotnych zawieszeniach wydluzamy
@@ -801,7 +800,6 @@ void loop() {
                     webServer.hangCount = 0;
                 }
                 wasAliveLastCheck = true;
-                lastSuccessfulHeartbeat = now;
             } else {
                 wasAliveLastCheck = false;
                 webServer.hangCount++;

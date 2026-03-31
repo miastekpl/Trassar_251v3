@@ -36,8 +36,8 @@ private:
     uint16_t consecutiveErrors = 0; // Licznik kolejnych blednych odczytow I2C
 
     char timeBuf[12];
-    char dateBuf[12];
-    char dateTimeBuf[24];
+    char dateBuf[16];
+    char dateTimeBuf[32];
 
     // Sprawdza czy DateTime ma rozsadne wartosci (rok 2024-2035)
     bool isDateTimeValid(const DateTime& t) const;

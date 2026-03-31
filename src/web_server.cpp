@@ -22,6 +22,7 @@
 #include "gps_handler.h"
 #include "gps_track.h"
 #include "paint_consumption.h"
+#include "event_log.h"
 #include <SD.h>
 
 TrassarWebServer webServer;
