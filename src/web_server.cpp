@@ -123,13 +123,9 @@ void TrassarWebServer::webTaskFunc(void* param) {
     self->core0AliveMs = millis();
 
     self->server.begin();
-    // Fix #25: Ogranicz czas oczekiwania na dane od klienta HTTP.
-    // Domyslnie ESP32 WebServer czeka do 2s na headers/body w handleClient(),
-    // co przy wolnym WiFi moze blokowac cala petle Core 0.
-    // 3s to kompromis: wystarczajaco krotki zeby nie wyzwalac WDT (10s timeout),
-    // wystarczajaco dlugi dla normalnych requestow przez WiFi AP.
-    self->server.setTimeout(3);  // [s] — max czas blokowania na TCP read
-    DBG_PRINTLN("[WWW] Serwer HTTP uruchomiony na porcie 80 (Core 0, timeout 3s)");
+    // Fix #25: Timeout HTTP kontrolowany przez -DHTTP_MAX_DATA_WAIT=3000
+    // w platformio.ini (domyslnie WebServer czeka 5000ms na dane klienta).
+    DBG_PRINTLN("[WWW] Serwer HTTP uruchomiony na porcie 80 (Core 0)");
 
     self->wsServer.begin();
     self->wsServer.onEvent([](uint8_t num, WStype_t type, uint8_t* payload, size_t length) {
@@ -238,6 +234,7 @@ void TrassarWebServer::webTaskFunc(void* param) {
                             self->core0AliveMs = millis();
                         } else {
                             slowClientStrikes[i] = 0;  // Reset dla rozlaczonych slotow
+                        }
                     }
                 }
             }
@@ -319,7 +316,6 @@ void TrassarWebServer::selfRepairServers() {
     esp_task_wdt_reset();
 
     server.begin();
-    server.setTimeout(3);  // Fix #25: Przywroc timeout po reinicjalizacji
     wsServer.begin();
     wsServer.onEvent([](uint8_t num, WStype_t type, uint8_t* payload, size_t length) {
         if (type == WStype_CONNECTED) {

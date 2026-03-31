@@ -784,7 +784,7 @@ void loop() {
         // Fix #25: Dynamiczny timeout — zwiekszone wartosci bazowe.
         // Poprzednio 10s timeout wyzwalal falszywe alarmy przy normalnych
         // operacjach (serwowanie HTML ~45KB, broadcast do 3 klientow WS,
-        // download raportow CSV). Z Fix #25 (server.setTimeout(3), slow client
+        // download raportow CSV). Z Fix #25 (HTTP_MAX_DATA_WAIT=3s, slow client
         // disconnect, STATE_TRYLOCK) max blokowanie jest krotsze, ale zostawiamy
         // margines na legitimne dlugie operacje (duze pliki, wolne WiFi).
         unsigned long checkInterval = 5000;
