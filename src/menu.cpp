@@ -17,6 +17,7 @@
 #include "buzzer.h"
 #include "gps_track.h"
 #include "paint_consumption.h"
+#include <esp_task_wdt.h>
 
 MenuSystem menu;
 
@@ -118,8 +119,20 @@ void MenuSystem::update() {
     // --- Renderowanie ---
     STATE_LOCK();
     bool needsUpdate = g_state.displayNeedsUpdate;
+    ScreenID preScreen = g_state.currentScreen;
     STATE_UNLOCK();
     if (!needsUpdate) return;
+
+    // Fix #24: Pobierz dane z SD PRZED zablokowaniem mutexu SPI.
+    // getReportCount() i getLastReport() uzywaja SD_LOCK() wewnetrznie —
+    // wczesniej byly wolane WEWNATRZ mutexu SD (w switch/case SCREEN_REPORTS),
+    // co powodowalo deadlock (nie-rekursywny mutex) i 4s blokade → WDT reset!
+    int cachedReportCount = 0;
+    char cachedLastReport[128] = {};
+    if (preScreen == SCREEN_REPORTS) {
+        cachedReportCount = reportLogger.getReportCount();
+        reportLogger.getLastReport(cachedLastReport, sizeof(cachedLastReport));
+    }
 
     // SPI wspoldzielone: TFT i SD na tej samej magistrali HSPI.
     // Probuj zablokowac SPI z retry — jesli SD jest zajete (Core 0 pisze GPX/raport),
@@ -148,6 +161,10 @@ void MenuSystem::update() {
     if (fullRedraw) {
         display.clear();
     }
+
+    // Fix #24: WDT reset przed renderowaniem — clear() + mutex wait mogly zuzyc
+    // znaczna czesc budgetu WDT. Reset tutaj daje pelne 5s na rendering ekranu.
+    esp_task_wdt_reset();
 
     switch (curScreen) {
 
@@ -232,13 +249,13 @@ void MenuSystem::update() {
             break;
 
         // ---- Raporty ----
+        // Fix #24: Dane raportow pobrane PRZED mutex SD (patrz wyzej) —
+        // zapobiega deadlockowi nie-rekursywnego mutexu
         case SCREEN_REPORTS: {
-            char lastReport[128] = {};
-            reportLogger.getLastReport(lastReport, sizeof(lastReport));
             display.drawReportsScreen(
                 reportLogger.isReady(),
-                reportLogger.getReportCount(),
-                lastReport
+                cachedReportCount,
+                cachedLastReport
             );
             break;
         }
@@ -334,6 +351,10 @@ void MenuSystem::update() {
             // POST jest obslugiwany w setup(), ten case zapobiega warningowi
             break;
     }
+
+    // Fix #24: WDT reset po renderowaniu — dlugie ekrany (Painting, Stats)
+    // moga trwac setki ms przez wiele operacji SPI na TFT
+    esp_task_wdt_reset();
 
     // Zwolnij mutex SPI po renderowaniu TFT
     SD_UNLOCK();

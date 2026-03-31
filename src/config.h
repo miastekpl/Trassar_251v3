@@ -87,7 +87,7 @@
 #define MTH_SAVE_INTERVAL_MS  300000UL  // Zapis MTH co 5 min
 
 // ============ Watchdog ============
-#define WDT_TIMEOUT_SEC       3    // Timeout watchdoga [s], auto-reset
+#define WDT_TIMEOUT_SEC       5    // Timeout watchdoga [s], auto-reset (Fix #24: 3→5s, wiecej marginesu)
 
 // ============ Gun keepalive ============
 #define GUN_KEEPALIVE_TIMEOUT_MS  300  // Awaryjne guns.allOff() jesli brak update >300ms
@@ -318,7 +318,7 @@ extern portMUX_TYPE g_stateMux;
 // ============ Mutex dostepu do karty SD (SPI wspoldzielone) ============
 extern SemaphoreHandle_t g_sdMutex;
 
-// Makra bezpiecznego dostepu do SD (timeout 2s — musi byc < WDT_TIMEOUT_SEC!)
+// Makra bezpiecznego dostepu do SD (timeout 2s — musi byc < WDT_TIMEOUT_SEC=5s!)
 #define SD_LOCK()   (g_sdMutex && xSemaphoreTake(g_sdMutex, pdMS_TO_TICKS(2000)))
 #define SD_UNLOCK() do { if (g_sdMutex) xSemaphoreGive(g_sdMutex); } while(0)
 
