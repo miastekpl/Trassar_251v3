@@ -95,12 +95,16 @@ void TrassarWebServer::begin() {
     setupRoutes();
 
     // Uruchom task WWW na Core 0 (Arduino loop() dziala na Core 1)
+    // Fix #26: Priorytet 5 (bylo 1). Przy priorytecie 1 task byl zagladzany
+    // przez WiFi/LWIP (priorytet 18-23) — core0AliveMs nie aktualizowane,
+    // falszywy alarm WDT, selfRepair rozlaczal WS → przeladarka reconnect
+    // → wiecej WiFi activity → vicious cycle → ESP.restart().
     xTaskCreatePinnedToCore(
         webTaskFunc,        // Funkcja tasku
         "WebServer",        // Nazwa (debug)
         20480,              // Stack size [bytes] (Fix #19: zwiekszone 16K->20K dla JSON+WS)
         this,               // Parametr -> wskaznik na obiekt
-        1,                  // Priorytet (1 = niski, nie blokuje krytycznych taskow)
+        5,                  // Priorytet (5 = ponad idle, ponizej WiFi/LWIP)
         &webTaskHandle,     // Uchwyt tasku
         0                   // Core 0
     );
@@ -326,6 +330,7 @@ void TrassarWebServer::selfRepairServers() {
     });
 
     core0AliveMs = millis();
+    lastRepairMs = millis();  // Fix #26: cooldown — nie sprawdzaj przez 60s po naprawie
     DBG_PRINTF("[WWW] Self-repair ukonczony w %lu ms\n", millis() - _start);
 }
 

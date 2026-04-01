@@ -770,31 +770,35 @@ void loop() {
         esp_task_wdt_reset();  // Fix #20: WDT reset po operacjach SD
     }
 
-    // 11b. Fix #22: Monitoring zdrowia Core 0 — bezpieczna naprawa zamiast vTaskDelete
-    // Poprzedni mechanizm (vTaskDelete z Core 1 + reinit) powodowal Guru Meditation
-    // (LoadProhibited) bo WebServer nie jest thread-safe.
+    // 11b. Fix #22/#26: Monitoring zdrowia Core 0 — bezpieczna naprawa zamiast vTaskDelete
+    // Fix #26: Poprzedni mechanizm (timeout 15s, selfRepair przy 1. hang) powodowal
+    // vicious cycle: selfRepair rozlaczal WS → przeglądarka reconnect → WiFi/LWIP
+    // zagladzal Core 0 task (priorytet 1) → kolejny falszywy alarm → selfRepair → ...
     // Nowy mechanizm:
-    //   1. Pierwsze zawieszenie: ustaw flage selfRepair (task sam sie naprawi)
-    //   2. Kolejne zawieszenia: task nie reaguje na flage = jest naprawde zawieszony
-    //   3. Po MAX_HANGS: kontrolowany ESP.restart() (bezpieczniejszy niz crash)
+    //   1-2. Pierwsze wykrycia: TYLKO logowanie (bez selfRepair — to zwykle
+    //        przejsciowe zaglodzenie CPU przez WiFi/LWIP)
+    //   3-5. Kolejne wykrycia: selfRepair (task sam reinicjalizuje serwery)
+    //   6+:  Kontrolowany ESP.restart() (task naprawde zawieszony)
+    //   Cooldown 60s po selfRepair — nie sprawdzaj od razu po naprawie
     {
         static unsigned long lastCore0Check = 0;
         static bool wasAliveLastCheck = true;
 
-        // Fix #25: Dynamiczny timeout — zwiekszone wartosci bazowe.
-        // Poprzednio 10s timeout wyzwalal falszywe alarmy przy normalnych
-        // operacjach (serwowanie HTML ~45KB, broadcast do 3 klientow WS,
-        // download raportow CSV). Z Fix #25 (HTTP_MAX_DATA_WAIT=3s, slow client
-        // disconnect, STATE_TRYLOCK) max blokowanie jest krotsze, ale zostawiamy
-        // margines na legitimne dlugie operacje (duze pliki, wolne WiFi).
-        unsigned long checkInterval = 5000;
-        unsigned long aliveTimeout = 15000;
-        if (webServer.hangCount >= 2) {
-            checkInterval = 10000;
-            aliveTimeout = 20000;
-        }
+        // Fix #26: Timeout 45s (bylo 15s). Przy priorytecie 5 task dostaje
+        // wiecej CPU, ale WiFi/LWIP (priorytet 18-23) moze nadal przejsciowo
+        // blokowac Core 0 na kilka-kilkanascie sekund. 45s daje pewnosc ze
+        // to nie jest przejsciowe zaglodzenie, a prawdziwe zawieszenie.
+        unsigned long checkInterval = 10000;  // Fix #26: 5s->10s
+        unsigned long aliveTimeout = 45000;   // Fix #26: 15s->45s
 
-        if (now - lastCore0Check >= checkInterval) {
+        // Fix #26: Cooldown po selfRepair — nie sprawdzaj przez 60s po naprawie.
+        // selfRepair restartuje serwery, klienci reconnectuja, WiFi/LWIP jest
+        // zajety — falszywy alarm gwarantowany jesli sprawdzamy od razu.
+        if (webServer.lastRepairMs > 0 && (now - webServer.lastRepairMs) < 60000) {
+            // Podczas cooldown: tylko resetuj stan monitoringu
+            lastCore0Check = now;
+            wasAliveLastCheck = true;
+        } else if (now - lastCore0Check >= checkInterval) {
             lastCore0Check = now;
             bool alive = webServer.isCore0Alive(now, aliveTimeout);
 
@@ -810,14 +814,20 @@ void loop() {
                 webServer.hangCount++;
 
                 if (webServer.hangCount <= 2) {
-                    // Faza 1-2: Popros task o samonaprawe (bezpieczne, z Core 0)
+                    // Fix #26: Faza 1-2: Tylko logowanie — przejsciowe zaglodzenie CPU.
+                    // NIE robimy selfRepair bo to zwykle falszywy alarm i selfRepair
+                    // pogarsza sytuacje (vicious cycle reconnect → WiFi busy → hang).
+                    DBG_PRINTF("[WDT-CORE1] Core 0 opozniony (%u) — czekam (przejsciowe)\n",
+                                  webServer.hangCount);
+                } else if (webServer.hangCount <= 5) {
+                    // Faza 3-5: Prawdopodobnie prawdziwy problem — selfRepair
                     DBG_PRINTF("[WDT-CORE1] Core 0 nie odpowiada — selfRepair #%u\n",
                                   webServer.hangCount);
                     eventLog.logf("SAFETY", "Core 0 hang #%u — selfRepair requested",
                                   webServer.hangCount);
                     webServer.selfRepairRequested = true;
                 } else if (webServer.hangCount >= TrassarWebServer::MAX_HANGS_BEFORE_REBOOT) {
-                    // Faza 3: Task naprawde zawieszony, selfRepair nie pomoglo.
+                    // Faza 6+: Task naprawde zawieszony, selfRepair nie pomoglo.
                     // Kontrolowany restart ESP — bezpieczniejszy niz niekontrolowany
                     // Guru Meditation crash ktory wynikal z vTaskDelete().
                     STATE_LOCK();
