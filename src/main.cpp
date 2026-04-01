@@ -770,32 +770,23 @@ void loop() {
         esp_task_wdt_reset();  // Fix #20: WDT reset po operacjach SD
     }
 
-    // 11b. Fix #22/#26: Monitoring zdrowia Core 0 — bezpieczna naprawa zamiast vTaskDelete
-    // Fix #26: Poprzedni mechanizm (timeout 15s, selfRepair przy 1. hang) powodowal
-    // vicious cycle: selfRepair rozlaczal WS → przeglądarka reconnect → WiFi/LWIP
-    // zagladzal Core 0 task (priorytet 1) → kolejny falszywy alarm → selfRepair → ...
-    // Nowy mechanizm:
-    //   1-2. Pierwsze wykrycia: TYLKO logowanie (bez selfRepair — to zwykle
-    //        przejsciowe zaglodzenie CPU przez WiFi/LWIP)
-    //   3-5. Kolejne wykrycia: selfRepair (task sam reinicjalizuje serwery)
-    //   6+:  Kontrolowany ESP.restart() (task naprawde zawieszony)
-    //   Cooldown 60s po selfRepair — nie sprawdzaj od razu po naprawie
+    // 11b. Fix #22/#26/#27: Monitoring zdrowia Core 0 — bezpieczna naprawa zamiast vTaskDelete
+    // Fix #27: Poprzedni mechanizm mial bug — hangCount nigdy nie spadal podczas
+    // stabilnej pracy. Reset tylko na przejsciu dead→alive (wasAliveLastCheck=false),
+    // ale jesli Core 0 odzyskal sprawnosc PODCZAS cooldownu (wasAliveLastCheck=true),
+    // hangCount zostawal na 3. Przy nastepnym krotkim zacieniu: od razu #4, #5, #6 → restart.
+    // Nowy mechanizm: hangCount spada o 1 co 120s stabilnej pracy (decay).
     {
         static unsigned long lastCore0Check = 0;
         static bool wasAliveLastCheck = true;
+        static unsigned long lastAliveStreakStart = 0;  // Fix #27: poczatek ciagu alive
+        static uint8_t lastDecayHangCount = 0;          // Fix #27: hangCount przy ostatnim decay
 
-        // Fix #26: Timeout 45s (bylo 15s). Przy priorytecie 5 task dostaje
-        // wiecej CPU, ale WiFi/LWIP (priorytet 18-23) moze nadal przejsciowo
-        // blokowac Core 0 na kilka-kilkanascie sekund. 45s daje pewnosc ze
-        // to nie jest przejsciowe zaglodzenie, a prawdziwe zawieszenie.
-        unsigned long checkInterval = 10000;  // Fix #26: 5s->10s
-        unsigned long aliveTimeout = 45000;   // Fix #26: 15s->45s
+        unsigned long checkInterval = 10000;  // 10s miedzy sprawdzeniami
+        unsigned long aliveTimeout = 45000;   // 45s timeout na odpowiedz Core 0
 
         // Fix #26: Cooldown po selfRepair — nie sprawdzaj przez 60s po naprawie.
-        // selfRepair restartuje serwery, klienci reconnectuja, WiFi/LWIP jest
-        // zajety — falszywy alarm gwarantowany jesli sprawdzamy od razu.
         if (webServer.lastRepairMs > 0 && (now - webServer.lastRepairMs) < 60000) {
-            // Podczas cooldown: tylko resetuj stan monitoringu
             lastCore0Check = now;
             wasAliveLastCheck = true;
         } else if (now - lastCore0Check >= checkInterval) {
@@ -803,49 +794,72 @@ void loop() {
             bool alive = webServer.isCore0Alive(now, aliveTimeout);
 
             if (alive) {
-                if (!wasAliveLastCheck && webServer.hangCount > 0) {
-                    DBG_PRINTF("[WDT-CORE1] Core 0 task odzyskal sprawnosc (po %u zawieszeniach)\n",
-                                  webServer.hangCount);
-                    webServer.hangCount = 0;
+                if (!wasAliveLastCheck) {
+                    // Przejscie dead→alive: natychmiastowy reset
+                    if (webServer.hangCount > 0) {
+                        DBG_PRINTF("[WDT-CORE1] Core 0 task odzyskal sprawnosc (po %u zawieszeniach)\n",
+                                      webServer.hangCount);
+                        webServer.hangCount = 0;
+                    }
+                    lastAliveStreakStart = now;
+                    lastDecayHangCount = 0;
                 }
+
+                // Fix #27: Decay — hangCount spada o 1 co 120s ciaglej stabilnosci.
+                // Zapobiega akumulacji hangCount z przejsciowych zaciec przy starcie
+                // ktore potem eskalowalyby od razu do selfRepair/restart.
+                if (webServer.hangCount > 0) {
+                    if (lastAliveStreakStart == 0) lastAliveStreakStart = now;
+                    unsigned long stableTime = now - lastAliveStreakStart;
+                    uint8_t decaySteps = min(stableTime / 120000UL, 255UL);  // 1 krok co 120s
+                    if (decaySteps > lastDecayHangCount) {
+                        uint8_t decayAmount = decaySteps - lastDecayHangCount;
+                        if (decayAmount >= webServer.hangCount) {
+                            DBG_PRINTF("[WDT-CORE1] hangCount decay: %u -> 0 (stabilny %lus)\n",
+                                          webServer.hangCount, stableTime / 1000);
+                            webServer.hangCount = 0;
+                        } else {
+                            DBG_PRINTF("[WDT-CORE1] hangCount decay: %u -> %u (stabilny %lus)\n",
+                                          webServer.hangCount,
+                                          webServer.hangCount - decayAmount,
+                                          stableTime / 1000);
+                            webServer.hangCount -= decayAmount;
+                        }
+                        lastDecayHangCount = decaySteps;
+                    }
+                }
+
                 wasAliveLastCheck = true;
             } else {
                 wasAliveLastCheck = false;
+                lastAliveStreakStart = 0;   // Fix #27: reset streak
+                lastDecayHangCount = 0;
                 webServer.hangCount++;
 
                 if (webServer.hangCount <= 2) {
-                    // Fix #26: Faza 1-2: Tylko logowanie — przejsciowe zaglodzenie CPU.
-                    // NIE robimy selfRepair bo to zwykle falszywy alarm i selfRepair
-                    // pogarsza sytuacje (vicious cycle reconnect → WiFi busy → hang).
                     DBG_PRINTF("[WDT-CORE1] Core 0 opozniony (%u) — czekam (przejsciowe)\n",
                                   webServer.hangCount);
                 } else if (webServer.hangCount <= 5) {
-                    // Faza 3-5: Prawdopodobnie prawdziwy problem — selfRepair
                     DBG_PRINTF("[WDT-CORE1] Core 0 nie odpowiada — selfRepair #%u\n",
                                   webServer.hangCount);
                     eventLog.logf("SAFETY", "Core 0 hang #%u — selfRepair requested",
                                   webServer.hangCount);
                     webServer.selfRepairRequested = true;
                 } else if (webServer.hangCount >= TrassarWebServer::MAX_HANGS_BEFORE_REBOOT) {
-                    // Faza 6+: Task naprawde zawieszony, selfRepair nie pomoglo.
-                    // Kontrolowany restart ESP — bezpieczniejszy niz niekontrolowany
-                    // Guru Meditation crash ktory wynikal z vTaskDelete().
                     STATE_LOCK();
                     MachineState snapState = g_state.machineState;
                     STATE_UNLOCK();
 
                     if (snapState == STATE_PAINTING) {
-                        // Podczas malowania: NIE restartuj ESP — wylacz pistolety i kontynuuj
                         guns.allOff();
                         DBG_PRINTLN("[WDT-CORE1] Core 0 zawieszony podczas malowania — guns OFF, web wylaczony");
                         eventLog.logf("SAFETY", "Core 0 zawieszony (malowanie) — guns OFF, web wylaczony");
-                        // Ustaw wysoki hangCount zeby nie wchodzic tu ponownie
                         webServer.hangCount = 255;
                     } else {
                         DBG_PRINTLN("[WDT-CORE1] Core 0 zawieszony — kontrolowany ESP.restart()");
                         eventLog.logf("SAFETY", "Core 0 hang #%u — ESP.restart()",
                                       webServer.hangCount);
-                        delay(100);  // Daj czas na zapis logu
+                        delay(100);
                         ESP.restart();
                     }
                 }

@@ -316,8 +316,15 @@ void TrassarWebServer::selfRepairServers() {
     esp_task_wdt_reset();
     wsServer.close();
     esp_task_wdt_reset();
-    vTaskDelay(pdMS_TO_TICKS(100));  // Daj czas na zamkniecie socketow TCP
+
+    // Fix #27: Dluzszy delay (500ms zamiast 100ms) po zamknieciu socketow.
+    // LWIP potrzebuje czasu na cleanup TCP socketow (FIN_WAIT/TIME_WAIT).
+    // Krotki delay (100ms) powodowal ze nowe begin() otwieralo serwery
+    // zanim stare sockety byly zamkniete, co prowadziło do zombie connections
+    // i kolejnego hang → cascading selfRepair → restart.
+    vTaskDelay(pdMS_TO_TICKS(500));
     esp_task_wdt_reset();
+    core0AliveMs = millis();
 
     server.begin();
     wsServer.begin();
