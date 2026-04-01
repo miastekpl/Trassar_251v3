@@ -1,4 +1,5 @@
 #include "sys_log.h"
+#include <esp_task_wdt.h>
 // ============================================================
 // TrassarV3 - Silnik malowania
 // Tryby: AUTO / SEMI_AUTO / MANUAL
