@@ -420,12 +420,22 @@ void PaintingEngine::stop() {
         guns.allOff();
         stats.finalizeCurrentPattern();
         stats.pauseSessionTimer();
+
+        // Fix #26: WDT reset miedzy kazdą ciężką operacją SD/NVS w stop().
+        // Poprzednio stop() wykonywal 5+ dlugich operacji (NVS write, GPX zapis
+        // do 4320 punktow, raport CSV, raport HTML) bez zadnego esp_task_wdt_reset().
+        // Sumaryczny czas latwo przekraczal 5s WDT timeout → restart ESP.
+        esp_task_wdt_reset();
         stats.saveLifetime();
+        esp_task_wdt_reset();
         storage.savePaintLevel(paintConsumption.getCurrentLevel());
+        esp_task_wdt_reset();
         buzzer.play(BUZ_PAINT_STOP);
 
         // Zapis trasy GPS jako plik .gpx na karte SD
+        // (wewnatrz writeGpxFile/writeGeoJsonFile tez sa WDT resety co 50 pkt)
         gpsTrack.stopRecording();
+        esp_task_wdt_reset();
 
         // Zapis raportu CSV na karte SD (z koordynatami GPS jesli dostepne)
         bool gFix = gpsHandler.hasFix();
@@ -437,6 +447,7 @@ void PaintingEngine::stop() {
             stats.getSessionArea(),
             gLat, gLon
         );
+        esp_task_wdt_reset();
 
         // Automatyczny raport HTML
         float sessionDist = stats.getSessionDistance();
@@ -453,6 +464,7 @@ void PaintingEngine::stop() {
             paintConsumption.getUsedLiters(sessionArea),
             paintConsumption.getRemainingLiters(stats.getLifetimeArea() + sessionArea)
         );
+        esp_task_wdt_reset();
 
         // Nie wymuszaj zmiany ekranu — to handler menu (lub caller) decyduje
         // dokad przejsc po zatrzymaniu (SUMMARY, HOME, SERVICE_MENU itd.)

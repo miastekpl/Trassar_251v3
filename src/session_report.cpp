@@ -10,6 +10,7 @@
 #include "statistics.h"
 #include "patterns.h"
 #include <SD.h>
+#include <esp_task_wdt.h>
 
 SessionReport sessionReport;
 
@@ -82,7 +83,7 @@ bool SessionReport::generateReport(const char* patCode, float distM, float areaM
               "footer{text-align:center;color:#95a5a6;margin-top:30px;font-size:0.9em}"
               "</style></head><body>"));
 
-    yield();  // Oddaj CPU po duzym bloku CSS
+    esp_task_wdt_reset();  // Fix #26: WDT reset po duzym bloku CSS (yield() nie resetuje WDT)
     f.print(F("<h1>Raport sesji malowania</h1>"));
     f.printf("<p>Data: <strong>%s</strong></p>", dt);
 
@@ -113,7 +114,7 @@ bool SessionReport::generateReport(const char* patCode, float distM, float areaM
         f.print(F("</table></div>"));
     }
 
-    yield();  // Oddaj CPU miedzy sekcjami raportu
+    esp_task_wdt_reset();  // Fix #26: WDT reset miedzy sekcjami raportu
 
     // Sekcja zuzycia farby
     f.print(F("<div class='card'><h2>Zuzycie farby</h2><table>"));

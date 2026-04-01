@@ -19,6 +19,7 @@
 #include "event_log.h"
 #include <SD.h>
 #include <esp_heap_caps.h>
+#include <esp_task_wdt.h>
 
 GpsTrack gpsTrack;
 
@@ -111,6 +112,7 @@ void GpsTrack::stopRecording() {
         }
 
         bool gpxOk = writeGpxFile(gpxPath);
+        esp_task_wdt_reset();  // Fix #26: WDT reset miedzy zapisem GPX i GeoJSON
         bool geoOk = writeGeoJsonFile(geoPath);
         SD_UNLOCK();
 
@@ -220,10 +222,12 @@ bool GpsTrack::writeGpxFile(const char* path) {
     for (uint16_t i = 0; i < stored; i++) {
         writeGpxPoint(f, getPoint(i));
 
-        // Co 50 punktow: flush + yield, zeby nie blokowac WDT i innych taskow
+        // Fix #26: Co 50 punktow: flush + WDT reset.
+        // Poprzednio uzywano yield() ktore NIE resetuje Task WDT na ESP32 —
+        // przy 4320 punktach zapis trwal >5s i wyzwalal restart.
         if (i % 50 == 49) {
             f.flush();
-            yield();
+            esp_task_wdt_reset();
         }
     }
 
@@ -257,10 +261,10 @@ bool GpsTrack::writeGeoJsonFile(const char* path) {
                  i > 0 ? "," : "",
                  pt.lng, pt.lat, pt.alt);
         f.print(coord);
-        // Co 50 punktow: flush + yield, zeby nie blokowac WDT i innych taskow
+        // Fix #26: Co 50 punktow: flush + WDT reset (yield() nie resetuje Task WDT)
         if (i % 50 == 49) {
             f.flush();
-            yield();
+            esp_task_wdt_reset();
         }
     }
 
