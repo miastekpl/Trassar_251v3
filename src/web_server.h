@@ -24,11 +24,13 @@ public:
     // Stack high-water mark tasku WWW (diagnostyka)
     uint32_t getTaskStackHWM() const;
 
-    // Fix #15/#26: Software watchdog Core 0 — monitorowane z Core 1
+    // Fix #15/#26/#28: Software watchdog Core 0 — monitorowane z Core 1
     volatile unsigned long core0AliveMs = 0;  // Timestamp ostatniej aktywnosci tasku
     volatile uint8_t hangCount = 0;           // Licznik wykrytych zawieszen
     static const uint8_t MAX_HANGS_BEFORE_REBOOT = 6;  // Fix #26: 3->6 (wiecej tolerancji)
     volatile unsigned long lastRepairMs = 0;  // Fix #26: Timestamp ostatniej naprawy (cooldown)
+    volatile uint8_t totalSelfRepairs = 0;    // Fix #28: Laczna liczba selfRepair w sesji
+    static const uint8_t MAX_SELF_REPAIRS_BEFORE_REBOOT = 5;  // Fix #28: po 5 naprawach → restart
     bool isCore0Alive(unsigned long now, unsigned long timeoutMs = 5000) const {
         return (now - core0AliveMs) < timeoutMs;
     }

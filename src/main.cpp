@@ -770,12 +770,11 @@ void loop() {
         esp_task_wdt_reset();  // Fix #20: WDT reset po operacjach SD
     }
 
-    // 11b. Fix #22/#26/#27: Monitoring zdrowia Core 0 — bezpieczna naprawa zamiast vTaskDelete
-    // Fix #27: Poprzedni mechanizm mial bug — hangCount nigdy nie spadal podczas
-    // stabilnej pracy. Reset tylko na przejsciu dead→alive (wasAliveLastCheck=false),
-    // ale jesli Core 0 odzyskal sprawnosc PODCZAS cooldownu (wasAliveLastCheck=true),
-    // hangCount zostawal na 3. Przy nastepnym krotkim zacieniu: od razu #4, #5, #6 → restart.
-    // Nowy mechanizm: hangCount spada o 1 co 120s stabilnej pracy (decay).
+    // 11b. Fix #22/#26/#27/#28: Monitoring zdrowia Core 0 — bezpieczna naprawa zamiast vTaskDelete
+    // Fix #27: Decay — hangCount spada o 1 co 120s stabilnej pracy.
+    // Fix #28: Po selfRepair hangCount jest resetowany do 1 (w selfRepairServers()),
+    // wiec cooldown nie blokuje juz dead→alive transition. Dodano totalSelfRepairs
+    // counter — po MAX_SELF_REPAIRS_BEFORE_REBOOT naprawach → kontrolowany restart.
     {
         static unsigned long lastCore0Check = 0;
         static bool wasAliveLastCheck = true;
@@ -785,10 +784,34 @@ void loop() {
         unsigned long checkInterval = 10000;  // 10s miedzy sprawdzeniami
         unsigned long aliveTimeout = 45000;   // 45s timeout na odpowiedz Core 0
 
+        // Fix #28: Za duzo selfRepair w sesji → restart (zapobiega nieskonczonej petli napraw)
+        if (webServer.totalSelfRepairs >= TrassarWebServer::MAX_SELF_REPAIRS_BEFORE_REBOOT) {
+            STATE_LOCK();
+            MachineState snapState = g_state.machineState;
+            STATE_UNLOCK();
+            if (snapState == STATE_PAINTING) {
+                guns.allOff();
+                DBG_PRINTLN("[WDT-CORE1] Za duzo selfRepair — guns OFF (malowanie)");
+                eventLog.logf("SAFETY", "Core 0: %u selfRepairs — guns OFF",
+                              webServer.totalSelfRepairs);
+                webServer.hangCount = 255;
+                webServer.totalSelfRepairs = 0;  // Reset zeby nie wchodzic tu wiecej
+            } else {
+                DBG_PRINTF("[WDT-CORE1] Za duzo selfRepair (%u) — kontrolowany ESP.restart()\n",
+                           webServer.totalSelfRepairs);
+                eventLog.logf("SAFETY", "Core 0: %u selfRepairs — ESP.restart()",
+                              webServer.totalSelfRepairs);
+                delay(100);
+                ESP.restart();
+            }
+        }
+
         // Fix #26: Cooldown po selfRepair — nie sprawdzaj przez 60s po naprawie.
+        // Fix #28: wasAliveLastCheck = false zeby po cooldownie dead→alive transition
+        // mogla naturalnie zresetowac hangCount (jesli Core 0 zyje).
         if (webServer.lastRepairMs > 0 && (now - webServer.lastRepairMs) < 60000) {
             lastCore0Check = now;
-            wasAliveLastCheck = true;
+            wasAliveLastCheck = false;  // Fix #28: nie udawaj alive — pozwol decay/reset dzialac
         } else if (now - lastCore0Check >= checkInterval) {
             lastCore0Check = now;
             bool alive = webServer.isCore0Alive(now, aliveTimeout);

@@ -338,7 +338,16 @@ void TrassarWebServer::selfRepairServers() {
 
     core0AliveMs = millis();
     lastRepairMs = millis();  // Fix #26: cooldown — nie sprawdzaj przez 60s po naprawie
-    DBG_PRINTF("[WWW] Self-repair ukonczony w %lu ms\n", millis() - _start);
+
+    // Fix #28: Reset hangCount po udanej naprawie.
+    // Bez tego hangCount zostawal na 3+ po cooldownie (wasAliveLastCheck=true
+    // blokowal przejscie dead→alive), i jeden miss po cooldownie eskalowal
+    // od razu do #4, #5, #6 → restart. Teraz: reset do 1 (pamiec o problemie,
+    // ale nie natychmiastowa eskalacja).
+    hangCount = 1;
+    totalSelfRepairs++;
+    DBG_PRINTF("[WWW] Self-repair #%u ukonczony w %lu ms (hangCount reset 1)\n",
+               totalSelfRepairs, millis() - _start);
 }
 
 uint32_t TrassarWebServer::getTaskStackHWM() const {
