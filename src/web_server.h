@@ -30,7 +30,7 @@ public:
     static const uint8_t MAX_HANGS_BEFORE_REBOOT = 6;  // Fix #26: 3->6 (wiecej tolerancji)
     volatile unsigned long lastRepairMs = 0;  // Fix #26: Timestamp ostatniej naprawy (cooldown)
     volatile uint8_t totalSelfRepairs = 0;    // Fix #28: Laczna liczba selfRepair w sesji
-    static const uint8_t MAX_SELF_REPAIRS_BEFORE_REBOOT = 5;  // Fix #28: po 5 naprawach → restart
+    static const uint8_t MAX_SELF_REPAIRS_BEFORE_REBOOT = 8;  // Fix #29: 5→8 (decay resetuje licznik)
     bool isCore0Alive(unsigned long now, unsigned long timeoutMs = 5000) const {
         return (now - core0AliveMs) < timeoutMs;
     }

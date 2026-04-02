@@ -780,6 +780,7 @@ void loop() {
         static bool wasAliveLastCheck = true;
         static unsigned long lastAliveStreakStart = 0;  // Fix #27: poczatek ciagu alive
         static uint8_t lastDecayHangCount = 0;          // Fix #27: hangCount przy ostatnim decay
+        static unsigned long lastSelfRepairDecayCheck = 0;  // Fix #29: decay totalSelfRepairs
 
         unsigned long checkInterval = 10000;  // 10s miedzy sprawdzeniami
         unsigned long aliveTimeout = 45000;   // 45s timeout na odpowiedz Core 0
@@ -849,6 +850,23 @@ void loop() {
                             webServer.hangCount -= decayAmount;
                         }
                         lastDecayHangCount = decaySteps;
+                    }
+                }
+
+                // Fix #29: Decay totalSelfRepairs — jesli przez 10 minut nie bylo
+                // zadnego selfRepair, zresetuj licznik. Zapobiega akumulacji
+                // przejsciowych zawieszek (WiFi reconnect, slow TCP) ktore
+                // po godzinach pracy sumuja sie do MAX i wymuszaja restart.
+                if (webServer.totalSelfRepairs > 0) {
+                    unsigned long repairAge = now - webServer.lastRepairMs;
+                    if (webServer.lastRepairMs > 0 && repairAge >= 600000UL) {  // 10 minut
+                        if (lastSelfRepairDecayCheck == 0 || (now - lastSelfRepairDecayCheck) >= 600000UL) {
+                            uint8_t old = webServer.totalSelfRepairs;
+                            webServer.totalSelfRepairs = 0;
+                            lastSelfRepairDecayCheck = now;
+                            DBG_PRINTF("[WDT-CORE1] totalSelfRepairs decay: %u -> 0 (stabilny %lus)\n",
+                                       old, repairAge / 1000);
+                        }
                     }
                 }
 
