@@ -81,7 +81,8 @@ void DisplayManager::drawHeader(const char* title) {
 //  Kolory: szary=brak wzorca, zolty miganie=we wzorcu, zielony=maluje, zolty miganie=pauza/przerwa
 // ============================================================
 void DisplayManager::drawGunRects(int y, const GunPatternCfg gunsCfg[6],
-                                   const bool gunStates[6], bool paused) {
+                                   const bool gunStates[6], bool paused,
+                                   bool waitingForMovement) {
     const int gunW = (TFT_SCREEN_W - (NUM_GUNS - 1) * GUN_GAP) / NUM_GUNS;
     const int totalW = NUM_GUNS * gunW + (NUM_GUNS - 1) * GUN_GAP;
     const int startX = (TFT_SCREEN_W - totalW) / 2;
@@ -101,6 +102,9 @@ void DisplayManager::drawGunRects(int y, const GunPatternCfg gunsCfg[6],
         uint16_t col;
         if (firing) {
             col = cGunOn;             // zielony - maluje
+        } else if (waitingForMovement && usedInPattern) {
+            // czeka na ruch po starcie - miganie zielony
+            col = blinkOn ? cGunOn : cBg;
         } else if (usedInPattern) {
             // we wzorcu ale nie maluje (pauza/przerwa/oczekiwanie) - miganie zolty
             col = blinkOn ? cWarning : cBg;

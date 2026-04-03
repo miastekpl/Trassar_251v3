@@ -419,5 +419,5 @@ void DisplayManager::drawPaintingScreen(MachineState state, const char* patCode,
     tft.setTextDatum(TL_DATUM);
 
     // ---- DOL: 6 prostokatow pistoletow ----
-    drawGunRects(GUN_RECTS_Y, gunsCfg, gunStates, paused);
+    drawGunRects(GUN_RECTS_Y, gunsCfg, gunStates, paused, waitingForMovement);
 }

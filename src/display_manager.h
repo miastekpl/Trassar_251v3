@@ -92,7 +92,8 @@ public:
     // ---- Elementy pomocnicze ----
     void drawHeader(const char* title);
     void drawGunRects(int y, const GunPatternCfg gunsCfg[6],
-                      const bool gunStates[6], bool paused);
+                      const bool gunStates[6], bool paused,
+                      bool waitingForMovement = false);
     void drawProgressBar(int x, int y, int w, int h, int percent, uint16_t color);
 
     // Tryb nocny
