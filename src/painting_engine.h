@@ -14,7 +14,9 @@ public:
     void startFromGap();  // Start od przerwy
     void pause();
     void resume();
-    void stop();
+    void stop(bool deferred = false);
+    void requestStop();  // Fix #30: Bezpieczne zatrzymanie z Core 0 (deferred do Core 1)
+    bool isStopRequested() const { return stopRequested; }
 
     void setPattern(PatternID pat);
     void toggleReverse();
@@ -109,6 +111,12 @@ private:
     bool smartSwitch = true;  // true=inteligentne, false=natychmiastowe
     unsigned long lastLowSpeedBuzMs = 0;   // Throttle buzzera niskiej predkosci
     unsigned long lastOverspeedBuzMs = 0;  // Throttle buzzera przekroczenia
+
+    // Fix #30: Deferred stop — Core 0 ustawia flage, Core 1 wykonuje stop()
+    // w update(). Zapobiega blokowaniu Core 0 na 800ms-2.5s ciezkich operacji
+    // NVS/SD w stop() (co prowadzilo do WDT timeout na WebServer).
+    volatile bool stopRequested = false;
+    volatile bool goHomeAfterStop = false;  // Czy przejsc na SCREEN_HOME po stop
 };
 
 extern PaintingEngine paintEngine;

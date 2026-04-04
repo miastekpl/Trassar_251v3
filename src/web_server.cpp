@@ -180,6 +180,11 @@ void TrassarWebServer::webTaskFunc(void* param) {
         if (_secEnd - _secStart > 1000) {
             DBG_PRINTF("[WDT-DIAG] handleClient() zablokowany %lu ms!\n", _secEnd - _secStart);
         }
+        // Fix #30: WDT reset po handleClient — handleControl() moze blokowac
+        // do 1s na STATE_TRYLOCK + NVS writes. Bez tego resetu kolejne sekcje
+        // (wsServer.loop, broadcast) moga przekroczyc WDT timeout.
+        esp_task_wdt_reset();
+        self->core0AliveMs = millis();
 
         _secStart = millis();
         self->wsServer.loop();
@@ -187,11 +192,9 @@ void TrassarWebServer::webTaskFunc(void* param) {
         if (_secEnd - _secStart > 1000) {
             DBG_PRINTF("[WDT-DIAG] wsServer.loop() zablokowany %lu ms!\n", _secEnd - _secStart);
         }
-
-        // Fix #19: Odswierz heartbeat po handleClient (moze trwac dlugo
-        // przy streamowaniu duzych plikow HTML/CSV)
-        self->core0AliveMs = millis();
+        // Fix #30: WDT reset po wsServer.loop — handshake/upgrade moze trwac 100-500ms
         esp_task_wdt_reset();
+        self->core0AliveMs = millis();
 
         // Broadcast statusu do klientow WebSocket co WS_BROADCAST_MS
         // Fix #10: Pomijaj broadcast przy krytycznie niskim heapie
@@ -249,10 +252,11 @@ void TrassarWebServer::webTaskFunc(void* param) {
         // czasie pistolety moglyby pozostac otwarte. Core 0 sprawdza
         // niezaleznie czy update() bylo wywolywane i awaryjnie wylacza.
         {
-            // Fix #25: Trylock — jesli mutex zajety, pomin keepalive w tym cyklu
-            // (nastepny cykl za 2ms sprawdzi ponownie)
+            // Fix #25/#30: Trylock — jesli mutex zajety, pomin keepalive w tym cyklu
+            // (nastepny cykl za 2ms sprawdzi ponownie). 200→50ms — keepalive sprawdzany
+            // co 2ms, nie warto czekac dlugo na mutex.
             MachineState snapState = STATE_IDLE;
-            if (STATE_TRYLOCK(200)) {
+            if (STATE_TRYLOCK(50)) {
                 snapState = g_state.machineState;
                 STATE_UNLOCK();
             }
@@ -425,8 +429,10 @@ void TrassarWebServer::handleControl() {
     String result = "ok";
 
     // Atomowy snapshot stanu (wymagany do decyzji o akcji)
-    // Fix #25: Trylock — jesli Core 1 trzyma mutex, zwroc blad zamiast blokowac
-    if (!STATE_TRYLOCK(1000)) {
+    // Fix #25/#30: Trylock — jesli Core 1 trzyma mutex, zwroc blad zamiast blokowac.
+    // Fix #30: 1000→200ms — krotszy timeout zapobiega zagłodzeniu Core 0 WDT
+    // podczas ciezkich operacji Core 1 (NVS write w stop(), display update).
+    if (!STATE_TRYLOCK(200)) {
         server.send(503, "application/json", "{\"error\":\"serwer zajety — sprobuj ponownie\"}");
         return;
     }
@@ -448,8 +454,10 @@ void TrassarWebServer::handleControl() {
     } else if (action == "pause") {
         paintEngine.pause();
     } else if (action == "stop") {
-        paintEngine.stop();
-        menu.goToScreen(SCREEN_HOME);
+        // Fix #30: Nie wywoluj stop() na Core 0 — ciężkie I/O (NVS/SD, 800ms-2.5s)
+        // blokowalo WDT. Zamiast tego requestStop() natychmiast wylacza pistolety
+        // i zmienia stan, a Core 1 wykonuje zapis danych w nastepnym update().
+        paintEngine.requestStop();
     } else if (action == "set_pattern") {
         if (server.hasArg("value")) {
             int val = server.arg("value").toInt();
@@ -510,7 +518,7 @@ void TrassarWebServer::handleControl() {
             int val = server.arg("value").toInt();
             if (val >= 0 && val <= 3) {
                 // Nie zmieniaj trybu podczas malowania — niebezpieczne
-                if (STATE_TRYLOCK(1000)) {
+                if (STATE_TRYLOCK(200)) {
                     MachineState modeState = g_state.machineState;
                     if (modeState == STATE_IDLE || modeState == STATE_STOPPED) {
                         MachineMode newMode = (MachineMode)val;
@@ -809,6 +817,10 @@ bool TrassarWebServer::handleStaticFile(const String& path) {
 // 404
 // ============================================================
 void TrassarWebServer::handleNotFound() {
+    // Fix #30: Loguj URI 404 zeby zidentyfikowac nieznane requesty (co ~60s w logach)
+    DBG_PRINTF("[WWW] 404: %s %s\n",
+               server.method() == HTTP_GET ? "GET" : "POST",
+               server.uri().c_str());
     server.send(404, "text/plain", "404 - Nie znaleziono");
 }
 
@@ -819,9 +831,11 @@ String TrassarWebServer::getStateJson() {
     JsonDocument doc;
 
     // --- Atomowy snapshot g_state (bezpieczny odczyt z Core 0) ---
-    // Fix #25: Trylock z timeoutem — jesli Core 1 trzyma mutex, nie blokuj
+    // Fix #25/#30: Trylock z timeoutem — jesli Core 1 trzyma mutex, nie blokuj
     // broadcastu WS na nieskonczonosc. Zwroc pusty JSON zamiast zawieszac Core 0.
-    if (!STATE_TRYLOCK(500)) {
+    // Fix #30: 500→200ms — krotszy timeout zmniejsza ryzyko kumulacji blokad
+    // (handleClient + getStateJson) ktore prowadzily do WDT timeout.
+    if (!STATE_TRYLOCK(200)) {
         DBG_PRINTLN("[WDT-DIAG] getStateJson(): STATE_TRYLOCK timeout — pomijam broadcast");
         return "{}";
     }

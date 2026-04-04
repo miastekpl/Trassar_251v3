@@ -807,10 +807,11 @@ void loop() {
             }
         }
 
-        // Fix #26: Cooldown po selfRepair — nie sprawdzaj przez 60s po naprawie.
+        // Fix #26/#30: Cooldown po selfRepair — nie sprawdzaj przez 30s po naprawie.
         // Fix #28: wasAliveLastCheck = false zeby po cooldownie dead→alive transition
         // mogla naturalnie zresetowac hangCount (jesli Core 0 zyje).
-        if (webServer.lastRepairMs > 0 && (now - webServer.lastRepairMs) < 60000) {
+        // Fix #30: 60s→30s — krotszy cooldown pozwala szybciej wykryc wyzdrowienie.
+        if (webServer.lastRepairMs > 0 && (now - webServer.lastRepairMs) < 30000) {
             lastCore0Check = now;
             wasAliveLastCheck = false;  // Fix #28: nie udawaj alive — pozwol decay/reset dzialac
         } else if (now - lastCore0Check >= checkInterval) {
@@ -853,19 +854,21 @@ void loop() {
                     }
                 }
 
-                // Fix #29: Decay totalSelfRepairs — jesli przez 10 minut nie bylo
-                // zadnego selfRepair, zresetuj licznik. Zapobiega akumulacji
+                // Fix #29/#30: Decay totalSelfRepairs — jesli przez 5 minut nie bylo
+                // zadnego selfRepair, zmniejsz licznik o 1. Zapobiega akumulacji
                 // przejsciowych zawieszek (WiFi reconnect, slow TCP) ktore
                 // po godzinach pracy sumuja sie do MAX i wymuszaja restart.
+                // Fix #30: 10min→5min, decay o 1 zamiast reset do 0 — lagodniejszy
+                // spadek pozwala na szybsze wyzdrowienie przy zachowaniu ochrony.
                 if (webServer.totalSelfRepairs > 0) {
                     unsigned long repairAge = now - webServer.lastRepairMs;
-                    if (webServer.lastRepairMs > 0 && repairAge >= 600000UL) {  // 10 minut
-                        if (lastSelfRepairDecayCheck == 0 || (now - lastSelfRepairDecayCheck) >= 600000UL) {
+                    if (webServer.lastRepairMs > 0 && repairAge >= 300000UL) {  // 5 minut
+                        if (lastSelfRepairDecayCheck == 0 || (now - lastSelfRepairDecayCheck) >= 300000UL) {
                             uint8_t old = webServer.totalSelfRepairs;
-                            webServer.totalSelfRepairs = 0;
+                            webServer.totalSelfRepairs--;
                             lastSelfRepairDecayCheck = now;
-                            DBG_PRINTF("[WDT-CORE1] totalSelfRepairs decay: %u -> 0 (stabilny %lus)\n",
-                                       old, repairAge / 1000);
+                            DBG_PRINTF("[WDT-CORE1] totalSelfRepairs decay: %u -> %u (stabilny %lus)\n",
+                                       old, webServer.totalSelfRepairs, repairAge / 1000);
                         }
                     }
                 }

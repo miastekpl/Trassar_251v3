@@ -20,6 +20,7 @@
 #include "event_log.h"
 #include "session_report.h"
 #include "paint_consumption.h"
+#include "menu.h"
 #include <math.h>
 
 PaintingEngine paintEngine;
@@ -50,7 +51,38 @@ bool PaintingEngine::shouldGunFire(GunID gun, float distFromPatternStart) const 
     return shouldGunFirePure(cfg, distFromPatternStart);
 }
 
+// Fix #30: Bezpieczne zatrzymanie z Core 0 — ustawia flage zamiast
+// wykonywac ciężkie I/O (NVS/SD) na Core 0 co blokowalo WDT.
+void PaintingEngine::requestStop() {
+    stopRequested = true;
+    goHomeAfterStop = true;
+    // Natychmiastowa zmiana stanu + wylaczenie pistoletow (szybkie, bezpieczne z Core 0)
+    STATE_LOCK();
+    bool canStop = (g_state.machineState == STATE_PAINTING ||
+                    g_state.machineState == STATE_PAUSED);
+    if (canStop) g_state.machineState = STATE_STOPPED;
+    STATE_UNLOCK();
+    if (canStop) {
+        guns.allOff();
+    }
+}
+
 void PaintingEngine::update() {
+    // Fix #30: Obsluz deferred stop z Core 0 (ciężkie I/O na Core 1).
+    // requestStop() juz zmienil stan na STOPPED i wylaczyl pistolety.
+    // Tutaj wykonujemy finalizacje (NVS save, GPX/CSV zapis) na Core 1
+    // zamiast blokowac Core 0 na 800ms-2.5s.
+    if (stopRequested) {
+        stopRequested = false;
+        bool wantsHome = goHomeAfterStop;
+        goHomeAfterStop = false;
+        stop(true);  // deferred=true: pomija state check, wykonuje finalizacje
+        if (wantsHome) {
+            menu.goToScreen(SCREEN_HOME);
+        }
+        return;
+    }
+
     // Atomowy snapshot stanu (g_state modyfikowany z Core 0 przez web server)
     STATE_LOCK();
     MachineState snapState = g_state.machineState;
@@ -400,12 +432,19 @@ void PaintingEngine::resume() {
     }
 }
 
-void PaintingEngine::stop() {
-    STATE_LOCK();
-    bool canStop = (g_state.machineState == STATE_PAINTING ||
-                    g_state.machineState == STATE_PAUSED);
-    if (canStop) g_state.machineState = STATE_STOPPED;
-    STATE_UNLOCK();
+void PaintingEngine::stop(bool deferred) {
+    bool canStop;
+    if (deferred) {
+        // Fix #30: requestStop() juz zmienil stan i wylaczyl pistolety.
+        // Pomijamy sprawdzenie stanu — tylko finalizacja (NVS/SD zapis).
+        canStop = true;
+    } else {
+        STATE_LOCK();
+        canStop = (g_state.machineState == STATE_PAINTING ||
+                   g_state.machineState == STATE_PAUSED);
+        if (canStop) g_state.machineState = STATE_STOPPED;
+        STATE_UNLOCK();
+    }
 
     if (canStop) {
         autoPaused = false;
