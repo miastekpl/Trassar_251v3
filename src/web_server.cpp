@@ -143,32 +143,31 @@ void TrassarWebServer::webTaskFunc(void* param) {
 
     self->core0AliveMs = millis();
 
-    // Poczekaj az setup() zainicjalizuje TWDT, potem dodaj ten task.
-    vTaskDelay(pdMS_TO_TICKS(500));  // Krotkie opoznienie — serwery juz dzialaja
-
-    esp_task_wdt_add(NULL);
-    DBG_PRINTLN("[WDT] Core 0 WebServer task dodany do watchdoga (niezalezny monitoring)");
+    // Core 0 NIE jest dodawany do hardware TWDT.
+    // Task WebServer jest blokowany przez operacje TCP (handleClient, sendTXT,
+    // wsServer.loop) oraz WiFi/LWIP stack (priorytet 18-23 vs task priorytet 5).
+    // Sumaryczny czas blokady moze przekroczyc WDT_TIMEOUT_SEC (5s), co powodowalo
+    // falszywe triggery TWDT i restart ESP. Monitoring Core 0 jest realizowany
+    // przez software watchdog z Core 1 (checkInterval=10s, selfRepair, decay)
+    // ktory lepiej toleruje przejsciowe zawieszenia TCP/WiFi.
+    DBG_PRINTLN("[WDT] Core 0 WebServer: monitoring software (z Core 1), bez hardware TWDT");
 
     for (;;) {
-        esp_task_wdt_reset();  // Hardware watchdog reset
-
-        // Fix #15: Aktualizuj timestamp aktywnosci (monitorowane z Core 1)
+        // Aktualizuj timestamp aktywnosci (monitorowane z Core 1 software watchdog)
         self->core0AliveMs = millis();
 
-        // Fix #21: Diagnostyka — mierzymy czas kazdej sekcji petli.
-        // Jesli jakas sekcja trwa >1s, logujemy ostrzezenie zeby zidentyfikowac
-        // zrodlo zawieszenia (ktore prowadzi do WDT restart tasku).
+        // Diagnostyka — mierzymy czas kazdej sekcji petli
         unsigned long _secStart = millis();
         unsigned long _secEnd;
 
-        // Fix #22: Samonaprawa zażądana z Core 1 — reinicjalizacja serwerow
+        // Samonaprawa zazadana z Core 1 — reinicjalizacja serwerow
         // z wewnatrz Core 0 (thread-safe, w przeciwienstwie do vTaskDelete)
         if (self->selfRepairRequested) {
             self->selfRepairRequested = false;
             self->selfRepairServers();
         }
 
-        // Fix #19: Obsluz rozlaczenie WS PRZED handleClient/broadcast —
+        // Obsluz rozlaczenie WS PRZED handleClient/broadcast —
         // zapobiega blokowaniu na martwych TCP socketach
         if (self->wsDisconnectRequested) {
             self->wsDisconnectRequested = false;
@@ -180,10 +179,6 @@ void TrassarWebServer::webTaskFunc(void* param) {
         if (_secEnd - _secStart > 1000) {
             DBG_PRINTF("[WDT-DIAG] handleClient() zablokowany %lu ms!\n", _secEnd - _secStart);
         }
-        // Fix #30: WDT reset po handleClient — handleControl() moze blokowac
-        // do 1s na STATE_TRYLOCK + NVS writes. Bez tego resetu kolejne sekcje
-        // (wsServer.loop, broadcast) moga przekroczyc WDT timeout.
-        esp_task_wdt_reset();
         self->core0AliveMs = millis();
 
         _secStart = millis();
@@ -192,13 +187,9 @@ void TrassarWebServer::webTaskFunc(void* param) {
         if (_secEnd - _secStart > 1000) {
             DBG_PRINTF("[WDT-DIAG] wsServer.loop() zablokowany %lu ms!\n", _secEnd - _secStart);
         }
-        // Fix #30: WDT reset po wsServer.loop — handshake/upgrade moze trwac 100-500ms
-        esp_task_wdt_reset();
         self->core0AliveMs = millis();
 
         // Broadcast statusu do klientow WebSocket co WS_BROADCAST_MS
-        // Fix #10: Pomijaj broadcast przy krytycznie niskim heapie
-        // Fix #16: Pomijaj broadcast gdy brak podlaczonych stacji WiFi
         unsigned long now = millis();
         if (now - self->lastWsBroadcast >= WS_BROADCAST_MS) {
             self->lastWsBroadcast = now;
@@ -211,14 +202,12 @@ void TrassarWebServer::webTaskFunc(void* param) {
                     if (_secEnd - _secStart > 500) {
                         DBG_PRINTF("[WDT-DIAG] getStateJson() trwalo %lu ms!\n", _secEnd - _secStart);
                     }
-                    // Fix #19/#25: Wysylaj do kazdego klienta osobno z resetem WDT.
-                    // Fix #25: Klienty ktore blokowaly >2s sa oznaczane jako "slow"
+                    // Wysylaj do kazdego klienta osobno.
+                    // Klienty ktore blokowaly >2s sa oznaczane jako "slow"
                     // i rozlaczane — zapobiega kaskadowemu blokowaniu broadcastu
-                    // (jeden martwy socket blokowal cala petle na sekundy).
                     static uint8_t slowClientStrikes[WEBSOCKETS_SERVER_CLIENT_MAX] = {};
                     for (uint8_t i = 0; i < WEBSOCKETS_SERVER_CLIENT_MAX; i++) {
                         if (self->wsServer.clientIsConnected(i)) {
-                            // Klient z 2+ strike'ami — rozlacz go zamiast blokowac
                             if (slowClientStrikes[i] >= 2) {
                                 DBG_PRINTF("[WS] Klient #%u rozlaczony (slow — %u strike)\n",
                                            i, slowClientStrikes[i]);
@@ -235,12 +224,11 @@ void TrassarWebServer::webTaskFunc(void* param) {
                                 DBG_PRINTF("[WDT-DIAG] sendTXT(#%u) zablokowany %lu ms (strike %u)\n",
                                            i, sendDuration, slowClientStrikes[i]);
                             } else {
-                                slowClientStrikes[i] = 0;  // Reset po udanym wysylaniu
+                                slowClientStrikes[i] = 0;
                             }
-                            esp_task_wdt_reset();
                             self->core0AliveMs = millis();
                         } else {
-                            slowClientStrikes[i] = 0;  // Reset dla rozlaczonych slotow
+                            slowClientStrikes[i] = 0;
                         }
                     }
                 }
@@ -294,8 +282,6 @@ void TrassarWebServer::update() {
 #endif
 void TrassarWebServer::disconnectAllWsClients() {
     for (uint8_t i = 0; i < WEBSOCKETS_SERVER_CLIENT_MAX; i++) {
-        // Fix #21: Reset WDT miedzy disconnect() — kazdy moze blokowac na TCP close
-        esp_task_wdt_reset();
         core0AliveMs = millis();
         wsServer.disconnect(i);
     }
@@ -309,25 +295,16 @@ void TrassarWebServer::disconnectAllWsClients() {
 void TrassarWebServer::selfRepairServers() {
     DBG_PRINTLN("[WWW] Self-repair: reinicjalizacja serwerow z Core 0...");
     unsigned long _start = millis();
-    esp_task_wdt_reset();
 
     // Rozlacz WS klienty (martwe TCP sockety)
     disconnectAllWsClients();
-    esp_task_wdt_reset();
 
     // Stop + begin z tego samego Core co handleClient() — bezpieczne
     server.stop();
-    esp_task_wdt_reset();
     wsServer.close();
-    esp_task_wdt_reset();
 
-    // Fix #27: Dluzszy delay (500ms zamiast 100ms) po zamknieciu socketow.
     // LWIP potrzebuje czasu na cleanup TCP socketow (FIN_WAIT/TIME_WAIT).
-    // Krotki delay (100ms) powodowal ze nowe begin() otwieralo serwery
-    // zanim stare sockety byly zamkniete, co prowadziło do zombie connections
-    // i kolejnego hang → cascading selfRepair → restart.
     vTaskDelay(pdMS_TO_TICKS(500));
-    esp_task_wdt_reset();
     core0AliveMs = millis();
 
     server.begin();
@@ -415,9 +392,6 @@ void TrassarWebServer::handleStatus() {
 // POST /api/control - Sterowanie maszyna
 // ============================================================
 void TrassarWebServer::handleControl() {
-    // Fix #25: Heartbeat na poczatku — handleControl moze trwac dlugo
-    // (NVS write, pattern save, itp.) i blokowac petle Core 0
-    esp_task_wdt_reset();
     core0AliveMs = millis();
 
     if (!server.hasArg("action")) {
