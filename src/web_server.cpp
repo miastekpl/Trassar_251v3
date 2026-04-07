@@ -71,6 +71,7 @@ void TrassarWebServer::begin() {
     WiFi.onEvent([this](WiFiEvent_t event, WiFiEventInfo_t info) {
         if (event == ARDUINO_EVENT_WIFI_AP_STADISCONNECTED) {
             wifiStationConnected = (WiFi.softAPgetStationNum() > 0);
+            lastWifiEventMs = millis();  // Fix #31: grace period dla watchdog
             DBG_PRINTF("[WiFi] Stacja rozlaczona (pozostalo: %d)\n", WiFi.softAPgetStationNum());
             // Fix #18: Nie wolac disconnect() z kontekstu WiFi tasku —
             // wsServer nie jest thread-safe. Ustawiamy flage, task Core 0
@@ -78,6 +79,7 @@ void TrassarWebServer::begin() {
             wsDisconnectRequested = true;
         } else if (event == ARDUINO_EVENT_WIFI_AP_STACONNECTED) {
             wifiStationConnected = true;
+            lastWifiEventMs = millis();  // Fix #31: grace period dla watchdog
             DBG_PRINTF("[WiFi] Nowa stacja polaczona (lacznie: %d)\n", WiFi.softAPgetStationNum());
         }
     });

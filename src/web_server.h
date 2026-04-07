@@ -30,10 +30,16 @@ public:
     static const uint8_t MAX_HANGS_BEFORE_REBOOT = 6;  // Fix #26: 3->6 (wiecej tolerancji)
     volatile unsigned long lastRepairMs = 0;  // Fix #26: Timestamp ostatniej naprawy (cooldown)
     volatile uint8_t totalSelfRepairs = 0;    // Fix #28: Laczna liczba selfRepair w sesji
-    static const uint8_t MAX_SELF_REPAIRS_BEFORE_REBOOT = 8;  // Fix #29: 5→8 (decay resetuje licznik)
+    static const uint8_t MAX_SELF_REPAIRS_BEFORE_REBOOT = 15;  // Fix #31: 8→15 (WiFi grace + lepszy decay)
     bool isCore0Alive(unsigned long now, unsigned long timeoutMs = 5000) const {
         return (now - core0AliveMs) < timeoutMs;
     }
+
+    // Fix #31: Timestamp ostatniego zdarzenia WiFi (connect/disconnect stacji).
+    // Watchdog Core 1 ignoruje hangi przez WIFI_EVENT_GRACE_MS po zdarzeniu,
+    // bo LWIP stack (prio 18-23) glodzi web server task (prio 5) podczas reconnectu.
+    volatile unsigned long lastWifiEventMs = 0;
+    static const unsigned long WIFI_EVENT_GRACE_MS = 45000;  // 45s grace po WiFi event
 
     // Fix #16: Rozlaczenie WiFi nie moze powodowac restartu tasku
     void disconnectAllWsClients();  // Rozlacz wszystkie WS klienty (przy WiFi disconnect)

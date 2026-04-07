@@ -811,9 +811,18 @@ void loop() {
         // Fix #28: wasAliveLastCheck = false zeby po cooldownie dead→alive transition
         // mogla naturalnie zresetowac hangCount (jesli Core 0 zyje).
         // Fix #30: 60s→30s — krotszy cooldown pozwala szybciej wykryc wyzdrowienie.
+        // Fix #31: Grace period po WiFi event — LWIP stack (prio 18-23) glodzi
+        // web server task (prio 5) podczas reconnectu stacji WiFi. Nie licz hangow
+        // przez WIFI_EVENT_GRACE_MS po zdarzeniu WiFi disconnect/connect.
+        bool wifiGrace = (webServer.lastWifiEventMs > 0 &&
+                          (now - webServer.lastWifiEventMs) < TrassarWebServer::WIFI_EVENT_GRACE_MS);
         if (webServer.lastRepairMs > 0 && (now - webServer.lastRepairMs) < 30000) {
             lastCore0Check = now;
             wasAliveLastCheck = false;  // Fix #28: nie udawaj alive — pozwol decay/reset dzialac
+        } else if (wifiGrace && !webServer.isCore0Alive(now, aliveTimeout)) {
+            // Fix #31: WiFi grace — Core 0 nie odpowiada, ale to normalne po WiFi event.
+            // Nie inkrementuj hangCount, tylko odswierz timestamp aby nie kumulowac.
+            lastCore0Check = now;
         } else if (now - lastCore0Check >= checkInterval) {
             lastCore0Check = now;
             bool alive = webServer.isCore0Alive(now, aliveTimeout);
@@ -854,16 +863,18 @@ void loop() {
                     }
                 }
 
-                // Fix #29/#30: Decay totalSelfRepairs — jesli przez 5 minut nie bylo
+                // Fix #29/#30/#31: Decay totalSelfRepairs — jesli przez 2 minuty nie bylo
                 // zadnego selfRepair, zmniejsz licznik o 1. Zapobiega akumulacji
                 // przejsciowych zawieszek (WiFi reconnect, slow TCP) ktore
                 // po godzinach pracy sumuja sie do MAX i wymuszaja restart.
-                // Fix #30: 10min→5min, decay o 1 zamiast reset do 0 — lagodniejszy
-                // spadek pozwala na szybsze wyzdrowienie przy zachowaniu ochrony.
+                // Fix #30: 10min→5min, decay o 1 zamiast reset do 0.
+                // Fix #31: 5min→2min — WiFi reconnecty co 2-3 min powodowaly ze
+                // decay nie nadzazal za akumulacja i po ~40 min pracy
+                // totalSelfRepairs dochodził do 8 → niepotrzebny restart.
                 if (webServer.totalSelfRepairs > 0) {
                     unsigned long repairAge = now - webServer.lastRepairMs;
-                    if (webServer.lastRepairMs > 0 && repairAge >= 300000UL) {  // 5 minut
-                        if (lastSelfRepairDecayCheck == 0 || (now - lastSelfRepairDecayCheck) >= 300000UL) {
+                    if (webServer.lastRepairMs > 0 && repairAge >= 120000UL) {  // 2 minuty
+                        if (lastSelfRepairDecayCheck == 0 || (now - lastSelfRepairDecayCheck) >= 120000UL) {
                             uint8_t old = webServer.totalSelfRepairs;
                             webServer.totalSelfRepairs--;
                             lastSelfRepairDecayCheck = now;
