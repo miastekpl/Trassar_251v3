@@ -418,6 +418,19 @@ void DisplayManager::drawPaintingScreen(MachineState state, const char* patCode,
 
     tft.setTextDatum(TL_DATUM);
 
+    // ---- DYSTANS WZORCA: duzy zielony licznik nad pistoletami ----
+    {
+        float patDist = (patternPosM >= 0) ? patternPosM : 0;
+        tft.setFreeFont(FSB24);
+        tft.setTextColor(cGunOn, cBg);  // Zielony (adaptuje sie do trybu nocnego)
+        tft.setTextDatum(TC_DATUM);
+        fmtDist(patDist, buf, sizeof(buf));
+        tft.setTextPadding(TFT_SCREEN_W - 2 * MARGIN_X);
+        tft.drawString(buf, TFT_SCREEN_W / 2, ROW_PAT_DIST_Y);
+        tft.setTextPadding(0);
+        tft.setTextDatum(TL_DATUM);
+    }
+
     // ---- DOL: 6 prostokatow pistoletow ----
     drawGunRects(GUN_RECTS_Y, gunsCfg, gunStates, paused, waitingForMovement);
 }

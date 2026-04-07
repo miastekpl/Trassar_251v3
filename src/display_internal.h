@@ -34,7 +34,7 @@
 #define VIZ_X               100     // X poczatek obszaru wizualizacji
 #define VIZ_Y               2       // Y poczatek
 #define VIZ_W               120     // Szerokosc
-#define VIZ_H               166     // Wysokosc
+#define VIZ_H               146     // Wysokosc (zmniejszona o 20px na licznik dystansu wzorca)
 
 // Pozycje Y elementow — lewa kolumna
 #define ROW_PAT_Y           2       // Kod wzorca (FSB24)
@@ -52,6 +52,9 @@
 #define ROW_UNIT_Y          38      // Etykieta "km/h"
 #define ROW_AREA_Y          56      // Powierzchnia (FSB12)
 #define ROW_PAINT_Y         80      // Poziom farby (FS9)
+
+// Dystans wzorca (nad pistoletami, zielony FSB24)
+#define ROW_PAT_DIST_Y      155     // Y licznika dystansu biezacego wzorca
 
 // Dol ekranu
 #define GUN_RECTS_Y         (TFT_SCREEN_H - 49)    // Y prostokatow pistoletow
