@@ -1,0 +1,4 @@
+-keepattributes *Annotation*
+-keep class kotlinx.serialization.** { *; }
+-keepclassmembers class com.trassar.v3.data.model.** { *; }
+-dontwarn org.osmdroid.**

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="trassar_orange">#FFFF8C00</color>
+    <color name="dark_background">#FF0F0F1A</color>
+    <color name="dark_surface">#FF1A1A2E</color>
+</resources>
