@@ -1,0 +1,450 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 250" width="1040" height="1000">
+  <defs>
+    <style>
+      text { font-family: 'Courier New', monospace; }
+      .title { font-size: 4.5px; font-weight: bold; fill: #222; }
+      .subtitle { font-size: 2.8px; fill: #666; }
+      .dim { font-size: 2.2px; fill: #cc0000; font-weight: bold; }
+      .dim-line { stroke: #cc0000; stroke-width: 0.2; fill: none; }
+      .dim-ext { stroke: #cc0000; stroke-width: 0.1; fill: none; stroke-dasharray: 0.5,0.5; }
+      .coord { font-size: 1.8px; fill: #0066cc; }
+      .panel-outline { fill: none; stroke: #000; stroke-width: 0.6; }
+      .cutout-line { fill: none; stroke: #000; stroke-width: 0.4; }
+      .center-mark { stroke: #cc0000; stroke-width: 0.15; }
+      .grid { stroke: #eee; stroke-width: 0.1; }
+      .hole { fill: none; stroke: #000; stroke-width: 0.3; }
+      .label { font-size: 2px; fill: #333; text-anchor: middle; }
+      .note { font-size: 1.8px; fill: #555; }
+      .table-header { font-size: 2px; fill: #fff; font-weight: bold; }
+      .table-cell { font-size: 1.8px; fill: #333; }
+      .origin-mark { stroke: #cc0000; stroke-width: 0.3; }
+    </style>
+    <marker id="arr-s" markerWidth="2.5" markerHeight="2.5" refX="0.3" refY="1.25" orient="auto">
+      <path d="M2.5,0 L0,1.25 L2.5,2.5" fill="#cc0000"/>
+    </marker>
+    <marker id="arr-e" markerWidth="2.5" markerHeight="2.5" refX="2.2" refY="1.25" orient="auto">
+      <path d="M0,0 L2.5,1.25 L0,2.5" fill="#cc0000"/>
+    </marker>
+  </defs>
+
+  <!-- Background -->
+  <rect width="260" height="250" fill="#fff"/>
+
+  <!-- Title -->
+  <text x="130" y="8" text-anchor="middle" class="title">TRASSAR V3 — RYSUNEK MONTAŻOWY PANELU</text>
+  <text x="130" y="12" text-anchor="middle" class="subtitle">Wymiary w mm • Początek układu: lewy-górny róg panelu • Tolerancja: ±0.5mm</text>
+
+  <g transform="translate(30, 22)">
+
+    <!-- Grid (10mm) -->
+    <g opacity="0.3">
+      <!-- Vertical grid lines every 10mm -->
+      <line x1="0" y1="0" x2="0" y2="170" class="grid"/>
+      <line x1="10" y1="0" x2="10" y2="170" class="grid"/>
+      <line x1="20" y1="0" x2="20" y2="170" class="grid"/>
+      <line x1="30" y1="0" x2="30" y2="170" class="grid"/>
+      <line x1="40" y1="0" x2="40" y2="170" class="grid"/>
+      <line x1="50" y1="0" x2="50" y2="170" class="grid"/>
+      <line x1="60" y1="0" x2="60" y2="170" class="grid"/>
+      <line x1="70" y1="0" x2="70" y2="170" class="grid"/>
+      <line x1="80" y1="0" x2="80" y2="170" class="grid"/>
+      <line x1="90" y1="0" x2="90" y2="170" class="grid"/>
+      <line x1="100" y1="0" x2="100" y2="170" class="grid"/>
+      <line x1="110" y1="0" x2="110" y2="170" class="grid"/>
+      <line x1="120" y1="0" x2="120" y2="170" class="grid"/>
+      <line x1="130" y1="0" x2="130" y2="170" class="grid"/>
+      <line x1="140" y1="0" x2="140" y2="170" class="grid"/>
+      <line x1="150" y1="0" x2="150" y2="170" class="grid"/>
+      <line x1="160" y1="0" x2="160" y2="170" class="grid"/>
+      <line x1="170" y1="0" x2="170" y2="170" class="grid"/>
+      <line x1="180" y1="0" x2="180" y2="170" class="grid"/>
+      <line x1="190" y1="0" x2="190" y2="170" class="grid"/>
+      <line x1="200" y1="0" x2="200" y2="170" class="grid"/>
+      <!-- Horizontal grid lines every 10mm -->
+      <line x1="0" y1="0" x2="200" y2="0" class="grid"/>
+      <line x1="0" y1="10" x2="200" y2="10" class="grid"/>
+      <line x1="0" y1="20" x2="200" y2="20" class="grid"/>
+      <line x1="0" y1="30" x2="200" y2="30" class="grid"/>
+      <line x1="0" y1="40" x2="200" y2="40" class="grid"/>
+      <line x1="0" y1="50" x2="200" y2="50" class="grid"/>
+      <line x1="0" y1="60" x2="200" y2="60" class="grid"/>
+      <line x1="0" y1="70" x2="200" y2="70" class="grid"/>
+      <line x1="0" y1="80" x2="200" y2="80" class="grid"/>
+      <line x1="0" y1="90" x2="200" y2="90" class="grid"/>
+      <line x1="0" y1="100" x2="200" y2="100" class="grid"/>
+      <line x1="0" y1="110" x2="200" y2="110" class="grid"/>
+      <line x1="0" y1="120" x2="200" y2="120" class="grid"/>
+      <line x1="0" y1="130" x2="200" y2="130" class="grid"/>
+      <line x1="0" y1="140" x2="200" y2="140" class="grid"/>
+      <line x1="0" y1="150" x2="200" y2="150" class="grid"/>
+      <line x1="0" y1="160" x2="200" y2="160" class="grid"/>
+      <line x1="0" y1="170" x2="200" y2="170" class="grid"/>
+    </g>
+
+    <!-- Origin mark -->
+    <line x1="-3" y1="0" x2="5" y2="0" class="origin-mark"/>
+    <line x1="0" y1="-3" x2="0" y2="5" class="origin-mark"/>
+    <circle cx="0" cy="0" r="1" fill="none" class="origin-mark"/>
+    <text x="-4" y="-2" class="coord" font-weight="bold">(0,0)</text>
+
+    <!-- ==================== PANEL OUTLINE ==================== -->
+    <rect x="0" y="0" width="200" height="170" class="panel-outline" rx="3"/>
+
+    <!-- ==================== MOUNTING HOLES (4× M4 = Ø4.2mm) ==================== -->
+    <circle cx="6" cy="6" r="2.1" class="hole"/>
+    <line x1="4.5" y1="6" x2="7.5" y2="6" class="center-mark"/>
+    <line x1="6" y1="4.5" x2="6" y2="7.5" class="center-mark"/>
+    <text x="6" y="11" class="coord" text-anchor="middle">(6,6)</text>
+
+    <circle cx="194" cy="6" r="2.1" class="hole"/>
+    <line x1="192.5" y1="6" x2="195.5" y2="6" class="center-mark"/>
+    <line x1="194" y1="4.5" x2="194" y2="7.5" class="center-mark"/>
+    <text x="194" y="11" class="coord" text-anchor="middle">(194,6)</text>
+
+    <circle cx="6" cy="164" r="2.1" class="hole"/>
+    <line x1="4.5" y1="164" x2="7.5" y2="164" class="center-mark"/>
+    <line x1="6" y1="162.5" x2="6" y2="165.5" class="center-mark"/>
+    <text x="6" y="161" class="coord" text-anchor="middle">(6,164)</text>
+
+    <circle cx="194" cy="164" r="2.1" class="hole"/>
+    <line x1="192.5" y1="164" x2="195.5" y2="164" class="center-mark"/>
+    <line x1="194" y1="162.5" x2="194" y2="165.5" class="center-mark"/>
+    <text x="194" y="161" class="coord" text-anchor="middle">(194,164)</text>
+
+    <!-- ==================== DISPLAY CUTOUT (60×46mm) ==================== -->
+    <rect x="62" y="8" width="60" height="46" class="cutout-line" rx="1"/>
+    <!-- Center cross -->
+    <line x1="89" y1="31" x2="95" y2="31" class="center-mark"/>
+    <line x1="92" y1="28" x2="92" y2="34" class="center-mark"/>
+    <text x="92" y="35" class="label" font-size="1.6">DISPLAY</text>
+    <text x="92" y="37.5" class="label" font-size="1.4" fill="#666">60×46 cutout</text>
+    <!-- Corner coordinates -->
+    <text x="62" y="6" class="coord" text-anchor="start">(62,8)</text>
+    <text x="122" y="57" class="coord" text-anchor="end">(122,54)</text>
+
+    <!-- Display mounting holes (4× M3 = Ø3.2mm) -->
+    <circle cx="59" cy="50" r="1.6" class="hole"/>
+    <text x="56" y="49" class="coord" text-anchor="end" font-size="1.5">(59,50)</text>
+    <circle cx="125" cy="50" r="1.6" class="hole"/>
+    <text x="128" y="49" class="coord" text-anchor="start" font-size="1.5">(125,50)</text>
+    <circle cx="59" cy="57" r="1.6" class="hole"/>
+    <text x="56" y="59" class="coord" text-anchor="end" font-size="1.5">(59,57)</text>
+    <circle cx="125" cy="57" r="1.6" class="hole"/>
+    <text x="128" y="59" class="coord" text-anchor="start" font-size="1.5">(125,57)</text>
+
+    <!-- ==================== JOYSTICK CUTOUT (Ø26mm) ==================== -->
+    <circle cx="28" cy="40" r="13" class="cutout-line"/>
+    <line x1="25" y1="40" x2="31" y2="40" class="center-mark"/>
+    <line x1="28" y1="37" x2="28" y2="43" class="center-mark"/>
+    <text x="28" y="44" class="label" font-size="1.6">JOYSTICK</text>
+    <text x="28" y="46" class="label" font-size="1.4" fill="#666">Ø26</text>
+    <text x="28" y="35" class="coord" text-anchor="middle">(28,40)</text>
+
+    <!-- Joystick mounting holes (4× M3) -->
+    <circle cx="15" cy="27" r="1.6" class="hole"/>
+    <circle cx="41" cy="27" r="1.6" class="hole"/>
+    <circle cx="15" cy="53" r="1.6" class="hole"/>
+    <circle cx="41" cy="53" r="1.6" class="hole"/>
+
+    <!-- ==================== FUNCTION BUTTONS ==================== -->
+
+    <!-- START (Ø20mm hole) — center (168,18) -->
+    <circle cx="168" cy="18" r="10" class="cutout-line"/>
+    <line x1="165" y1="18" x2="171" y2="18" class="center-mark"/>
+    <line x1="168" y1="15" x2="168" y2="21" class="center-mark"/>
+    <text x="168" y="19" class="label" font-size="1.8" fill="#27ae60">START</text>
+    <text x="168" y="12" class="coord" text-anchor="middle">(168,18) Ø20</text>
+
+    <!-- STOP (Ø20mm hole) — center (168,43) -->
+    <circle cx="168" cy="43" r="10" class="cutout-line"/>
+    <line x1="165" y1="43" x2="171" y2="43" class="center-mark"/>
+    <line x1="168" y1="40" x2="168" y2="46" class="center-mark"/>
+    <text x="168" y="44" class="label" font-size="1.8" fill="#c0392b">STOP</text>
+    <text x="168" y="37" class="coord" text-anchor="middle">(168,43) Ø20</text>
+
+    <!-- SELECT (Ø16mm hole) — center (168,65) -->
+    <circle cx="168" cy="65" r="8" class="cutout-line"/>
+    <line x1="165" y1="65" x2="171" y2="65" class="center-mark"/>
+    <line x1="168" y1="62" x2="168" y2="68" class="center-mark"/>
+    <text x="168" y="66" class="label" font-size="1.8" fill="#2980b9">SELECT</text>
+    <text x="168" y="59" class="coord" text-anchor="middle">(168,65) Ø16</text>
+
+    <!-- ==================== POWER LED (Ø5mm) ==================== -->
+    <circle cx="148" cy="10" r="2.5" class="hole"/>
+    <text x="148" y="7" class="coord" text-anchor="middle" font-size="1.5">(148,10) Ø5 LED</text>
+
+    <!-- ==================== BUZZER HOLES (6× Ø2mm) ==================== -->
+    <circle cx="10" cy="12" r="1" class="hole"/>
+    <circle cx="14" cy="12" r="1" class="hole"/>
+    <circle cx="12" cy="16" r="1" class="hole"/>
+    <circle cx="10" cy="20" r="1" class="hole"/>
+    <circle cx="14" cy="20" r="1" class="hole"/>
+    <circle cx="12" cy="24" r="1" class="hole"/>
+    <text x="12" y="28" class="label" font-size="1.4" fill="#888">BUZZER 6×Ø2</text>
+
+    <!-- ==================== PATTERN BUTTONS (15× Ø12mm holes) ==================== -->
+    <!-- Row 1: y=97, x = 29, 65, 101, 137, 173 (center of 30mm wide buttons, 36mm apart) -->
+
+    <!-- Row 1 labels -->
+    <g>
+      <!-- P-1a -->
+      <circle cx="29" cy="97" r="7" class="cutout-line"/>
+      <line x1="26" y1="97" x2="32" y2="97" class="center-mark"/>
+      <line x1="29" y1="94" x2="29" y2="100" class="center-mark"/>
+      <text x="29" y="98" class="label" font-size="1.6">P-1a</text>
+
+      <!-- P-1b -->
+      <circle cx="65" cy="97" r="7" class="cutout-line"/>
+      <line x1="62" y1="97" x2="68" y2="97" class="center-mark"/>
+      <line x1="65" y1="94" x2="65" y2="100" class="center-mark"/>
+      <text x="65" y="98" class="label" font-size="1.6">P-1b</text>
+
+      <!-- P-1c -->
+      <circle cx="101" cy="97" r="7" class="cutout-line"/>
+      <line x1="98" y1="97" x2="104" y2="97" class="center-mark"/>
+      <line x1="101" y1="94" x2="101" y2="100" class="center-mark"/>
+      <text x="101" y="98" class="label" font-size="1.6">P-1c</text>
+
+      <!-- P-1d -->
+      <circle cx="137" cy="97" r="7" class="cutout-line"/>
+      <line x1="134" y1="97" x2="140" y2="97" class="center-mark"/>
+      <line x1="137" y1="94" x2="137" y2="100" class="center-mark"/>
+      <text x="137" y="98" class="label" font-size="1.6">P-1d</text>
+
+      <!-- P-1e -->
+      <circle cx="173" cy="97" r="7" class="cutout-line"/>
+      <line x1="170" y1="97" x2="176" y2="97" class="center-mark"/>
+      <line x1="173" y1="94" x2="173" y2="100" class="center-mark"/>
+      <text x="173" y="98" class="label" font-size="1.6">P-1e</text>
+
+      <!-- Row 1 coordinates -->
+      <text x="29" y="107" class="coord" text-anchor="middle" font-size="1.5">(29,97)</text>
+      <text x="65" y="107" class="coord" text-anchor="middle" font-size="1.5">(65,97)</text>
+      <text x="101" y="107" class="coord" text-anchor="middle" font-size="1.5">(101,97)</text>
+      <text x="137" y="107" class="coord" text-anchor="middle" font-size="1.5">(137,97)</text>
+      <text x="173" y="107" class="coord" text-anchor="middle" font-size="1.5">(173,97)</text>
+    </g>
+
+    <!-- Row 2: y=122 -->
+    <g>
+      <!-- P-2a -->
+      <circle cx="29" cy="122" r="7" class="cutout-line"/>
+      <line x1="26" y1="122" x2="32" y2="122" class="center-mark"/>
+      <line x1="29" y1="119" x2="29" y2="125" class="center-mark"/>
+      <text x="29" y="123" class="label" font-size="1.6">P-2a</text>
+
+      <!-- P-2b -->
+      <circle cx="65" cy="122" r="7" class="cutout-line"/>
+      <line x1="62" y1="122" x2="68" y2="122" class="center-mark"/>
+      <line x1="65" y1="119" x2="65" y2="125" class="center-mark"/>
+      <text x="65" y="123" class="label" font-size="1.6">P-2b</text>
+
+      <!-- P-3a -->
+      <circle cx="101" cy="122" r="7" class="cutout-line"/>
+      <line x1="98" y1="122" x2="104" y2="122" class="center-mark"/>
+      <line x1="101" y1="119" x2="101" y2="125" class="center-mark"/>
+      <text x="101" y="123" class="label" font-size="1.6">P-3a</text>
+
+      <!-- P-3b -->
+      <circle cx="137" cy="122" r="7" class="cutout-line"/>
+      <line x1="134" y1="122" x2="140" y2="122" class="center-mark"/>
+      <line x1="137" y1="119" x2="137" y2="125" class="center-mark"/>
+      <text x="137" y="123" class="label" font-size="1.6">P-3b</text>
+
+      <!-- P-4 -->
+      <circle cx="173" cy="122" r="7" class="cutout-line"/>
+      <line x1="170" y1="122" x2="176" y2="122" class="center-mark"/>
+      <line x1="173" y1="119" x2="173" y2="125" class="center-mark"/>
+      <text x="173" y="123" class="label" font-size="1.6">P-4</text>
+
+      <!-- Row 2 coordinates -->
+      <text x="29" y="132" class="coord" text-anchor="middle" font-size="1.5">(29,122)</text>
+      <text x="65" y="132" class="coord" text-anchor="middle" font-size="1.5">(65,122)</text>
+      <text x="101" y="132" class="coord" text-anchor="middle" font-size="1.5">(101,122)</text>
+      <text x="137" y="132" class="coord" text-anchor="middle" font-size="1.5">(137,122)</text>
+      <text x="173" y="132" class="coord" text-anchor="middle" font-size="1.5">(173,122)</text>
+    </g>
+
+    <!-- Row 3: y=147 -->
+    <g>
+      <!-- P-6 -->
+      <circle cx="29" cy="147" r="7" class="cutout-line"/>
+      <line x1="26" y1="147" x2="32" y2="147" class="center-mark"/>
+      <line x1="29" y1="144" x2="29" y2="150" class="center-mark"/>
+      <text x="29" y="148" class="label" font-size="1.6">P-6</text>
+
+      <!-- P-7a -->
+      <circle cx="65" cy="147" r="7" class="cutout-line"/>
+      <line x1="62" y1="147" x2="68" y2="147" class="center-mark"/>
+      <line x1="65" y1="144" x2="65" y2="150" class="center-mark"/>
+      <text x="65" y="148" class="label" font-size="1.6">P-7a</text>
+
+      <!-- P-7b -->
+      <circle cx="101" cy="147" r="7" class="cutout-line"/>
+      <line x1="98" y1="147" x2="104" y2="147" class="center-mark"/>
+      <line x1="101" y1="144" x2="101" y2="150" class="center-mark"/>
+      <text x="101" y="148" class="label" font-size="1.6">P-7b</text>
+
+      <!-- P-7c -->
+      <circle cx="137" cy="147" r="7" class="cutout-line"/>
+      <line x1="134" y1="147" x2="140" y2="147" class="center-mark"/>
+      <line x1="137" y1="144" x2="137" y2="150" class="center-mark"/>
+      <text x="137" y="148" class="label" font-size="1.6">P-7c</text>
+
+      <!-- P-7d -->
+      <circle cx="173" cy="147" r="7" class="cutout-line"/>
+      <line x1="170" y1="147" x2="176" y2="147" class="center-mark"/>
+      <line x1="173" y1="144" x2="173" y2="150" class="center-mark"/>
+      <text x="173" y="148" class="label" font-size="1.6">P-7d</text>
+
+      <!-- Row 3 coordinates -->
+      <text x="29" y="157" class="coord" text-anchor="middle" font-size="1.5">(29,147)</text>
+      <text x="65" y="157" class="coord" text-anchor="middle" font-size="1.5">(65,147)</text>
+      <text x="101" y="157" class="coord" text-anchor="middle" font-size="1.5">(101,147)</text>
+      <text x="137" y="157" class="coord" text-anchor="middle" font-size="1.5">(137,147)</text>
+      <text x="173" y="157" class="coord" text-anchor="middle" font-size="1.5">(173,147)</text>
+    </g>
+
+    <!-- ==================== DIMENSION LINES ==================== -->
+
+    <!-- Overall width -->
+    <line x1="0" y1="-8" x2="200" y2="-8" class="dim-line" marker-start="url(#arr-s)" marker-end="url(#arr-e)"/>
+    <line x1="0" y1="-3" x2="0" y2="-9" class="dim-ext"/>
+    <line x1="200" y1="-3" x2="200" y2="-9" class="dim-ext"/>
+    <text x="100" y="-10" text-anchor="middle" class="dim">200.0</text>
+
+    <!-- Overall height -->
+    <line x1="210" y1="0" x2="210" y2="170" class="dim-line" marker-start="url(#arr-s)" marker-end="url(#arr-e)"/>
+    <line x1="202" y1="0" x2="211" y2="0" class="dim-ext"/>
+    <line x1="202" y1="170" x2="211" y2="170" class="dim-ext"/>
+    <text x="215" y="85" text-anchor="middle" class="dim" transform="rotate(90,215,85)">170.0</text>
+
+    <!-- Display X position -->
+    <line x1="0" y1="-4" x2="62" y2="-4" class="dim-line" marker-start="url(#arr-s)" marker-end="url(#arr-e)"/>
+    <line x1="62" y1="-3" x2="62" y2="-5" class="dim-ext"/>
+    <text x="31" y="-5.5" text-anchor="middle" class="dim" font-size="1.8">62.0</text>
+
+    <!-- Display width -->
+    <line x1="62" y1="-4" x2="122" y2="-4" class="dim-line" marker-start="url(#arr-s)" marker-end="url(#arr-e)"/>
+    <line x1="122" y1="-3" x2="122" y2="-5" class="dim-ext"/>
+    <text x="92" y="-5.5" text-anchor="middle" class="dim" font-size="1.8">60.0</text>
+
+    <!-- Display Y position -->
+    <line x1="-8" y1="0" x2="-8" y2="8" class="dim-line" marker-start="url(#arr-s)" marker-end="url(#arr-e)"/>
+    <line x1="-3" y1="8" x2="-9" y2="8" class="dim-ext"/>
+    <text x="-11" y="4" text-anchor="middle" class="dim" font-size="1.8" transform="rotate(-90,-11,4)">8.0</text>
+
+    <!-- Pattern button row spacing -->
+    <line x1="205" y1="97" x2="205" y2="122" class="dim-line" marker-start="url(#arr-s)" marker-end="url(#arr-e)"/>
+    <line x1="201" y1="97" x2="206" y2="97" class="dim-ext"/>
+    <line x1="201" y1="122" x2="206" y2="122" class="dim-ext"/>
+    <text x="208" y="110" text-anchor="middle" class="dim" font-size="1.8" transform="rotate(90,208,110)">25.0</text>
+
+    <line x1="205" y1="122" x2="205" y2="147" class="dim-line" marker-start="url(#arr-s)" marker-end="url(#arr-e)"/>
+    <line x1="201" y1="147" x2="206" y2="147" class="dim-ext"/>
+    <text x="208" y="135" text-anchor="middle" class="dim" font-size="1.8" transform="rotate(90,208,135)">25.0</text>
+
+    <!-- Pattern button column spacing -->
+    <line x1="29" y1="160" x2="65" y2="160" class="dim-line" marker-start="url(#arr-s)" marker-end="url(#arr-e)"/>
+    <line x1="29" y1="155" x2="29" y2="161" class="dim-ext"/>
+    <line x1="65" y1="155" x2="65" y2="161" class="dim-ext"/>
+    <text x="47" y="163" text-anchor="middle" class="dim" font-size="1.8">36.0</text>
+
+  </g>
+
+  <!-- ==================== HOLE SCHEDULE TABLE ==================== -->
+  <g transform="translate(20, 200)">
+    <text x="0" y="0" class="title" font-size="3.5">TABELA OTWORÓW</text>
+
+    <!-- Header -->
+    <rect x="0" y="3" width="220" height="5" fill="#333" rx="0.5"/>
+    <text x="5" y="7" class="table-header">ELEMENT</text>
+    <text x="50" y="7" class="table-header">ILOŚĆ</text>
+    <text x="68" y="7" class="table-header">WYMIAR</text>
+    <text x="100" y="7" class="table-header">TYP</text>
+    <text x="140" y="7" class="table-header">UWAGI</text>
+
+    <!-- Row 1 -->
+    <text x="5" y="13" class="table-cell">Otwory montażowe narożne</text>
+    <text x="55" y="13" class="table-cell">4</text>
+    <text x="68" y="13" class="table-cell">Ø4.2 mm</text>
+    <text x="100" y="13" class="table-cell">Przelotowy</text>
+    <text x="140" y="13" class="table-cell">M4, (6,6) od narożników</text>
+
+    <!-- Row 2 -->
+    <text x="5" y="18" class="table-cell">Wycięcie wyświetlacza</text>
+    <text x="55" y="18" class="table-cell">1</text>
+    <text x="68" y="18" class="table-cell">60×46 mm</text>
+    <text x="100" y="18" class="table-cell">Prostokątne R1</text>
+    <text x="140" y="18" class="table-cell">Lewy-górny: (62,8)</text>
+
+    <!-- Row 3 -->
+    <text x="5" y="23" class="table-cell">Otwory montażowe TFT</text>
+    <text x="55" y="23" class="table-cell">4</text>
+    <text x="68" y="23" class="table-cell">Ø3.2 mm</text>
+    <text x="100" y="23" class="table-cell">Przelotowy</text>
+    <text x="140" y="23" class="table-cell">M3, (59/125, 50/57)</text>
+
+    <!-- Row 4 -->
+    <text x="5" y="28" class="table-cell">Wycięcie joysticka</text>
+    <text x="55" y="28" class="table-cell">1</text>
+    <text x="68" y="28" class="table-cell">Ø26 mm</text>
+    <text x="100" y="28" class="table-cell">Okrągłe</text>
+    <text x="140" y="28" class="table-cell">Centrum: (28,40)</text>
+
+    <!-- Row 5 -->
+    <text x="5" y="33" class="table-cell">Otwory montażowe joysticka</text>
+    <text x="55" y="33" class="table-cell">4</text>
+    <text x="68" y="33" class="table-cell">Ø3.2 mm</text>
+    <text x="100" y="33" class="table-cell">Przelotowy</text>
+    <text x="140" y="33" class="table-cell">M3, (15/41, 27/53)</text>
+
+    <!-- Row 6 -->
+    <text x="5" y="38" class="table-cell">Przycisk START</text>
+    <text x="55" y="38" class="table-cell">1</text>
+    <text x="68" y="38" class="table-cell">Ø20 mm</text>
+    <text x="100" y="38" class="table-cell">Okrągłe</text>
+    <text x="140" y="38" class="table-cell">Centrum: (168,18), zielony</text>
+
+    <!-- Row 7 -->
+    <text x="5" y="43" class="table-cell">Przycisk STOP</text>
+    <text x="55" y="43" class="table-cell">1</text>
+    <text x="68" y="43" class="table-cell">Ø20 mm</text>
+    <text x="100" y="43" class="table-cell">Okrągłe</text>
+    <text x="140" y="43" class="table-cell">Centrum: (168,43), czerwony</text>
+
+    <!-- Row 8 -->
+    <text x="5" y="48" class="table-cell">Przycisk SELECT</text>
+    <text x="55" y="48" class="table-cell">1</text>
+    <text x="68" y="48" class="table-cell">Ø16 mm</text>
+    <text x="100" y="48" class="table-cell">Okrągłe</text>
+    <text x="140" y="48" class="table-cell">Centrum: (168,65), niebieski</text>
+
+    <!-- Row 9 -->
+    <text x="5" y="53" class="table-cell">Przyciski wzorców (3 rzędy × 5)</text>
+    <text x="55" y="53" class="table-cell">15</text>
+    <text x="68" y="53" class="table-cell">Ø14 mm</text>
+    <text x="100" y="53" class="table-cell">Okrągłe</text>
+    <text x="140" y="53" class="table-cell">Siatka 36×25mm, LED pomarańcz.</text>
+
+    <!-- Row 10 -->
+    <text x="5" y="58" class="table-cell">LED zasilania</text>
+    <text x="55" y="58" class="table-cell">1</text>
+    <text x="68" y="58" class="table-cell">Ø5 mm</text>
+    <text x="100" y="58" class="table-cell">Okrągłe</text>
+    <text x="140" y="58" class="table-cell">Centrum: (148,10), zielony</text>
+
+    <!-- Row 11 -->
+    <text x="5" y="63" class="table-cell">Otwory buzzera</text>
+    <text x="55" y="63" class="table-cell">6</text>
+    <text x="68" y="63" class="table-cell">Ø2 mm</text>
+    <text x="100" y="63" class="table-cell">Przelotowy</text>
+    <text x="140" y="63" class="table-cell">Wzór heksagonalny, lewy-górny róg</text>
+
+    <!-- Border -->
+    <rect x="0" y="3" width="220" height="62" fill="none" stroke="#999" stroke-width="0.3" rx="0.5"/>
+    <line x1="0" y1="8" x2="220" y2="8" stroke="#ddd" stroke-width="0.2"/>
+  </g>
+
+</svg>
