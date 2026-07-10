@@ -22,10 +22,11 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
@@ -48,6 +49,7 @@ import com.trassar.v3.ui.components.ConnectionBanner
 import com.trassar.v3.ui.theme.DarkCard
 import com.trassar.v3.ui.theme.TrassarOrange
 
+@Suppress("DEPRECATION")
 @Composable
 fun ReportsScreen(vm: ReportsViewModel = viewModel()) {
     val reports by vm.reports.collectAsState()
@@ -71,104 +73,125 @@ fun ReportsScreen(vm: ReportsViewModel = viewModel()) {
         }
     }
 
-    Column(modifier = Modifier.fillMaxSize()) {
-        ConnectionBanner(connected)
-
-        // Tabs
-        TabRow(
-            selectedTabIndex = selectedTab,
-            containerColor = DarkCard,
-            contentColor = Color.White,
-            indicator = { tabPositions ->
-                SecondaryIndicator(
-                    Modifier.tabIndicatorOffset(tabPositions[selectedTab]),
-                    color = TrassarOrange,
-                )
-            },
-        ) {
-            Tab(
-                selected = selectedTab == 0,
-                onClick = { selectedTab = 0 },
-                text = { Text("Raporty CSV") },
-                icon = { Icon(Icons.Default.Description, contentDescription = null, Modifier.size(18.dp)) },
-            )
-            Tab(
-                selected = selectedTab == 1,
-                onClick = { selectedTab = 1 },
-                text = { Text("Trasy GPS") },
-                icon = { Icon(Icons.Default.Map, contentDescription = null, Modifier.size(18.dp)) },
-            )
-        }
-
-        // Refresh button
-        Row(
+    Scaffold(
+        snackbarHost = { SnackbarHost(snackbar) },
+        containerColor = MaterialTheme.colorScheme.background,
+    ) { innerPadding ->
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
+                .fillMaxSize()
+                .padding(innerPadding),
         ) {
-            Text(
-                text = if (selectedTab == 0) "${reports.size} raportow" else "${tracks.size} tras",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            if (loading) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(24.dp),
-                    color = TrassarOrange,
-                    strokeWidth = 2.dp,
-                )
-            } else {
-                IconButton(onClick = {
-                    if (selectedTab == 0) vm.loadReports() else vm.loadTracks()
-                }) {
-                    Icon(Icons.Default.Refresh, "Odswiez", tint = TrassarOrange)
-                }
-            }
-        }
+            ConnectionBanner(connected)
 
-        // List
-        when (selectedTab) {
-            0 -> {
-                if (reports.isEmpty()) {
-                    EmptyState("Brak raportow na karcie SD")
+            // Tabs
+            TabRow(
+                selectedTabIndex = selectedTab,
+                containerColor = DarkCard,
+                contentColor = Color.White,
+                indicator = { tabPositions ->
+                    SecondaryIndicator(
+                        Modifier.tabIndicatorOffset(tabPositions[selectedTab]),
+                        color = TrassarOrange,
+                    )
+                },
+            ) {
+                Tab(
+                    selected = selectedTab == 0,
+                    onClick = { selectedTab = 0 },
+                    text = { Text("Raporty CSV") },
+                    icon = {
+                        Icon(
+                            Icons.Default.Description,
+                            contentDescription = null,
+                            Modifier.size(18.dp),
+                        )
+                    },
+                )
+                Tab(
+                    selected = selectedTab == 1,
+                    onClick = { selectedTab = 1 },
+                    text = { Text("Trasy GPS") },
+                    icon = {
+                        Icon(
+                            Icons.Default.Map,
+                            contentDescription = null,
+                            Modifier.size(18.dp),
+                        )
+                    },
+                )
+            }
+
+            // Refresh row
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = if (selectedTab == 0) "${reports.size} raportow" else "${tracks.size} tras",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                if (loading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        color = TrassarOrange,
+                        strokeWidth = 2.dp,
+                    )
                 } else {
-                    LazyColumn(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(horizontal = 16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        items(reports) { report ->
-                            FileCard(
-                                name = report.name,
-                                size = formatSize(report.size),
-                                onDownload = { vm.downloadReport(report.name) },
-                            )
-                        }
-                        item { Spacer(Modifier.height(80.dp)) }
+                    IconButton(onClick = {
+                        if (selectedTab == 0) vm.loadReports() else vm.loadTracks()
+                    }) {
+                        Icon(Icons.Default.Refresh, "Odswiez", tint = TrassarOrange)
                     }
                 }
             }
-            1 -> {
-                if (tracks.isEmpty()) {
-                    EmptyState("Brak tras GPS na karcie SD")
-                } else {
-                    LazyColumn(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(horizontal = 16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        items(tracks) { track ->
-                            FileCard(
-                                name = track.name,
-                                size = formatSize(track.size),
-                                onDownload = { vm.downloadTrack(track.name) },
-                            )
+
+            // List
+            when (selectedTab) {
+                0 -> {
+                    if (reports.isEmpty()) {
+                        EmptyState("Brak raportow na karcie SD")
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = 16.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            items(reports) { report ->
+                                FileCard(
+                                    name = report.name,
+                                    size = formatSize(report.size),
+                                    onDownload = { vm.downloadReport(report.name) },
+                                )
+                            }
+                            item { Spacer(Modifier.height(80.dp)) }
                         }
-                        item { Spacer(Modifier.height(80.dp)) }
+                    }
+                }
+                1 -> {
+                    if (tracks.isEmpty()) {
+                        EmptyState("Brak tras GPS na karcie SD")
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = 16.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            items(tracks) { track ->
+                                FileCard(
+                                    name = track.name,
+                                    size = formatSize(track.size),
+                                    onDownload = { vm.downloadTrack(track.name) },
+                                )
+                            }
+                            item { Spacer(Modifier.height(80.dp)) }
+                        }
                     }
                 }
             }
@@ -202,6 +225,7 @@ private fun FileCard(name: String, size: String, onDownload: () -> Unit) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+            Spacer(Modifier.width(8.dp))
             IconButton(onClick = onDownload) {
                 Icon(Icons.Default.Download, "Pobierz", tint = TrassarOrange)
             }
@@ -227,7 +251,7 @@ private fun EmptyState(text: String) {
 }
 
 private fun formatSize(bytes: Long): String = when {
-    bytes < 1024 -> "$bytes B"
-    bytes < 1024 * 1024 -> "${bytes / 1024} KB"
+    bytes < 1024L -> "$bytes B"
+    bytes < 1024L * 1024L -> "${bytes / 1024} KB"
     else -> String.format("%.1f MB", bytes / (1024.0 * 1024.0))
 }
