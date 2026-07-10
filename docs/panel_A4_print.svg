@@ -1,0 +1,498 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- A4 Landscape: 297×210mm = 1122.5×793.7px @ 96dpi -->
+<svg xmlns="http://www.w3.org/2000/svg"
+     width="297mm" height="210mm"
+     viewBox="0 0 297 210">
+
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&amp;display=swap');
+      * { font-family: Arial, Helvetica, sans-serif; }
+
+      .panel-bg   { fill: #1a1a2e; }
+      .panel-rim  { fill: none; stroke: #000; stroke-width: 0.5; }
+
+      /* display */
+      .disp-cut   { fill: #001428; stroke: #0a5db5; stroke-width: 0.35; }
+      .disp-glass { fill: #001e3c; }
+      .disp-px    { fill: #0077ff; opacity: 0.08; }
+
+      /* screen content */
+      .sc-head    { font-size: 3.2px; font-weight: bold; fill: #3399ff; }
+      .sc-label   { font-size: 1.8px; fill: #888; }
+      .sc-value   { font-size: 2.2px; font-weight: bold; fill: #fff; }
+      .sc-ok      { fill: #00cc55; }
+      .sc-warn    { fill: #ff8800; }
+      .sc-off     { fill: #ff3333; }
+      .sc-grid    { stroke: #0a3050; stroke-width: 0.2; fill: none; }
+      .sc-bar-bg  { fill: #0a2030; rx: 0.5; }
+      .sc-bar-fill{ fill: #0077ff; rx: 0.5; }
+
+      /* joystick */
+      .joy-ring   { fill: #252535; stroke: #3a3a4a; stroke-width: 0.4; }
+      .joy-inner  { fill: #1e1e2e; stroke: #333; stroke-width: 0.25; }
+      .joy-cap    { fill: #2d2d3d; stroke: #444; stroke-width: 0.25; }
+      .joy-dot    { fill: #555; }
+      .joy-arrow  { fill: #555; }
+
+      /* buttons – pattern */
+      .btn-pat    { fill: #252535; stroke: #ff8c00; stroke-width: 0.4; }
+      .btn-pat-led{ fill: none; }
+      .pat-lbl    { font-size: 2.8px; font-weight: bold; fill: #ff8c00; text-anchor: middle; }
+      .pat-sub    { font-size: 1.4px; fill: #aa6600; text-anchor: middle; }
+      .pat-line   { stroke: #ff8c00; }
+
+      /* buttons – function */
+      .btn-start  { fill: #145a32; stroke: #27ae60; stroke-width: 0.5; }
+      .btn-start-c{ fill: #1a7a42; stroke: #2ecc71; stroke-width: 0.3; }
+      .btn-stop   { fill: #641010; stroke: #c0392b; stroke-width: 0.5; }
+      .btn-stop-c { fill: #8a1414; stroke: #e74c3c; stroke-width: 0.3; }
+      .btn-sel    { fill: #0d3b6e; stroke: #2980b9; stroke-width: 0.5; }
+      .btn-sel-c  { fill: #1a5690; stroke: #3498db; stroke-width: 0.3; }
+      .fn-lbl     { font-size: 2.4px; font-weight: bold; fill: #fff; text-anchor: middle; }
+      .fn-sub     { font-size: 1.3px; fill: #aaa; text-anchor: middle; }
+
+      /* mounting holes */
+      .mhole      { fill: #0d0d1c; stroke: #444; stroke-width: 0.25; }
+      .mhole-x    { stroke: #555; stroke-width: 0.2; }
+
+      /* LEDs */
+      .led-pwr    { fill: #00ff44; }
+      .led-ring   { fill: none; stroke: #333; stroke-width: 0.2; }
+
+      /* buzzer */
+      .buzz-hole  { fill: none; stroke: #444; stroke-width: 0.2; }
+
+      /* dimension lines */
+      .dim-l      { stroke: #cc0000; stroke-width: 0.18; fill: none; }
+      .dim-ext    { stroke: #cc0000; stroke-width: 0.1; fill: none; stroke-dasharray: 0.4,0.4; }
+      .dim-t      { font-size: 2px; fill: #cc0000; font-weight: bold; text-anchor: middle; }
+      .dim-ts     { font-size: 1.5px; fill: #cc0000; text-anchor: middle; }
+
+      /* divider */
+      .div-dash   { stroke: #2a2a3e; stroke-width: 0.25; stroke-dasharray: 2,1; fill: none; }
+
+      /* labels outside panel */
+      .ext-lbl    { font-size: 2px; fill: #333; }
+      .ext-lbl-b  { font-size: 2.2px; fill: #111; font-weight: bold; }
+      .ext-note   { font-size: 1.5px; fill: #666; }
+
+      /* title block */
+      .title      { font-size: 5px; font-weight: bold; fill: #111; }
+      .subtitle   { font-size: 2.2px; fill: #555; }
+      .box-border { fill: none; stroke: #999; stroke-width: 0.3; }
+
+      /* coord */
+      .coord      { font-size: 1.5px; fill: #0055aa; }
+
+      /* group label */
+      .grp-lbl    { font-size: 2px; fill: #ff8c00; font-weight: bold; }
+    </style>
+
+    <marker id="ar-s" markerWidth="3" markerHeight="3" refX="0.5" refY="1.5" orient="auto">
+      <path d="M3,0 L0,1.5 L3,3" fill="#cc0000"/>
+    </marker>
+    <marker id="ar-e" markerWidth="3" markerHeight="3" refX="2.5" refY="1.5" orient="auto">
+      <path d="M0,0 L3,1.5 L0,3" fill="#cc0000"/>
+    </marker>
+    <marker id="ar-sb" markerWidth="2.5" markerHeight="2.5" refX="0.4" refY="1.25" orient="auto">
+      <path d="M2.5,0 L0,1.25 L2.5,2.5" fill="#cc0000"/>
+    </marker>
+    <marker id="ar-eb" markerWidth="2.5" markerHeight="2.5" refX="2.1" refY="1.25" orient="auto">
+      <path d="M0,0 L2.5,1.25 L0,2.5" fill="#cc0000"/>
+    </marker>
+
+    <!-- shadow filter -->
+    <filter id="shadow" x="-5%" y="-5%" width="115%" height="115%">
+      <feDropShadow dx="0.3" dy="0.5" stdDeviation="0.4" flood-color="#000" flood-opacity="0.5"/>
+    </filter>
+  </defs>
+
+  <!-- Page background -->
+  <rect width="297" height="210" fill="#e8e8e8"/>
+
+  <!-- ===== TITLE BLOCK ===== -->
+  <g transform="translate(5, 4)">
+    <text x="0" y="5" class="title">TRASSAR V3</text>
+    <text x="0" y="9" class="subtitle">Komputer pokładowy malowarki drogowej • Projekt panelu obudowy 200×170 mm</text>
+    <text x="0" y="12.5" class="subtitle">Materiał: Al 2mm anodowane czarne • Skala 1:1 • Format A4 poziomy</text>
+  </g>
+
+  <!-- Title block right side -->
+  <rect x="240" y="2" width="52" height="14" class="box-border"/>
+  <line x1="240" y1="7" x2="292" y2="7" stroke="#999" stroke-width="0.2"/>
+  <text x="266" y="5.5" text-anchor="middle" style="font-size:2px;fill:#666;">Projekt nr</text>
+  <text x="266" y="6.5" text-anchor="middle" style="font-size:1.8px;fill:#333;">TRS-V3-PAN-001</text>
+  <text x="266" y="9.5" text-anchor="middle" style="font-size:1.6px;fill:#666;">Data: 2026-07-10</text>
+  <text x="266" y="11.5" text-anchor="middle" style="font-size:1.6px;fill:#666;">Rys. tech. + wizualizacja</text>
+  <text x="266" y="13.5" text-anchor="middle" style="font-size:1.6px;fill:#666;">Plik: panel_A4_print.pdf</text>
+
+  <!-- Horizontal divider under title -->
+  <line x1="5" y1="17" x2="292" y2="17" stroke="#bbb" stroke-width="0.3"/>
+
+  <!-- ===== PANEL (centered on A4, scale 1:1, panel 200×170mm) ===== -->
+  <!-- Left margin: (297-200)/2 = 48.5 → place at x=48.5  Top margin: 19mm -->
+  <g transform="translate(48.5, 19)" filter="url(#shadow)">
+
+    <!-- Panel body -->
+    <rect x="0" y="0" width="200" height="170" class="panel-bg"/>
+    <rect x="0" y="0" width="200" height="170" class="panel-rim"/>
+
+    <!-- Rounded corners -->
+    <rect x="0" y="0" width="200" height="170" rx="3" ry="3" fill="none" stroke="#444" stroke-width="0.25"/>
+
+    <!-- Corner mounting holes M4 (Ø4.2mm) -->
+    <circle cx="6"   cy="6"   r="2.1" class="mhole"/>
+    <circle cx="194" cy="6"   r="2.1" class="mhole"/>
+    <circle cx="6"   cy="164" r="2.1" class="mhole"/>
+    <circle cx="194" cy="164" r="2.1" class="mhole"/>
+    <g class="mhole-x">
+      <line x1="4.5" y1="6"   x2="7.5" y2="6"/>  <line x1="6"   y1="4.5" x2="6"   y2="7.5"/>
+      <line x1="192.5" y1="6"   x2="195.5" y2="6"/> <line x1="194" y1="4.5" x2="194" y2="7.5"/>
+      <line x1="4.5" y1="164" x2="7.5" y2="164"/> <line x1="6"   y1="162.5" x2="6"   y2="165.5"/>
+      <line x1="192.5" y1="164" x2="195.5" y2="164"/><line x1="194" y1="162.5" x2="194" y2="165.5"/>
+    </g>
+
+    <!-- ===== DISPLAY ILI9341 2.8" (60×46mm cutout) ===== -->
+    <!-- Cutout starts at (62,8), ends (122,54) -->
+    <rect x="62" y="8" width="60" height="46" rx="1" class="disp-cut"/>
+    <!-- Active screen area (2mm inset) -->
+    <rect x="64" y="10" width="56" height="42" class="disp-glass"/>
+
+    <!-- Screen content mockup (inside 64,10 → 120,52) -->
+    <!-- Top status bar -->
+    <rect x="64" y="10" width="56" height="5" fill="#001030"/>
+    <text x="92" y="14" text-anchor="middle" class="sc-head">TRASSAR V3</text>
+
+    <!-- Main area grid -->
+    <line x1="64" y1="15" x2="120" y2="15" class="sc-grid"/>
+    <line x1="64" y1="30" x2="120" y2="30" class="sc-grid"/>
+    <line x1="64" y1="44" x2="120" y2="44" class="sc-grid"/>
+    <line x1="90" y1="15" x2="90" y2="52" class="sc-grid"/>
+
+    <!-- Left column -->
+    <text x="66" y="19" class="sc-label">Stan:</text>
+    <text x="66" y="22.5" class="sc-value sc-ok">GOTOWY</text>
+    <text x="66" y="25.5" class="sc-label">Tryb:</text>
+    <text x="66" y="28.5" class="sc-value sc-warn">AUTO</text>
+
+    <text x="66" y="33" class="sc-label">Wzorzec:</text>
+    <text x="66" y="36.5" class="sc-value sc-warn">P-1a</text>
+    <text x="66" y="39.5" class="sc-label">Przeryw. długa</text>
+    <text x="66" y="42.5" class="sc-label">4.0m / 8.0m</text>
+
+    <!-- Right column -->
+    <text x="92" y="19" class="sc-label">Prędkość:</text>
+    <text x="92" y="22.5" class="sc-value">0.0 km/h</text>
+    <text x="92" y="25.5" class="sc-label">Dystans:</text>
+    <text x="92" y="28.5" class="sc-value">0.0 m</text>
+
+    <text x="92" y="33" class="sc-label">Pistolet P2:</text>
+    <!-- Bar for gun state -->
+    <rect x="92" y="34" width="26" height="2.5" fill="#0a2030" rx="0.5"/>
+    <rect x="92" y="34" width="0" height="2.5" fill="#0077ff" rx="0.5"/>
+    <text x="92" y="39.5" class="sc-label">GPS:</text>
+    <text x="100" y="39.5" class="sc-off" style="font-size:1.8px;">✕ brak</text>
+    <text x="92" y="42.5" class="sc-label">RTC: 00:00:00</text>
+
+    <!-- Bottom bar -->
+    <rect x="64" y="44" width="56" height="8" fill="#000d1f"/>
+    <text x="66" y="47.5" class="sc-label">Sesja:</text>
+    <text x="66" y="50.5" style="font-size:1.6px; fill:#aaa;">0 m namalowano</text>
+    <text x="100" y="47.5" class="sc-label">Farba:</text>
+    <rect x="108" y="45.5" width="10" height="2" fill="#0a2030" rx="0.3"/>
+    <rect x="108" y="45.5" width="8" height="2" fill="#00aa44" rx="0.3"/>
+    <text x="100" y="50.5" style="font-size:1.5px; fill:#888;">80%</text>
+
+    <!-- Display label below cutout -->
+    <text x="92" y="58" text-anchor="middle" style="font-size:2px; fill:#888;">ILI9341 · 2.8" TFT 320×240 · wycięcie 60×46mm</text>
+
+    <!-- Display mounting holes M3 (4×) -->
+    <circle cx="59"  cy="58" r="1.6" class="mhole"/>
+    <circle cx="125" cy="58" r="1.6" class="mhole"/>
+    <circle cx="59"  cy="64" r="1.6" class="mhole"/>
+    <circle cx="125" cy="64" r="1.6" class="mhole"/>
+
+    <!-- ===== JOYSTICK KY-023 (Ø26mm) center (28,40) ===== -->
+    <circle cx="28" cy="40" r="13.5" class="joy-ring"/>
+    <circle cx="28" cy="40" r="11"   class="joy-inner"/>
+    <!-- Direction arrows -->
+    <polygon points="28,28.5  26.5,31  29.5,31" class="joy-arrow"/>
+    <polygon points="28,51.5  26.5,49  29.5,49" class="joy-arrow"/>
+    <polygon points="16.5,40  19,38.5  19,41.5" class="joy-arrow"/>
+    <polygon points="39.5,40  37,38.5  37,41.5" class="joy-arrow"/>
+    <!-- Cap -->
+    <circle cx="28" cy="40" r="7.5" class="joy-cap"/>
+    <circle cx="28" cy="40" r="2"   class="joy-dot"/>
+    <!-- Mounting holes M3 (4×) -->
+    <circle cx="15" cy="27" r="1.6" class="mhole"/>
+    <circle cx="41" cy="27" r="1.6" class="mhole"/>
+    <circle cx="15" cy="53" r="1.6" class="mhole"/>
+    <circle cx="41" cy="53" r="1.6" class="mhole"/>
+    <!-- Label -->
+    <text x="28" y="67" text-anchor="middle" style="font-size:2px;fill:#888;">JOYSTICK</text>
+    <text x="28" y="70" text-anchor="middle" style="font-size:1.5px;fill:#666;">KY-023 · Ø26mm</text>
+
+    <!-- ===== FUNCTION BUTTONS (right side, x=168) ===== -->
+
+    <!-- START — center (168, 18), Ø20mm -->
+    <circle cx="168" cy="18" r="10"   class="btn-start"/>
+    <circle cx="168" cy="18" r="7.5"  class="btn-start-c"/>
+    <text x="168" y="17"  class="fn-lbl" style="font-size:2.8px;">▶</text>
+    <text x="168" y="20.5" class="fn-lbl" style="font-size:2.2px;">START</text>
+    <text x="168" y="31"  class="fn-sub">GPIO 38 · Ø20mm</text>
+
+    <!-- STOP — center (168, 43), Ø20mm -->
+    <circle cx="168" cy="43" r="10"   class="btn-stop"/>
+    <circle cx="168" cy="43" r="7.5"  class="btn-stop-c"/>
+    <text x="168" y="42"  class="fn-lbl" style="font-size:2.8px;">■</text>
+    <text x="168" y="45.5" class="fn-lbl" style="font-size:2.2px;">STOP</text>
+    <text x="168" y="56"  class="fn-sub">GPIO 39 · Ø20mm</text>
+
+    <!-- SELECT — center (168, 65), Ø16mm -->
+    <circle cx="168" cy="65" r="8"    class="btn-sel"/>
+    <circle cx="168" cy="65" r="5.5"  class="btn-sel-c"/>
+    <text x="168" y="64"  class="fn-lbl" style="font-size:2px;">☰</text>
+    <text x="168" y="67.5" class="fn-lbl" style="font-size:2px;">SELECT</text>
+    <text x="168" y="76"  class="fn-sub">GPIO 40 · Ø16mm</text>
+
+    <!-- Power LED -->
+    <circle cx="148" cy="10" r="2.5" class="led-pwr" opacity="0.85"/>
+    <circle cx="148" cy="10" r="2.5" class="led-ring"/>
+    <text x="148" y="15" text-anchor="middle" style="font-size:1.4px;fill:#777;">PWR</text>
+
+    <!-- Buzzer holes (6× Ø2mm) -->
+    <g class="buzz-hole">
+      <circle cx="10" cy="12" r="1"/>
+      <circle cx="14" cy="12" r="1"/>
+      <circle cx="12" cy="16" r="1"/>
+      <circle cx="10" cy="20" r="1"/>
+      <circle cx="14" cy="20" r="1"/>
+      <circle cx="12" cy="24" r="1"/>
+    </g>
+    <text x="12" y="28" text-anchor="middle" style="font-size:1.4px;fill:#666;">BUZZER</text>
+
+    <!-- ===== DIVIDER LINE (upper/lower zone) ===== -->
+    <line x1="10" y1="80" x2="190" y2="80" class="div-dash"/>
+    <text x="100" y="78.5" text-anchor="middle" style="font-size:1.6px;fill:#333;letter-spacing:1px;">▸ STREFA WZORCÓW ◂</text>
+
+    <!-- ===== PATTERN BUTTONS 3×5 ===== -->
+    <!-- Grid: col centers at x = 22, 58, 94, 130, 166  -->
+    <!--       row centers at y = 100, 125, 150          -->
+    <!-- Button radius for click area: 8mm, visible circle: 7mm, cutout: Ø14mm -->
+
+    <!-- Row group labels (left outside) -->
+    <text x="7" y="102" class="grp-lbl" text-anchor="middle" transform="rotate(-90,7,102)" style="font-size:1.8px;">RZD 1</text>
+    <text x="7" y="127" class="grp-lbl" text-anchor="middle" transform="rotate(-90,7,127)" style="font-size:1.8px;">RZD 2</text>
+    <text x="7" y="152" class="grp-lbl" text-anchor="middle" transform="rotate(-90,7,152)" style="font-size:1.8px;">RZD 3</text>
+
+    <!-- ── ROW 1 ── -->
+    <!-- P-1a -->
+    <g transform="translate(22,100)">
+      <circle cx="0" cy="0" r="8"   class="btn-pat"/>
+      <circle cx="0" cy="0" r="5.5" fill="none" stroke="#553300" stroke-width="0.2"/>
+      <text x="0" y="-1.5" class="pat-lbl" style="font-size:3px;">P-1a</text>
+      <!-- preview: long dashes -->
+      <line x1="-5.5" y1="2" x2="-2.5" y2="2" class="pat-line" stroke-width="0.7"/>
+      <line x1="-0.5" y1="2" x2="2.5"  y2="2" class="pat-line" stroke-width="0.7"/>
+      <line x1="3.5"  y1="2" x2="5.5"  y2="2" class="pat-line" stroke-width="0.7"/>
+      <text x="0" y="9.5" class="pat-sub" style="font-size:1.3px;">4m / 8m</text>
+    </g>
+    <!-- P-1b -->
+    <g transform="translate(58,100)">
+      <circle cx="0" cy="0" r="8"   class="btn-pat"/>
+      <circle cx="0" cy="0" r="5.5" fill="none" stroke="#553300" stroke-width="0.2"/>
+      <text x="0" y="-1.5" class="pat-lbl" style="font-size:3px;">P-1b</text>
+      <line x1="-5.5" y1="2" x2="-3" y2="2" class="pat-line" stroke-width="0.7"/>
+      <line x1="-1.5" y1="2" x2="1" y2="2" class="pat-line" stroke-width="0.7"/>
+      <line x1="2.5"  y1="2" x2="5" y2="2" class="pat-line" stroke-width="0.7"/>
+      <text x="0" y="9.5" class="pat-sub" style="font-size:1.3px;">2m / 4m</text>
+    </g>
+    <!-- P-1c -->
+    <g transform="translate(94,100)">
+      <circle cx="0" cy="0" r="8"   class="btn-pat"/>
+      <circle cx="0" cy="0" r="5.5" fill="none" stroke="#553300" stroke-width="0.2"/>
+      <text x="0" y="-1.5" class="pat-lbl" style="font-size:3px;">P-1c</text>
+      <line x1="-5" y1="2" x2="-3" y2="2" class="pat-line" stroke-width="0.7"/>
+      <line x1="-1.5" y1="2" x2="0.5" y2="2" class="pat-line" stroke-width="0.7"/>
+      <line x1="2" y1="2"  x2="4"  y2="2" class="pat-line" stroke-width="0.7"/>
+      <text x="0" y="9.5" class="pat-sub" style="font-size:1.3px;">2m / 2m</text>
+    </g>
+    <!-- P-1d -->
+    <g transform="translate(130,100)">
+      <circle cx="0" cy="0" r="8"   class="btn-pat"/>
+      <circle cx="0" cy="0" r="5.5" fill="none" stroke="#553300" stroke-width="0.2"/>
+      <text x="0" y="-1.5" class="pat-lbl" style="font-size:3px;">P-1d</text>
+      <line x1="-5" y1="1.5"  x2="-3.5" y2="1.5" class="pat-line" stroke-width="0.5"/>
+      <line x1="-2" y1="1.5"  x2="-0.5" y2="1.5" class="pat-line" stroke-width="0.5"/>
+      <line x1="1"  y1="1.5"  x2="2.5"  y2="1.5" class="pat-line" stroke-width="0.5"/>
+      <line x1="4"  y1="1.5"  x2="5"    y2="1.5" class="pat-line" stroke-width="0.5"/>
+      <line x1="-5" y1="2.5"  x2="-3.5" y2="2.5" class="pat-line" stroke-width="0.5"/>
+      <line x1="-2" y1="2.5"  x2="-0.5" y2="2.5" class="pat-line" stroke-width="0.5"/>
+      <line x1="1"  y1="2.5"  x2="2.5"  y2="2.5" class="pat-line" stroke-width="0.5"/>
+      <line x1="4"  y1="2.5"  x2="5"    y2="2.5" class="pat-line" stroke-width="0.5"/>
+      <text x="0" y="9.5" class="pat-sub" style="font-size:1.3px;">1m / 1m wąska</text>
+    </g>
+    <!-- P-1e -->
+    <g transform="translate(166,100)">
+      <circle cx="0" cy="0" r="8"   class="btn-pat"/>
+      <circle cx="0" cy="0" r="5.5" fill="none" stroke="#553300" stroke-width="0.2"/>
+      <text x="0" y="-1.5" class="pat-lbl" style="font-size:3px;">P-1e</text>
+      <line x1="-5" y1="1.5"  x2="-3.5" y2="1.5" class="pat-line" stroke-width="1.2"/>
+      <line x1="-2" y1="1.5"  x2="-0.5" y2="1.5" class="pat-line" stroke-width="1.2"/>
+      <line x1="1"  y1="1.5"  x2="2.5"  y2="1.5" class="pat-line" stroke-width="1.2"/>
+      <line x1="4"  y1="1.5"  x2="5"    y2="1.5" class="pat-line" stroke-width="1.2"/>
+      <text x="0" y="9.5" class="pat-sub" style="font-size:1.3px;">1m / 1m szeroka</text>
+    </g>
+
+    <!-- ── ROW 2 ── -->
+    <!-- P-2a -->
+    <g transform="translate(22,125)">
+      <circle cx="0" cy="0" r="8"   class="btn-pat"/>
+      <circle cx="0" cy="0" r="5.5" fill="none" stroke="#553300" stroke-width="0.2"/>
+      <text x="0" y="-1.5" class="pat-lbl" style="font-size:3px;">P-2a</text>
+      <line x1="-5.5" y1="2" x2="5.5" y2="2" class="pat-line" stroke-width="0.5"/>
+      <text x="0" y="9.5" class="pat-sub" style="font-size:1.3px;">ciągła wąska</text>
+    </g>
+    <!-- P-2b -->
+    <g transform="translate(58,125)">
+      <circle cx="0" cy="0" r="8"   class="btn-pat"/>
+      <circle cx="0" cy="0" r="5.5" fill="none" stroke="#553300" stroke-width="0.2"/>
+      <text x="0" y="-1.5" class="pat-lbl" style="font-size:3px;">P-2b</text>
+      <line x1="-5.5" y1="2" x2="5.5" y2="2" class="pat-line" stroke-width="1.5"/>
+      <text x="0" y="9.5" class="pat-sub" style="font-size:1.3px;">ciągła szeroka</text>
+    </g>
+    <!-- P-3a -->
+    <g transform="translate(94,125)">
+      <circle cx="0" cy="0" r="8"   class="btn-pat"/>
+      <circle cx="0" cy="0" r="5.5" fill="none" stroke="#553300" stroke-width="0.2"/>
+      <text x="0" y="-1.5" class="pat-lbl" style="font-size:3px;">P-3a</text>
+      <line x1="-5.5" y1="1.5" x2="5.5" y2="1.5" class="pat-line" stroke-width="0.5"/>
+      <line x1="-5.5" y1="2.8" x2="-2.5" y2="2.8" class="pat-line" stroke-width="0.5"/>
+      <line x1="-0.5" y1="2.8" x2="2.5"  y2="2.8" class="pat-line" stroke-width="0.5"/>
+      <text x="0" y="9.5" class="pat-sub" style="font-size:1.3px;">przekraczalna dł.</text>
+    </g>
+    <!-- P-3b -->
+    <g transform="translate(130,125)">
+      <circle cx="0" cy="0" r="8"   class="btn-pat"/>
+      <circle cx="0" cy="0" r="5.5" fill="none" stroke="#553300" stroke-width="0.2"/>
+      <text x="0" y="-1.5" class="pat-lbl" style="font-size:3px;">P-3b</text>
+      <line x1="-5.5" y1="1.5" x2="5.5" y2="1.5" class="pat-line" stroke-width="0.5"/>
+      <line x1="-5.5" y1="2.8" x2="-4"  y2="2.8" class="pat-line" stroke-width="0.5"/>
+      <line x1="-2.5" y1="2.8" x2="-1"  y2="2.8" class="pat-line" stroke-width="0.5"/>
+      <line x1="0.5"  y1="2.8" x2="2"   y2="2.8" class="pat-line" stroke-width="0.5"/>
+      <line x1="3.5"  y1="2.8" x2="5"   y2="2.8" class="pat-line" stroke-width="0.5"/>
+      <text x="0" y="9.5" class="pat-sub" style="font-size:1.3px;">przekraczalna kr.</text>
+    </g>
+    <!-- P-4 -->
+    <g transform="translate(166,125)">
+      <circle cx="0" cy="0" r="8"   class="btn-pat"/>
+      <circle cx="0" cy="0" r="5.5" fill="none" stroke="#553300" stroke-width="0.2"/>
+      <text x="0" y="-1.5" class="pat-lbl" style="font-size:3px;">P-4</text>
+      <line x1="-5.5" y1="1.5" x2="5.5" y2="1.5" class="pat-line" stroke-width="0.6"/>
+      <line x1="-5.5" y1="2.8" x2="5.5" y2="2.8" class="pat-line" stroke-width="0.6"/>
+      <text x="0" y="9.5" class="pat-sub" style="font-size:1.3px;">podwójna ciągła</text>
+    </g>
+
+    <!-- ── ROW 3 ── -->
+    <!-- P-6 -->
+    <g transform="translate(22,150)">
+      <circle cx="0" cy="0" r="8"   class="btn-pat"/>
+      <circle cx="0" cy="0" r="5.5" fill="none" stroke="#553300" stroke-width="0.2"/>
+      <text x="0" y="-1.5" class="pat-lbl" style="font-size:3px;">P-6</text>
+      <line x1="-5.5" y1="2" x2="-2" y2="2" class="pat-line" stroke-width="0.8"/>
+      <line x1="2" y1="2"    x2="5.5" y2="2" class="pat-line" stroke-width="0.8"/>
+      <text x="0" y="9.5" class="pat-sub" style="font-size:1.3px;">ostrzegawcza</text>
+    </g>
+    <!-- P-7a -->
+    <g transform="translate(58,150)">
+      <circle cx="0" cy="0" r="8"   class="btn-pat"/>
+      <circle cx="0" cy="0" r="5.5" fill="none" stroke="#553300" stroke-width="0.2"/>
+      <text x="0" y="-1.5" class="pat-lbl" style="font-size:3px;">P-7a</text>
+      <line x1="-5.5" y1="2" x2="-3" y2="2" class="pat-line" stroke-width="1.2"/>
+      <line x1="-1.5" y1="2" x2="1"  y2="2" class="pat-line" stroke-width="1.2"/>
+      <line x1="2.5"  y1="2" x2="5"  y2="2" class="pat-line" stroke-width="1.2"/>
+      <text x="0" y="9.5" class="pat-sub" style="font-size:1.3px;">krw. przeryw. szer.</text>
+    </g>
+    <!-- P-7b -->
+    <g transform="translate(94,150)">
+      <circle cx="0" cy="0" r="8"   class="btn-pat"/>
+      <circle cx="0" cy="0" r="5.5" fill="none" stroke="#553300" stroke-width="0.2"/>
+      <text x="0" y="-1.5" class="pat-lbl" style="font-size:3px;">P-7b</text>
+      <line x1="-5.5" y1="2" x2="5.5" y2="2" class="pat-line" stroke-width="1.2"/>
+      <text x="0" y="9.5" class="pat-sub" style="font-size:1.3px;">krw. ciągła szer.</text>
+    </g>
+    <!-- P-7c -->
+    <g transform="translate(130,150)">
+      <circle cx="0" cy="0" r="8"   class="btn-pat"/>
+      <circle cx="0" cy="0" r="5.5" fill="none" stroke="#553300" stroke-width="0.2"/>
+      <text x="0" y="-1.5" class="pat-lbl" style="font-size:3px;">P-7c</text>
+      <line x1="-5.5" y1="2" x2="-3" y2="2" class="pat-line" stroke-width="0.5"/>
+      <line x1="-1.5" y1="2" x2="1"  y2="2" class="pat-line" stroke-width="0.5"/>
+      <line x1="2.5"  y1="2" x2="5"  y2="2" class="pat-line" stroke-width="0.5"/>
+      <text x="0" y="9.5" class="pat-sub" style="font-size:1.3px;">krw. przeryw. wąsk.</text>
+    </g>
+    <!-- P-7d -->
+    <g transform="translate(166,150)">
+      <circle cx="0" cy="0" r="8"   class="btn-pat"/>
+      <circle cx="0" cy="0" r="5.5" fill="none" stroke="#553300" stroke-width="0.2"/>
+      <text x="0" y="-1.5" class="pat-lbl" style="font-size:3px;">P-7d</text>
+      <line x1="-5.5" y1="2" x2="5.5" y2="2" class="pat-line" stroke-width="0.5"/>
+      <text x="0" y="9.5" class="pat-sub" style="font-size:1.3px;">krw. ciągła wąsk.</text>
+    </g>
+
+    <!-- ===== DIMENSION LINES ===== -->
+    <!-- Overall width 200mm (above panel) -->
+    <line x1="0"   y1="-5" x2="200" y2="-5" class="dim-l" marker-start="url(#ar-s)" marker-end="url(#ar-e)"/>
+    <line x1="0"   y1="-1" x2="0"   y2="-6" class="dim-ext"/>
+    <line x1="200" y1="-1" x2="200" y2="-6" class="dim-ext"/>
+    <text x="100" y="-6.5" class="dim-t">200 mm</text>
+
+    <!-- Overall height 170mm (right of panel) -->
+    <line x1="204" y1="0" x2="204" y2="170" class="dim-l" marker-start="url(#ar-s)" marker-end="url(#ar-e)"/>
+    <line x1="202" y1="0" x2="205" y2="0"   class="dim-ext"/>
+    <line x1="202" y1="170" x2="205" y2="170" class="dim-ext"/>
+    <text x="209" y="85" class="dim-t" transform="rotate(90,209,85)">170 mm</text>
+
+    <!-- Pattern button pitch horizontal: 36mm -->
+    <line x1="22" y1="163" x2="58" y2="163" class="dim-l" marker-start="url(#ar-sb)" marker-end="url(#ar-eb)"/>
+    <line x1="22" y1="160" x2="22" y2="164" class="dim-ext"/>
+    <line x1="58" y1="160" x2="58" y2="164" class="dim-ext"/>
+    <text x="40" y="166" class="dim-ts">36 mm</text>
+
+    <!-- Pattern button pitch vertical: 25mm -->
+    <line x1="-5" y1="100" x2="-5" y2="125" class="dim-l" marker-start="url(#ar-sb)" marker-end="url(#ar-eb)"/>
+    <line x1="-2" y1="100" x2="-6" y2="100" class="dim-ext"/>
+    <line x1="-2" y1="125" x2="-6" y2="125" class="dim-ext"/>
+    <text x="-10" y="113" class="dim-ts" transform="rotate(-90,-10,113)">25 mm</text>
+
+  </g>
+
+  <!-- ===== LEGEND & NOTES (below panel, at y≈195) ===== -->
+  <g transform="translate(5, 193)">
+    <line x1="0" y1="0" x2="287" y2="0" stroke="#bbb" stroke-width="0.3"/>
+
+    <!-- Legend items -->
+    <circle cx="5"  cy="5" r="3" fill="#145a32" stroke="#27ae60" stroke-width="0.4"/>
+    <text x="10" y="6" class="ext-lbl">START (Ø20)</text>
+
+    <circle cx="42" cy="5" r="3" fill="#641010" stroke="#c0392b" stroke-width="0.4"/>
+    <text x="47" y="6" class="ext-lbl">STOP (Ø20)</text>
+
+    <circle cx="78" cy="5" r="3" fill="#0d3b6e" stroke="#2980b9" stroke-width="0.4"/>
+    <text x="83" y="6" class="ext-lbl">SELECT (Ø16)</text>
+
+    <circle cx="118" cy="5" r="3" fill="#252535" stroke="#ff8c00" stroke-width="0.4"/>
+    <text x="123" y="6" class="ext-lbl">Wzorzec ×15 (Ø14)</text>
+
+    <circle cx="162" cy="5" r="2" fill="#0d0d1c" stroke="#444" stroke-width="0.3"/>
+    <text x="166" y="6" class="ext-lbl">Otwór M4 (Ø4.2)</text>
+
+    <circle cx="200" cy="5" r="2" fill="#00ff44" opacity="0.85"/>
+    <text x="204" y="6" class="ext-lbl">LED PWR (Ø5)</text>
+
+    <text x="237" y="4"   class="ext-note">Tolerancja: ±0.5 mm</text>
+    <text x="237" y="7.5" class="ext-note">Mat: Al 2mm anodowane</text>
+  </g>
+
+</svg>
