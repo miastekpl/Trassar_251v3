@@ -1,0 +1,509 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SZABLON WIERCENIA — druk 1:1 na A4 poziomo (297×210mm) -->
+<svg xmlns="http://www.w3.org/2000/svg"
+     width="297mm" height="210mm"
+     viewBox="0 0 297 210">
+
+  <defs>
+    <style>
+      * { font-family: Arial, Helvetica, sans-serif; }
+
+      /* Obrys panelu */
+      .panel-out   { fill: none; stroke: #000; stroke-width: 0.4; }
+
+      /* Wytnij prostokąt (wyświetlacz) */
+      .cut-rect    { fill: none; stroke: #000; stroke-width: 0.5; }
+
+      /* Okrąg otworu — linia cienka */
+      .hole-circle { fill: none; stroke: #000; stroke-width: 0.3; }
+
+      /* Krzyżyk środka — linia cienka długa */
+      .cross       { stroke: #000; stroke-width: 0.2; fill: none; }
+
+      /* Krzyżyk środka — wariant duży */
+      .cross-lg    { stroke: #000; stroke-width: 0.25; fill: none; }
+
+      /* Linie wymiarowe */
+      .dim-l       { stroke: #555; stroke-width: 0.15; fill: none; }
+      .dim-ext     { stroke: #555; stroke-width: 0.1; fill: none; stroke-dasharray: 0.5,0.5; }
+
+      /* Tekst wymiarów */
+      .dim-t       { font-size: 2px; fill: #333; text-anchor: middle; }
+      .dim-ts      { font-size: 1.7px; fill: #444; text-anchor: middle; }
+
+      /* Etykiety otworów */
+      .hole-lbl    { font-size: 2px; fill: #000; text-anchor: middle; }
+      .hole-sub    { font-size: 1.6px; fill: #444; text-anchor: middle; }
+
+      /* Tytuł i notatki */
+      .title       { font-size: 4.5px; font-weight: bold; fill: #000; }
+      .subtitle    { font-size: 2.2px; fill: #333; }
+      .note        { font-size: 1.8px; fill: #555; }
+      .warn        { font-size: 2px; fill: #000; font-weight: bold; }
+
+      /* Linia granicy strefy wydruku */
+      .page-edge   { fill: none; stroke: #ccc; stroke-width: 0.2; stroke-dasharray: 1,1; }
+    </style>
+
+    <marker id="d-s" markerWidth="3" markerHeight="3" refX="0.5" refY="1.5" orient="auto">
+      <path d="M3,0 L0,1.5 L3,3" fill="#555"/>
+    </marker>
+    <marker id="d-e" markerWidth="3" markerHeight="3" refX="2.5" refY="1.5" orient="auto">
+      <path d="M0,0 L3,1.5 L0,3" fill="#555"/>
+    </marker>
+    <marker id="d-ss" markerWidth="2.5" markerHeight="2.5" refX="0.4" refY="1.25" orient="auto">
+      <path d="M2.5,0 L0,1.25 L2.5,2.5" fill="#555"/>
+    </marker>
+    <marker id="d-es" markerWidth="2.5" markerHeight="2.5" refX="2.1" refY="1.25" orient="auto">
+      <path d="M0,0 L2.5,1.25 L0,2.5" fill="#555"/>
+    </marker>
+  </defs>
+
+  <!-- Tło białe -->
+  <rect width="297" height="210" fill="#fff"/>
+
+  <!-- Ramka strony (marker orientacji) -->
+  <rect x="1" y="1" width="295" height="208" class="page-edge"/>
+
+  <!-- ===== NAGŁÓWEK ===== -->
+  <text x="5" y="7" class="title">TRASSAR V3 — SZABLON WIERCENIA PANELU</text>
+  <text x="5" y="11" class="subtitle">Wydrukuj w skali 1:1 na A4 poziomo • Zweryfikuj wymiar referencyjny przed wierceniem</text>
+
+  <!-- Blok tytułowy prawy -->
+  <rect x="230" y="1.5" width="65" height="12" fill="none" stroke="#aaa" stroke-width="0.2"/>
+  <line x1="230" y1="6"  x2="295" y2="6"  stroke="#aaa" stroke-width="0.15"/>
+  <line x1="230" y1="9"  x2="295" y2="9"  stroke="#aaa" stroke-width="0.15"/>
+  <line x1="262" y1="6"  x2="262" y2="13.5" stroke="#aaa" stroke-width="0.15"/>
+  <text x="246" y="4.5"  text-anchor="middle" style="font-size:1.8px;fill:#333;">Nr rysunku</text>
+  <text x="246" y="5.5"  text-anchor="middle" style="font-size:1.8px;fill:#000;font-weight:bold;">TRS-V3-DRL-001</text>
+  <text x="278" y="4.5"  text-anchor="middle" style="font-size:1.8px;fill:#333;">Skala</text>
+  <text x="278" y="5.5"  text-anchor="middle" style="font-size:2px;fill:#000;font-weight:bold;">1 : 1</text>
+  <text x="246" y="7.8"  text-anchor="middle" style="font-size:1.6px;fill:#666;">Panel</text>
+  <text x="246" y="9.3"  text-anchor="middle" style="font-size:1.6px;fill:#333;">200 × 170 mm</text>
+  <text x="278" y="7.8"  text-anchor="middle" style="font-size:1.6px;fill:#666;">Format</text>
+  <text x="278" y="9.3"  text-anchor="middle" style="font-size:1.6px;fill:#333;">A4 poziomy</text>
+  <text x="262" y="11.2" text-anchor="middle" style="font-size:1.5px;fill:#666;">2026-07-10 • Al 2mm</text>
+  <text x="262" y="12.8" text-anchor="middle" style="font-size:1.5px;fill:#666;">Tolerancja: ±0.3mm</text>
+
+  <!-- Separator -->
+  <line x1="5" y1="14" x2="292" y2="14" stroke="#999" stroke-width="0.2"/>
+
+  <!-- WYMIAR KONTROLNY (do weryfikacji skali wydruku) -->
+  <rect x="5" y="15.5" width="50" height="6" fill="none" stroke="#000" stroke-width="0.3"/>
+  <line x1="5" y1="18.5" x2="55" y2="18.5" stroke="#000" stroke-width="0.3"/>
+  <text x="30" y="17.5" text-anchor="middle" class="warn" style="font-size:1.8px;">SPRAWDŹ SKALĘ</text>
+  <text x="30" y="20.5" text-anchor="middle" class="note" style="font-size:1.5px;">Ten prostokąt = 50.0 × 6.0 mm</text>
+
+  <!-- ===== PANEL 200×170mm — origin (48.5, 24) ===== -->
+  <g transform="translate(48.5, 24)">
+
+    <!-- Obrys panelu główny -->
+    <rect x="0" y="0" width="200" height="170" class="panel-out"/>
+
+    <!-- =============================================
+         OTWORY MONTAŻOWE NAROŻNE — 4× M4 (Ø4.2mm)
+         ============================================= -->
+
+    <!-- (6, 6) -->
+    <circle cx="6" cy="6" r="2.1" class="hole-circle"/>
+    <line x1="3" y1="6" x2="9" y2="6" class="cross"/>
+    <line x1="6" y1="3" x2="6" y2="9" class="cross"/>
+    <text x="6" y="12.5" class="hole-lbl">M4</text>
+    <text x="6" y="14.5" class="hole-sub">Ø4.2</text>
+
+    <!-- (194, 6) -->
+    <circle cx="194" cy="6" r="2.1" class="hole-circle"/>
+    <line x1="191" y1="6" x2="197" y2="6" class="cross"/>
+    <line x1="194" y1="3" x2="194" y2="9" class="cross"/>
+    <text x="194" y="12.5" class="hole-lbl">M4</text>
+    <text x="194" y="14.5" class="hole-sub">Ø4.2</text>
+
+    <!-- (6, 164) -->
+    <circle cx="6" cy="164" r="2.1" class="hole-circle"/>
+    <line x1="3" y1="164" x2="9" y2="164" class="cross"/>
+    <line x1="6" y1="161" x2="6" y2="167" class="cross"/>
+    <text x="6" y="158" class="hole-lbl">M4</text>
+    <text x="6" y="156" class="hole-sub">Ø4.2</text>
+
+    <!-- (194, 164) -->
+    <circle cx="194" cy="164" r="2.1" class="hole-circle"/>
+    <line x1="191" y1="164" x2="197" y2="164" class="cross"/>
+    <line x1="194" y1="161" x2="194" y2="167" class="cross"/>
+    <text x="194" y="158" class="hole-lbl">M4</text>
+    <text x="194" y="156" class="hole-sub">Ø4.2</text>
+
+    <!-- =============================================
+         WYŚWIETLACZ — wycięcie prostokątne 60×46mm
+         lewy-górny narożnik (62, 8)
+         ============================================= -->
+    <rect x="62" y="8" width="60" height="46" class="cut-rect"/>
+
+    <!-- Narożniki wycięcia — znaki nacinania -->
+    <line x1="59" y1="8" x2="65" y2="8"   class="cross-lg"/>
+    <line x1="62" y1="5" x2="62" y2="11"  class="cross-lg"/>
+    <line x1="119" y1="8" x2="125" y2="8"  class="cross-lg"/>
+    <line x1="122" y1="5" x2="122" y2="11" class="cross-lg"/>
+    <line x1="59" y1="54" x2="65" y2="54"  class="cross-lg"/>
+    <line x1="62" y1="51" x2="62" y2="57"  class="cross-lg"/>
+    <line x1="119" y1="54" x2="125" y2="54" class="cross-lg"/>
+    <line x1="122" y1="51" x2="122" y2="57" class="cross-lg"/>
+
+    <!-- Środek wycięcia + etykieta -->
+    <line x1="88" y1="31" x2="96" y2="31" class="cross"/>
+    <line x1="92" y1="27" x2="92" y2="35" class="cross"/>
+    <text x="92" y="37"   class="hole-lbl" style="font-size:1.8px;">WYŚWIETLACZ</text>
+    <text x="92" y="39.5" class="hole-sub">ILI9341 • wycięcie 60×46 mm</text>
+    <text x="92" y="41.5" class="hole-sub">R narożnikowe = 1 mm</text>
+
+    <!-- Wymiary wycięcia wyświetlacza -->
+    <line x1="62" y1="5.5" x2="122" y2="5.5" class="dim-l" marker-start="url(#d-ss)" marker-end="url(#d-es)"/>
+    <text x="92" y="4.8" class="dim-ts">60.0</text>
+
+    <line x1="124.5" y1="8" x2="124.5" y2="54" class="dim-l" marker-start="url(#d-ss)" marker-end="url(#d-es)"/>
+    <text x="128" y="31" class="dim-ts" transform="rotate(90,128,31)">46.0</text>
+
+    <!-- Pozycja wycięcia od lewej -->
+    <line x1="0" y1="5.5" x2="62" y2="5.5" class="dim-l" marker-start="url(#d-ss)" marker-end="url(#d-es)"/>
+    <line x1="0" y1="7"   x2="0"  y2="4.8" class="dim-ext"/>
+    <text x="31" y="4.8" class="dim-ts">62.0</text>
+
+    <!-- Otwory montażowe TFT — 4× M3 (Ø3.2mm) -->
+    <circle cx="59"  cy="58" r="1.6" class="hole-circle"/>
+    <line x1="56" y1="58" x2="62" y2="58" class="cross"/>
+    <line x1="59" y1="55" x2="59" y2="61" class="cross"/>
+
+    <circle cx="125" cy="58" r="1.6" class="hole-circle"/>
+    <line x1="122" y1="58" x2="128" y2="58" class="cross"/>
+    <line x1="125" y1="55" x2="125" y2="61" class="cross"/>
+
+    <circle cx="59"  cy="65" r="1.6" class="hole-circle"/>
+    <line x1="56" y1="65" x2="62" y2="65" class="cross"/>
+    <line x1="59" y1="62" x2="59" y2="68" class="cross"/>
+
+    <circle cx="125" cy="65" r="1.6" class="hole-circle"/>
+    <line x1="122" y1="65" x2="128" y2="65" class="cross"/>
+    <line x1="125" y1="62" x2="125" y2="68" class="cross"/>
+
+    <text x="92" y="62" class="hole-sub" text-anchor="middle">montaż TFT 4× M3 Ø3.2</text>
+
+    <!-- =============================================
+         JOYSTICK — Ø26mm + montaż 4× M3 (Ø3.2mm)
+         centrum (28, 40)
+         ============================================= -->
+    <circle cx="28" cy="40" r="13" class="hole-circle"/>
+
+    <!-- Krzyżyk joysticka — duży -->
+    <line x1="18" y1="40" x2="38" y2="40" class="cross-lg"/>
+    <line x1="28" y1="30" x2="28" y2="50" class="cross-lg"/>
+
+    <text x="28" y="55"   class="hole-lbl">JOYSTICK</text>
+    <text x="28" y="57.5" class="hole-sub">Ø26.0 mm</text>
+    <text x="28" y="59.5" class="hole-sub">centrum (28, 40)</text>
+
+    <!-- Wymiar średnicy joysticka -->
+    <line x1="15" y1="40" x2="41" y2="40" class="dim-l" marker-start="url(#d-ss)" marker-end="url(#d-es)"/>
+    <text x="28" y="39" class="dim-ts">26.0</text>
+
+    <!-- Otwory montażowe joysticka 4× M3 -->
+    <circle cx="15" cy="27" r="1.6" class="hole-circle"/>
+    <line x1="12" y1="27" x2="18" y2="27" class="cross"/>
+    <line x1="15" y1="24" x2="15" y2="30" class="cross"/>
+
+    <circle cx="41" cy="27" r="1.6" class="hole-circle"/>
+    <line x1="38" y1="27" x2="44" y2="27" class="cross"/>
+    <line x1="41" y1="24" x2="41" y2="30" class="cross"/>
+
+    <circle cx="15" cy="53" r="1.6" class="hole-circle"/>
+    <line x1="12" y1="53" x2="18" y2="53" class="cross"/>
+    <line x1="15" y1="50" x2="15" y2="56" class="cross"/>
+
+    <circle cx="41" cy="53" r="1.6" class="hole-circle"/>
+    <line x1="38" y1="53" x2="44" y2="53" class="cross"/>
+    <line x1="41" y1="50" x2="41" y2="56" class="cross"/>
+
+    <text x="28" y="61.5" class="hole-sub">montaż 4× M3 Ø3.2</text>
+
+    <!-- =============================================
+         LED ZASILANIA — Ø5mm
+         centrum (148, 10)
+         ============================================= -->
+    <circle cx="148" cy="10" r="2.5" class="hole-circle"/>
+    <line x1="143" y1="10" x2="153" y2="10" class="cross-lg"/>
+    <line x1="148" y1="5"  x2="148" y2="15" class="cross-lg"/>
+    <text x="148" y="18" class="hole-lbl">LED PWR</text>
+    <text x="148" y="20" class="hole-sub">Ø5.0</text>
+
+    <!-- =============================================
+         BUZZER — 6× Ø2mm
+         wzór sześciokątny w okolicy (10,12)–(14,24)
+         ============================================= -->
+    <circle cx="10" cy="12" r="1" class="hole-circle"/>
+    <line x1="8.5" y1="12" x2="11.5" y2="12" class="cross"/>
+    <line x1="10"  y1="10.5" x2="10" y2="13.5" class="cross"/>
+
+    <circle cx="14" cy="12" r="1" class="hole-circle"/>
+    <line x1="12.5" y1="12" x2="15.5" y2="12" class="cross"/>
+    <line x1="14" y1="10.5" x2="14" y2="13.5" class="cross"/>
+
+    <circle cx="12" cy="16" r="1" class="hole-circle"/>
+    <line x1="10.5" y1="16" x2="13.5" y2="16" class="cross"/>
+    <line x1="12" y1="14.5" x2="12" y2="17.5" class="cross"/>
+
+    <circle cx="10" cy="20" r="1" class="hole-circle"/>
+    <line x1="8.5" y1="20" x2="11.5" y2="20" class="cross"/>
+    <line x1="10" y1="18.5" x2="10" y2="21.5" class="cross"/>
+
+    <circle cx="14" cy="20" r="1" class="hole-circle"/>
+    <line x1="12.5" y1="20" x2="15.5" y2="20" class="cross"/>
+    <line x1="14" y1="18.5" x2="14" y2="21.5" class="cross"/>
+
+    <circle cx="12" cy="24" r="1" class="hole-circle"/>
+    <line x1="10.5" y1="24" x2="13.5" y2="24" class="cross"/>
+    <line x1="12" y1="22.5" x2="12" y2="25.5" class="cross"/>
+
+    <text x="12" y="28" class="hole-lbl">BUZZER</text>
+    <text x="12" y="30" class="hole-sub">6× Ø2.0</text>
+
+    <!-- =============================================
+         PRZYCISK START — Ø20mm
+         centrum (168, 18)
+         ============================================= -->
+    <circle cx="168" cy="18" r="10" class="hole-circle"/>
+    <line x1="154" y1="18" x2="182" y2="18" class="cross-lg"/>
+    <line x1="168" y1="4"  x2="168" y2="32" class="cross-lg"/>
+    <text x="168" y="32.5" class="hole-lbl">START</text>
+    <text x="168" y="35"   class="hole-sub">Ø20.0 mm</text>
+    <text x="168" y="37"   class="hole-sub">(168, 18)</text>
+
+    <!-- Wymiar -->
+    <line x1="158" y1="18" x2="178" y2="18" class="dim-l" marker-start="url(#d-ss)" marker-end="url(#d-es)"/>
+    <text x="168" y="17" class="dim-ts">20.0</text>
+
+    <!-- =============================================
+         PRZYCISK STOP — Ø20mm
+         centrum (168, 43)
+         ============================================= -->
+    <circle cx="168" cy="43" r="10" class="hole-circle"/>
+    <line x1="154" y1="43" x2="182" y2="43" class="cross-lg"/>
+    <line x1="168" y1="29" x2="168" y2="57" class="cross-lg"/>
+    <text x="168" y="57.5" class="hole-lbl">STOP</text>
+    <text x="168" y="60"   class="hole-sub">Ø20.0 mm</text>
+    <text x="168" y="62"   class="hole-sub">(168, 43)</text>
+
+    <line x1="158" y1="43" x2="178" y2="43" class="dim-l" marker-start="url(#d-ss)" marker-end="url(#d-es)"/>
+    <text x="168" y="42" class="dim-ts">20.0</text>
+
+    <!-- =============================================
+         PRZYCISK SELECT — Ø16mm
+         centrum (168, 65)
+         ============================================= -->
+    <circle cx="168" cy="65" r="8" class="hole-circle"/>
+    <line x1="156" y1="65" x2="180" y2="65" class="cross-lg"/>
+    <line x1="168" y1="53" x2="168" y2="77" class="cross-lg"/>
+    <text x="168" y="76.5" class="hole-lbl">SELECT</text>
+    <text x="168" y="79"   class="hole-sub">Ø16.0 mm</text>
+    <text x="168" y="81"   class="hole-sub">(168, 65)</text>
+
+    <line x1="160" y1="65" x2="176" y2="65" class="dim-l" marker-start="url(#d-ss)" marker-end="url(#d-es)"/>
+    <text x="168" y="64" class="dim-ts">16.0</text>
+
+    <!-- Wymiar rozstawu przycisków funkcyjnych (pionowo) -->
+    <line x1="183" y1="18" x2="183" y2="43" class="dim-l" marker-start="url(#d-ss)" marker-end="url(#d-es)"/>
+    <line x1="180" y1="18" x2="184" y2="18" class="dim-ext"/>
+    <line x1="180" y1="43" x2="184" y2="43" class="dim-ext"/>
+    <text x="188" y="31" class="dim-ts" transform="rotate(90,188,31)">25.0</text>
+
+    <line x1="183" y1="43" x2="183" y2="65" class="dim-l" marker-start="url(#d-ss)" marker-end="url(#d-es)"/>
+    <line x1="180" y1="65" x2="184" y2="65" class="dim-ext"/>
+    <text x="188" y="54" class="dim-ts" transform="rotate(90,188,54)">22.0</text>
+
+    <!-- Wymiar od prawej krawędzi do środka przycisków -->
+    <line x1="168" y1="-5" x2="200" y2="-5" class="dim-l" marker-start="url(#d-ss)" marker-end="url(#d-es)"/>
+    <line x1="168" y1="-3" x2="168" y2="-6" class="dim-ext"/>
+    <line x1="200" y1="-3" x2="200" y2="-6" class="dim-ext"/>
+    <text x="184" y="-6.5" class="dim-ts">32.0</text>
+
+    <!-- =============================================
+         LINIA PODZIAŁU STREF (pomocnicza, przerywana)
+         ============================================= -->
+    <line x1="10" y1="83" x2="190" y2="83"
+          stroke="#bbb" stroke-width="0.2" stroke-dasharray="2,1.5"/>
+    <text x="100" y="82" text-anchor="middle"
+          style="font-size:1.5px;fill:#aaa;letter-spacing:0.5px;">
+      ·  ·  ·  STREFA WZORCÓW  ·  ·  ·
+    </text>
+
+    <!-- =============================================
+         PRZYCISKI WZORCÓW — 15× Ø14mm
+         Siatka 5 kolumn × 3 rzędy
+         Col X:  22, 58, 94, 130, 166
+         Row Y: 100, 125, 150
+         ============================================= -->
+
+    <!-- Oznaczenia kolumn nad pierwszym rzędem -->
+    <text x="22"  y="88" class="hole-sub" text-anchor="middle">P-1a</text>
+    <text x="58"  y="88" class="hole-sub" text-anchor="middle">P-1b</text>
+    <text x="94"  y="88" class="hole-sub" text-anchor="middle">P-1c</text>
+    <text x="130" y="88" class="hole-sub" text-anchor="middle">P-1d</text>
+    <text x="166" y="88" class="hole-sub" text-anchor="middle">P-1e</text>
+
+    <!-- Oznaczenia kolumn rzędu 2 -->
+    <text x="22"  y="113" class="hole-sub" text-anchor="middle">P-2a</text>
+    <text x="58"  y="113" class="hole-sub" text-anchor="middle">P-2b</text>
+    <text x="94"  y="113" class="hole-sub" text-anchor="middle">P-3a</text>
+    <text x="130" y="113" class="hole-sub" text-anchor="middle">P-3b</text>
+    <text x="166" y="113" class="hole-sub" text-anchor="middle">P-4</text>
+
+    <!-- Oznaczenia kolumn rzędu 3 -->
+    <text x="22"  y="138" class="hole-sub" text-anchor="middle">P-6</text>
+    <text x="58"  y="138" class="hole-sub" text-anchor="middle">P-7a</text>
+    <text x="94"  y="138" class="hole-sub" text-anchor="middle">P-7b</text>
+    <text x="130" y="138" class="hole-sub" text-anchor="middle">P-7c</text>
+    <text x="166" y="138" class="hole-sub" text-anchor="middle">P-7d</text>
+
+    <!-- MAKRO — generuje okrąg + krzyżyk + etykietę pozycji -->
+    <!-- RZD 1 — y=100 -->
+
+    <circle cx="22"  cy="100" r="7" class="hole-circle"/>
+    <line x1="14"  y1="100" x2="30"  y2="100" class="cross-lg"/>
+    <line x1="22"  y1="92"  x2="22"  y2="108" class="cross-lg"/>
+    <text x="22"  y="110" class="hole-sub" text-anchor="middle">(22,100)</text>
+
+    <circle cx="58"  cy="100" r="7" class="hole-circle"/>
+    <line x1="50"  y1="100" x2="66"  y2="100" class="cross-lg"/>
+    <line x1="58"  y1="92"  x2="58"  y2="108" class="cross-lg"/>
+    <text x="58"  y="110" class="hole-sub" text-anchor="middle">(58,100)</text>
+
+    <circle cx="94"  cy="100" r="7" class="hole-circle"/>
+    <line x1="86"  y1="100" x2="102" y2="100" class="cross-lg"/>
+    <line x1="94"  y1="92"  x2="94"  y2="108" class="cross-lg"/>
+    <text x="94"  y="110" class="hole-sub" text-anchor="middle">(94,100)</text>
+
+    <circle cx="130" cy="100" r="7" class="hole-circle"/>
+    <line x1="122" y1="100" x2="138" y2="100" class="cross-lg"/>
+    <line x1="130" y1="92"  x2="130" y2="108" class="cross-lg"/>
+    <text x="130" y="110" class="hole-sub" text-anchor="middle">(130,100)</text>
+
+    <circle cx="166" cy="100" r="7" class="hole-circle"/>
+    <line x1="158" y1="100" x2="174" y2="100" class="cross-lg"/>
+    <line x1="166" y1="92"  x2="166" y2="108" class="cross-lg"/>
+    <text x="166" y="110" class="hole-sub" text-anchor="middle">(166,100)</text>
+
+    <!-- RZD 2 — y=125 -->
+
+    <circle cx="22"  cy="125" r="7" class="hole-circle"/>
+    <line x1="14"  y1="125" x2="30"  y2="125" class="cross-lg"/>
+    <line x1="22"  y1="117" x2="22"  y2="133" class="cross-lg"/>
+    <text x="22"  y="135" class="hole-sub" text-anchor="middle">(22,125)</text>
+
+    <circle cx="58"  cy="125" r="7" class="hole-circle"/>
+    <line x1="50"  y1="125" x2="66"  y2="125" class="cross-lg"/>
+    <line x1="58"  y1="117" x2="58"  y2="133" class="cross-lg"/>
+    <text x="58"  y="135" class="hole-sub" text-anchor="middle">(58,125)</text>
+
+    <circle cx="94"  cy="125" r="7" class="hole-circle"/>
+    <line x1="86"  y1="125" x2="102" y2="125" class="cross-lg"/>
+    <line x1="94"  y1="117" x2="94"  y2="133" class="cross-lg"/>
+    <text x="94"  y="135" class="hole-sub" text-anchor="middle">(94,125)</text>
+
+    <circle cx="130" cy="125" r="7" class="hole-circle"/>
+    <line x1="122" y1="125" x2="138" y2="125" class="cross-lg"/>
+    <line x1="130" y1="117" x2="130" y2="133" class="cross-lg"/>
+    <text x="130" y="135" class="hole-sub" text-anchor="middle">(130,125)</text>
+
+    <circle cx="166" cy="125" r="7" class="hole-circle"/>
+    <line x1="158" y1="125" x2="174" y2="125" class="cross-lg"/>
+    <line x1="166" y1="117" x2="166" y2="133" class="cross-lg"/>
+    <text x="166" y="135" class="hole-sub" text-anchor="middle">(166,125)</text>
+
+    <!-- RZD 3 — y=150 -->
+
+    <circle cx="22"  cy="150" r="7" class="hole-circle"/>
+    <line x1="14"  y1="150" x2="30"  y2="150" class="cross-lg"/>
+    <line x1="22"  y1="142" x2="22"  y2="158" class="cross-lg"/>
+    <text x="22"  y="160" class="hole-sub" text-anchor="middle">(22,150)</text>
+
+    <circle cx="58"  cy="150" r="7" class="hole-circle"/>
+    <line x1="50"  y1="150" x2="66"  y2="150" class="cross-lg"/>
+    <line x1="58"  y1="142" x2="58"  y2="158" class="cross-lg"/>
+    <text x="58"  y="160" class="hole-sub" text-anchor="middle">(58,150)</text>
+
+    <circle cx="94"  cy="150" r="7" class="hole-circle"/>
+    <line x1="86"  y1="150" x2="102" y2="150" class="cross-lg"/>
+    <line x1="94"  y1="142" x2="94"  y2="158" class="cross-lg"/>
+    <text x="94"  y="160" class="hole-sub" text-anchor="middle">(94,150)</text>
+
+    <circle cx="130" cy="150" r="7" class="hole-circle"/>
+    <line x1="122" y1="150" x2="138" y2="150" class="cross-lg"/>
+    <line x1="130" y1="142" x2="130" y2="158" class="cross-lg"/>
+    <text x="130" y="160" class="hole-sub" text-anchor="middle">(130,150)</text>
+
+    <circle cx="166" cy="150" r="7" class="hole-circle"/>
+    <line x1="158" y1="150" x2="174" y2="150" class="cross-lg"/>
+    <line x1="166" y1="142" x2="166" y2="158" class="cross-lg"/>
+    <text x="166" y="160" class="hole-sub" text-anchor="middle">(166,150)</text>
+
+    <!-- Etykieta rozmiaru wszystkich otworów wzorców -->
+    <text x="100" y="165" text-anchor="middle" class="hole-sub">Wszystkie przyciski wzorców: Ø14.0 mm</text>
+
+    <!-- =============================================
+         LINIE WYMIAROWE SIATKI WZORCÓW
+         ============================================= -->
+
+    <!-- Rozstaw poziomy: 36mm (col 1→2) -->
+    <line x1="22"  y1="170" x2="58"  y2="170" class="dim-l" marker-start="url(#d-ss)" marker-end="url(#d-es)"/>
+    <line x1="22"  y1="163" x2="22"  y2="171" class="dim-ext"/>
+    <line x1="58"  y1="163" x2="58"  y2="171" class="dim-ext"/>
+    <text x="40" y="173" class="dim-ts">36.0</text>
+
+    <line x1="58"  y1="170" x2="94"  y2="170" class="dim-l" marker-start="url(#d-ss)" marker-end="url(#d-es)"/>
+    <line x1="94"  y1="163" x2="94"  y2="171" class="dim-ext"/>
+    <text x="76" y="173" class="dim-ts">36.0</text>
+
+    <line x1="94"  y1="170" x2="130" y2="170" class="dim-l" marker-start="url(#d-ss)" marker-end="url(#d-es)"/>
+    <line x1="130" y1="163" x2="130" y2="171" class="dim-ext"/>
+    <text x="112" y="173" class="dim-ts">36.0</text>
+
+    <line x1="130" y1="170" x2="166" y2="170" class="dim-l" marker-start="url(#d-ss)" marker-end="url(#d-es)"/>
+    <line x1="166" y1="163" x2="166" y2="171" class="dim-ext"/>
+    <text x="148" y="173" class="dim-ts">36.0</text>
+
+    <!-- Rozstaw pionowy: 25mm (rząd 1→2→3) -->
+    <line x1="-8" y1="100" x2="-8" y2="125" class="dim-l" marker-start="url(#d-ss)" marker-end="url(#d-es)"/>
+    <line x1="-4" y1="100" x2="-9" y2="100" class="dim-ext"/>
+    <line x1="-4" y1="125" x2="-9" y2="125" class="dim-ext"/>
+    <text x="-14" y="113" class="dim-ts" transform="rotate(-90,-14,113)">25.0</text>
+
+    <line x1="-8" y1="125" x2="-8" y2="150" class="dim-l" marker-start="url(#d-ss)" marker-end="url(#d-es)"/>
+    <line x1="-4" y1="150" x2="-9" y2="150" class="dim-ext"/>
+    <text x="-14" y="138" class="dim-ts" transform="rotate(-90,-14,138)">25.0</text>
+
+    <!-- Pierwsza kolumna od lewej krawędzi -->
+    <line x1="0" y1="170" x2="22" y2="170" class="dim-l" marker-start="url(#d-ss)" marker-end="url(#d-es)"/>
+    <line x1="0"  y1="163" x2="0"  y2="171" class="dim-ext"/>
+    <text x="11" y="173" class="dim-ts">22.0</text>
+
+    <!-- Wymiar ogólny panelu — szerokość -->
+    <line x1="0"   y1="-8" x2="200" y2="-8" class="dim-l" marker-start="url(#d-s)" marker-end="url(#d-e)"/>
+    <line x1="0"   y1="-2" x2="0"   y2="-9" class="dim-ext"/>
+    <line x1="200" y1="-2" x2="200" y2="-9" class="dim-ext"/>
+    <text x="100" y="-9.5" class="dim-t" style="font-size:2.2px;">200.0 mm</text>
+
+    <!-- Wymiar ogólny panelu — wysokość -->
+    <line x1="204" y1="0"   x2="204" y2="170" class="dim-l" marker-start="url(#d-s)" marker-end="url(#d-e)"/>
+    <line x1="202" y1="0"   x2="205" y2="0"   class="dim-ext"/>
+    <line x1="202" y1="170" x2="205" y2="170" class="dim-ext"/>
+    <text x="209" y="85" class="dim-t" transform="rotate(90,209,85)" style="font-size:2.2px;">170.0 mm</text>
+
+  </g>
+  <!-- koniec grupy panelu -->
+
+  <!-- ===== NOTATKI DOLNE ===== -->
+  <g transform="translate(5, 202)">
+    <text class="warn">⚠</text>
+    <text x="6" y="0" class="warn" style="font-size:2px;">PRZED WIERCENIEM:</text>
+    <text x="38" y="0" class="note">1) Wydrukuj w skali 1:1 (wyłącz "Dopasuj do strony")  •  2) Sprawdź wymiar kontrolny 50×6mm na górze arkusza  •  3) Przyklej szablon taśmą do blachy  •  4) Nabij centrum każdego otworu punktakiem</text>
+    <text x="5"  y="3.5" class="note">5) Wyświetlacz: wytnij prostokąt 60×46mm piłą/frezem (narożniki wierć Ø4mm, łącz cięciem prostym)  •  6) Joystick Ø26mm: wiertło stopniowe lub otwornica  •  7) Przyciski wzorców Ø14mm: wiertło + pilnik lub otwornica</text>
+  </g>
+
+</svg>
